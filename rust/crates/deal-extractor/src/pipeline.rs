@@ -232,9 +232,20 @@ fn apply_deterministic_fields(
         }
     }
 
+    // If the focus facility is part of a facility group, sum all grouped
+    // facilities' commitments — e.g. Edenbridge's two Shojin mezzanine
+    // tranches share facility_group_id and should report as one loan_amount.
     let focus_commitment = focus
-        .and_then(|f| f.get("commitment"))
-        .and_then(amount_of);
+        .and_then(|f| f.get("facility_group_id"))
+        .and_then(|gid| gid.as_str())
+        .and_then(|gid| {
+            let sum: f64 = facs.iter()
+                .filter(|f| f.get("facility_group_id").and_then(|v| v.as_str()) == Some(gid))
+                .filter_map(|f| f.get("commitment").and_then(amount_of))
+                .sum();
+            if sum > 0.0 { Some(sum) } else { None }
+        })
+        .or_else(|| focus.and_then(|f| f.get("commitment")).and_then(amount_of));
     let focus_currency = focus
         .and_then(|f| f.get("commitment").and_then(|c| c.get("currency")).and_then(|v| v.as_str()))
         .unwrap_or("gbp");
