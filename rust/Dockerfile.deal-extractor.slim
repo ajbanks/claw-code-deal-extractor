@@ -1,0 +1,31 @@
+# deal-extractor-service — thin runtime image.
+#
+# Packages a binary built on the HOST, instead of compiling inside Docker.
+# The host build caches in rust/target/ persist across iterations, which the
+# in-image build cannot do (COPY busts the layer on every source edit and
+# forces a full 213-crate rebuild).
+#
+#   cd rust
+#   CARGO_PROFILE_RELEASE_OPT_LEVEL=1 \
+#   CARGO_PROFILE_RELEASE_DEBUG=false \
+#   CARGO_PROFILE_RELEASE_STRIP=true \
+#   cargo build --release -p deal-extractor-service -j 2
+#   docker build -f Dockerfile.deal-extractor.slim -t deal-extractor .
+#
+# Build context is a staging dir containing just the binary (target/ is
+# excluded by .dockerignore, so deploy.sh copies it to a temp dir).
+# glibc: built on Ubuntu 22.04 (2.35), runs on bookworm (2.36) — forward-compat.
+# If it ever fails to start, switch the base to ubuntu:22.04 for an exact match.
+
+FROM debian:bookworm-slim
+# pdftotext fallback + Python3/PyMuPDF for image-heavy PDFs.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       poppler-utils ca-certificates python3-minimal python3-pip \
+    && pip3 install --no-cache-dir --break-system-packages PyMuPDF \
+    && rm -rf /var/lib/apt/lists/*
+COPY deal-extractor-service /usr/local/bin/
+ENV DEAL_EXTRACTOR_HOST=0.0.0.0 \
+    DEAL_EXTRACTOR_PORT=8090
+EXPOSE 8090
+ENTRYPOINT ["deal-extractor-service"]

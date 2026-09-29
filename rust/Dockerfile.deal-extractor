@@ -1,0 +1,26 @@
+# deal-extractor-service — HTTP API for property-deal extraction.
+#
+# Build context is the claw-code repo root; this file lives in rust/.
+#   docker build -f rust/Dockerfile.deal-extractor -t deal-extractor .
+#
+# No Python needed: the TS backend sends extracted PDF page text and Excel
+# is parsed with calamine (pure Rust). The pdf_base64 fallback needs no
+# external tools either — it surfaces "[no extractable text]" if pdftotext
+# is absent, which is honest rather than silent.
+
+FROM rust:1-bookworm AS builder
+WORKDIR /build
+COPY rust ./rust
+WORKDIR /build/rust
+RUN cargo build --release -p deal-extractor-service
+
+FROM debian:bookworm-slim
+# pdftotext is the only optional external tool (pdf_base64 fallback).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends poppler-utils ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /build/rust/target/release/deal-extractor-service /usr/local/bin/
+ENV DEAL_EXTRACTOR_HOST=0.0.0.0 \
+    DEAL_EXTRACTOR_PORT=8090
+EXPOSE 8090
+ENTRYPOINT ["deal-extractor-service"]

@@ -1,0 +1,29 @@
+[package]
+name = "deal-extractor-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "HTTP extraction service: whole-corpus LLM extraction with a schema-driven validate-repair loop."
+
+[dependencies]
+axum = "0.8"
+base64 = "0.22"
+clap = { version = "4", features = ["derive", "env"] }
+dotenvy = "0.15"
+deal-extractor = { path = "../deal-extractor" }
+api = { path = "../api" }
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tower-http = { version = "0.6", features = ["timeout", "limit"] }
+
+[dev-dependencies]
+tower = "0.5"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "deal-extractor-service"
+path = "src/main.rs"
