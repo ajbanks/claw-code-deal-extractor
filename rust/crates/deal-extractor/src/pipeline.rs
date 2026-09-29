@@ -285,11 +285,19 @@ fn apply_deterministic_fields(
         }
 
         if instrument == "debt_facility" {
-            gross_debt_total += commitment;
+            // Only recognised debt roles count toward gross/senior/mezzanine.
+            // Instruments like "other" (e.g. the Oakley co-investment bond) are
+            // not debt of the underlying facility and must be excluded.
             match role {
-                "senior_debt" | "whole_loan" => senior_total += commitment,
-                "mezzanine_debt" | "junior_debt" => mezz_total += commitment,
-                _ => senior_total += commitment,
+                "senior_debt" | "whole_loan" => {
+                    gross_debt_total += commitment;
+                    senior_total += commitment;
+                }
+                "mezzanine_debt" | "junior_debt" => {
+                    gross_debt_total += commitment;
+                    mezz_total += commitment;
+                }
+                _ => {}
             }
         } else if instrument == "ordinary_equity" || instrument == "preferred_equity" {
             equity_total += commitment;
