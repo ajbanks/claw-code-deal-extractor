@@ -245,6 +245,16 @@ fn apply_deterministic_fields(
         }
     }
 
+    // Whether the focus facility is project-scope. When it is, the whole
+    // project is the deal, so project-scope facilities are included.
+    let focus_is_project = focus
+        .and_then(|f| f.get("scope_level"))
+        .and_then(|v| v.as_str())
+        == Some("project");
+    let has_deal_scope_facility = facs.iter().any(|f| {
+        f.get("scope_level").and_then(|v| v.as_str()) == Some("deal")
+    });
+
     let mut senior_total = 0.0;
     let mut mezz_total = 0.0;
     let mut equity_total = 0.0;
@@ -257,8 +267,15 @@ fn apply_deterministic_fields(
         let disposition = f.get("disposition").and_then(|v| v.as_str()).unwrap_or("");
         let scope = f.get("scope_level").and_then(|v| v.as_str());
 
-        if disposition == "proposed" || scope == Some("project") { continue; }
+        if disposition == "proposed" { continue; }
         if disposition == "repaid" { continue; }
+        // Exclude project-scope facilities only when the deal itself is a
+        // tranche within a project (i.e. there are deal-scope facilities and
+        // the focus is not project-scope). When the deal is the project —
+        // like Edenbridge — project-scope facilities are the deal.
+        if scope == Some("project") && has_deal_scope_facility && !focus_is_project {
+            continue;
+        }
 
         let commitment = f.get("commitment").and_then(amount_of).unwrap_or(0.0);
         if commitment < 100_000.0 { continue; }
@@ -297,7 +314,11 @@ fn apply_deterministic_fields(
     let market_value = valuations.as_array()
         .and_then(|vs| vs.iter()
             .find(|v| v.get("value_type").and_then(|t| t.as_str()) == Some("market_value"))
-            .and_then(|v| v.get("amount").and_then(amount_of)));
+            .and_then(|v| v.get("amount").and_then(amount_of)))
+        .or_else(|| detail_money(details, "market_value"))
+        .or_else(|| detail_money(details, "day_1_value"))
+        .or_else(|| detail_money(details, "stabilised_value"))
+        .or_else(|| detail_money(details, "purchase_price"));
 
     let gdv = valuations.as_array()
         .and_then(|vs| vs.iter()
