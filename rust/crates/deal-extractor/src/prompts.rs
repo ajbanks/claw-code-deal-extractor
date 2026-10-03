@@ -217,7 +217,15 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - gross_internal_area: { value: <number>, unit: "sqft" } — GIA in sqft
 - net_internal_area: { value: <number>, unit: "sqft" } — NIA in sqft
 - residential_units: array of { property_type, bedrooms, quantity, floor_area: { value, unit } }
-- commercial_units: array of { name, use_class, unit_area: { value, unit } }
+- commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
+- tenants: flat array of every distinct tenant name
+- key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
+- passing_rent_per_annum, passing_rent_per_area_unit, net_initial_yield, equivalent_yield, reversionary_yield, stabilised_yield, estimated_rental_value — stated asset-level income and yield figures
+- wault_to_break, wault_to_expiry — weighted-average unexpired lease term, stated or schedule-derivable
+- vacancy_rate, vacant_area, vacant_possession — stated vacancy metrics
+- lease_length_remaining, tenure_length, rent_review_mechanism, rent_review_frequency, rent_review_next_due, tenant_credit_rating — asset-level lease/tenure facts
+- net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
+- year_built, last_refurbished
 - debt_structure: "whole_loan" | "senior_mezzanine" | "senior_only" | null
 - interest_rate, loan_term, fees, guarantees, covenants
 - use_of_funds, source_of_funds, exit_plan
