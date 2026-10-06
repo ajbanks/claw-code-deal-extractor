@@ -144,7 +144,7 @@ async fn repair_round(
             frequency_penalty: None,
             presence_penalty: None,
             stop: None,
-            reasoning_effort: None,
+            reasoning_effort: Some("none".to_string()),
             extra_body,
         };
 
