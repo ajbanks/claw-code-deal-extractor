@@ -95,8 +95,16 @@ impl Corpus {
             let mut start = 0;
             while let Some(pos) = hay[start..].find(&needle) {
                 let abs = start + pos;
-                let lo = abs.saturating_sub(160);
-                let hi = (abs + needle.len() + 160).min(p.text.len());
+                // Snap the context window to UTF-8 char boundaries — byte
+                // offsets can land inside multi-byte chars (e.g. '£').
+                let mut lo = abs.saturating_sub(160);
+                while lo > 0 && !p.text.is_char_boundary(lo) {
+                    lo -= 1;
+                }
+                let mut hi = (abs + needle.len() + 160).min(p.text.len());
+                while hi < p.text.len() && !p.text.is_char_boundary(hi) {
+                    hi += 1;
+                }
                 hits.push(SearchHit {
                     doc_name: p.doc_name.clone(),
                     page_label: p.page_label.clone(),
