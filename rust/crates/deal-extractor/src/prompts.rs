@@ -233,9 +233,9 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - year_built, last_refurbished
 - debt_structure: "whole_loan" | "senior_mezzanine" | "senior_only" | null
 - interest_rate, loan_term, fees, guarantees, covenants
-- use_of_funds, source_of_funds, exit_plan
+- use_of_funds, source_of_funds, exit_plan — the ASSET-LEVEL exit: how the investment ends (unit sales / disposal of the completed scheme / refinance into term debt). When the documents describe both a facility-repayment step (e.g. "bridge repaid by the development facility's first advance") and an asset-level exit (e.g. "sale of completed units"), report the asset-level exit — the facility step is a capital event, not the exit plan.
 - borrower_details: { name, type, track_record, email, phone }
-- sponsor_principals: [{ name, role, company }]
+- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role.
 - planning_status, epc_rating, tenure
 - construction_timelines: { start_date, completion_date, duration_months }
 - insurance_requirements, capex_plan

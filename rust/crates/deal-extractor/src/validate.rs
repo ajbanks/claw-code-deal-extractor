@@ -428,6 +428,9 @@ fn enums_and_formats(cd: &Value, out: &mut Vec<Issue>) {
                 if amt > 0.0 && amt < 100_000.0 {
                     out.push(Issue::error("amount_millions_shorthand", format!("{path}.commitment.amount"),
                         format!("commitment amount {amt} is implausibly small for a facility — it looks like millions shorthand. Restate it as an exact decimal string in absolute units (e.g. \"25750000\", not 25.75).")));
+                } else if amt > 2_000_000_000.0 {
+                    out.push(Issue::error("amount_pence_scaled", format!("{path}.commitment.amount"),
+                        format!("commitment amount {amt} is implausibly large for a facility — it looks like a pence-scaled figure (the decimal point was dropped). Restate it in absolute currency units (e.g. \"73393202.13\", not \"7339320213\").")));
                 }
             }
         }

@@ -237,7 +237,11 @@ pub async fn repair_loop(
         rounds_used += 1;
         eprintln!("[repair] round {rounds_used} — {best_errors} errors, calling LLM...");
         match repair_round(ex, corpus, &candidate, &issues).await {
-            Ok(next) => {
+            Ok(mut next) => {
+                let restored = restore_dropped_structure(&candidate, &mut next);
+                if !restored.is_empty() {
+                    eprintln!("[repair] round {rounds_used} dropped data — restored: {}", restored.join(", "));
+                }
                 let next_issues = validate::validate(&next);
                 let next_errors = validate::error_count(&next_issues);
                 eprintln!("[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})");
@@ -256,4 +260,80 @@ pub async fn repair_loop(
     }
 
     (candidate, issues, rounds_used)
+}
+
+/// Canonical arrays the repair model may edit but must never shrink: a
+/// repair round "fixes" validation errors by deleting the offending entries
+/// far too readily (observed: all 6 facilities removed in one round).
+const PRESERVED_ARRAYS: &[&str] = &["facilities", "valuations", "phases", "capital_events", "capital_snapshots"];
+
+/// Restore canonical arrays the repair shrank, a dropped focus id, and
+/// details keys that vanished. Returns the restored paths.
+fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<String> {
+    let mut restored = Vec::new();
+    let len = |v: Option<&Value>| v.and_then(Value::as_array).map_or(0, Vec::len);
+
+    if let (Some(p_cd), Some(n_cd)) = (prev.get("canonical_deal"), next.get_mut("canonical_deal")) {
+        for key in PRESERVED_ARRAYS {
+            let prev_len = len(p_cd.get(*key));
+            if prev_len > 0 && len(n_cd.get(*key)) < prev_len {
+                n_cd[*key] = p_cd[*key].clone();
+                restored.push(format!("canonical_deal.{key}"));
+            }
+        }
+        let had_focus = p_cd.get("focus_facility_id").is_some_and(|v| !v.is_null());
+        let lost_focus = n_cd.get("focus_facility_id").map_or(true, Value::is_null);
+        if had_focus && lost_focus {
+            n_cd["focus_facility_id"] = p_cd["focus_facility_id"].clone();
+            if let Some(s) = p_cd.get("focus_resolution_status") {
+                n_cd["focus_resolution_status"] = s.clone();
+            }
+            restored.push("canonical_deal.focus_facility_id".into());
+        }
+    }
+
+    if let (Some(p_d), Some(n_d)) = (
+        prev.get("details").and_then(Value::as_object),
+        next.get_mut("details").and_then(Value::as_object_mut),
+    ) {
+        for (k, v) in p_d {
+            if !n_d.contains_key(k) {
+                n_d.insert(k.clone(), v.clone());
+                restored.push(format!("details.{k}"));
+            }
+        }
+    }
+    restored
+}
+
+#[cfg(test)]
+mod restore_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn restores_deleted_facilities_and_focus() {
+        let prev = json!({
+            "canonical_deal": {"facilities": [{"id": "a"}, {"id": "b"}], "focus_facility_id": "a", "phases": []},
+            "details": {"loan_amount": {"value": 1}}
+        });
+        let mut next = json!({
+            "canonical_deal": {"facilities": [], "focus_facility_id": null, "phases": [{"id": "p"}]},
+            "details": {}
+        });
+        let r = restore_dropped_structure(&prev, &mut next);
+        assert_eq!(next["canonical_deal"]["facilities"].as_array().unwrap().len(), 2);
+        assert_eq!(next["canonical_deal"]["focus_facility_id"], "a");
+        assert_eq!(next["canonical_deal"]["phases"].as_array().unwrap().len(), 1);
+        assert!(next["details"].get("loan_amount").is_some());
+        assert_eq!(r.len(), 3);
+    }
+
+    #[test]
+    fn keeps_edits_that_do_not_shrink() {
+        let prev = json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "1"}]}, "details": {}});
+        let mut next = json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "2"}]}, "details": {"x": 1}});
+        assert!(restore_dropped_structure(&prev, &mut next).is_empty());
+        assert_eq!(next["canonical_deal"]["facilities"][0]["amount"], "2");
+    }
 }
