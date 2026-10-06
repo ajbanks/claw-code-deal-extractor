@@ -16,7 +16,10 @@ use crate::extract::{self, Extractor};
 use crate::prompts;
 use crate::validate::{self, Issue, Severity};
 
-const MAX_TOOL_TURNS: usize = 8;
+// 8 turns was too few for a large repair issue list — the round aborted
+// mid-fix and discarded all progress. 16 keeps the bound while giving a
+// ~100-issue round room to finish.
+const MAX_TOOL_TURNS: usize = 16;
 
 /// The repair-turn tool surface. Read-only corpus access.
 fn repair_tools() -> Vec<ToolDefinition> {
