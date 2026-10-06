@@ -26,7 +26,9 @@ For each facility:
 - scope_level: "deal" if it is part of the deal being underwritten, "project" if it is a future/project-scope facility, null if unclear
 - loan_type: one of bridge | development | investment_term — NEVER free text like "finance requirement"
 - commitment: { amount, currency } — `amount` is an exact DECIMAL STRING in absolute units ("25750000"), NEVER a JSON number and NEVER millions shorthand (not "25.75")
-- term_months: number if stated
+- term_months: number if stated — the stated EXPECTED facility term (e.g. "18-months expected"), never a period used only in an interest illustration, cash-flow example or extension scenario
+- stated_interest: { amount, currency } — explicit interest amount for THIS facility if stated (e.g. "rolled-up interest £509,123", "mezzanine interest £X"), else null
+- stated_redemption: { amount, currency } — the all-in repayment figure if stated (e.g. "loan including interest £5,699,659"), else null
 - status: one of candidate | active | repaid | cancelled | superseded
 - disposition: one of requested | existing | repaid | proposed
 - lender_name: if named
@@ -120,7 +122,7 @@ Return JSON:
 }
 
 ## CLASSIFICATION
-- capital_position: "debt" or "equity" — "debt" if the ask is for a loan/facility
+- capital_position: "debt" or "equity" — "debt" if the ask is for a loan/facility; "equity" if the reader is invited to subscribe equity shares/units/fund interests (an equity raise, JV, or syndicated investment — even if the underlying vehicle borrows). An equity IM that mentions the project's senior mortgage does NOT make it a debt deal — classify by what the READER is buying.
 - asset_class_primary: e.g. "residential", "retail", "commercial", "mixed"
 - project_type: { "category": "development" | "acquisition" | "refinance" | "hold" }
 - loan_type: { "category": "bridge" | "development" | "investment_term" } — bridge = short-term ≤12mo; development = construction financing; investment_term = stabilised asset
@@ -151,6 +153,7 @@ RULES:
 2. Include proposed/future facilities (disposition "proposed", scope_level "project").
 3. Do NOT sum facilities — each is its own entry.
 4. Equity is NOT debt — use instrument_type ordinary_equity/preferred_equity.
+5. In an equity deal, the reader invests EQUITY — the sponsor's borrowings (senior mortgage, development facility) are context; give them scope_level "project" and do NOT mark them "requested". The focus should be the equity raise itself (preferred_equity/ordinary_equity instrument) — if no equity facility is stated, leave focus_facility_id null rather than pointing at a mortgage the investor isn't taking.
 
 ## FOCUS FACILITY
 The focus is the NEW money being requested — not repaid/existing/proposed debt.
@@ -209,14 +212,16 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - address: { line1, paon, property_name, street_name, city, postcode, country, region, saon, full_address }
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
-- total_development_cost: { amount, currency } — TDC including land, construction, fees, contingency
-- total_investment_cost: { amount, currency } — total investment cost if stated
+- total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency)
+- total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. TIC is always ≥ TDC; if the document labels a figure "total geared costs" or "total costs including finance", it belongs here
+- community_infrastructure_levy: { amount, currency } — CIL liability if stated (e.g. "CIL £426,678"); never fold CIL into planning_status text
+- sellable_area: { value: <number>, unit: "sqft" } — net sellable/saleable area (NSA) if the source states one; only when GIA/NIA are not stated
 - gross_development_value: { amount, currency } — full-scheme GDV
 - market_value: { amount, currency } — current market value (NOT GDV)
 - purchase_price: { amount, currency }
 - gross_internal_area: { value: <number>, unit: "sqft" } — GIA in sqft
 - net_internal_area: { value: <number>, unit: "sqft" } — NIA in sqft
-- residential_units: array of { property_type, bedrooms, quantity, floor_area: { value, unit } }
+- residential_units: array of { property_type, bedrooms, quantity, floor_area: { value, unit }, expected_gdv: { amount, currency } } — expected_gdv is the PER-UNIT expected sale price/GDV when the documents state one (e.g. "expected average unit prices", a sales schedule, or per-type target prices); never multiply by quantity
 - commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
 - tenants: flat array of every distinct tenant name
 - key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
@@ -236,6 +241,14 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - insurance_requirements, capex_plan
 - current_asset_description: description of the property in its current state
 - building_specification: description of planned/completed works
+
+## DEAL-TYPE FIELD EMPHASIS
+Use the classification from pass A to prioritise:
+
+- Acquisition / bridge on an income-producing asset (retail park, office, PLR-style): extract asking_price, purchase_price, day_1_value, market_value, purchaser_costs (SDLT + agent + legal — may be a money amount OR a percentage of price; extract whichever is stated into purchaser_costs), the FULL commercial_units tenancy schedule, passing_rent_per_annum, net_initial_yield, wault_to_break, wault_to_expiry, vacancy_rate, key_tenant, rent_review_next_due, plus loan_term, interest_rate, fees, exit_plan, lender_tenant_exposure.
+- Development deal: project_gdv AND gross_development_value (full scheme), total_development_cost, total_investment_cost, construction_costs, residential_units with per-unit expected_gdv, phases, construction_timelines, planning_status, profit stated figures.
+- Equity deal: deal_type "equity", purchase_price, purchaser_costs, the equity raise amount, target IRR/return metrics stated to investors, and the underlying asset economics (rent, value, NIY) — equity docs still describe the asset.
+- Refinance / disposal bridge: market_value, day_1_value, stabilised_value, loan_term, interest_rate, fees, exit_plan, current_asset_description.
 
 ## KPIs
 Every KPI is: { source, source_type, notes, scope, evidence_text, value }.

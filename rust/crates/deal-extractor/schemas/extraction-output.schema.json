@@ -213,6 +213,56 @@
                   ]
                 }
               },
+              "stated_interest": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "stated_redemption": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
               "facility_party_ids": {
                 "type": "array",
                 "items": {
@@ -3312,8 +3362,12 @@
                 ],
                 "enum": [
                   "granted",
+                  "granted_conditions_outstanding",
+                  "prior_approval_granted",
+                  "phased_part_granted",
                   "pending",
                   "refused",
+                  "not_required",
                   "unknown"
                 ]
               },
@@ -7513,7 +7567,7 @@
                   ]
                 },
                 "postcode": {
-                  "description": "Postcode explicitly stated in the source. Do not infer from town or address fragments.",
+                  "description": "Postcode explicitly stated in the source for the SUBJECT property. Prefer the postcode in the property's own address block (cover page, title, marketing particulars). When documents disagree, use the postcode that appears with the full postal address of the subject — never a postcode from a lender, valuer's office or different building. Do not infer from town or address fragments.",
                   "type": [
                     "string",
                     "null"
@@ -8508,8 +8562,12 @@
                   ],
                   "enum": [
                     "granted",
+                    "granted_conditions_outstanding",
+                    "prior_approval_granted",
+                    "phased_part_granted",
                     "pending",
                     "refused",
+                    "not_required",
                     "unknown"
                   ]
                 },
@@ -9411,12 +9469,15 @@
                 "null"
               ],
               "enum": [
-                "residential",
-                "mixed_use",
+                "apartment",
+                "single_family",
+                "hotel",
+                "portfolio",
+                "office",
                 "retail",
                 "industrial",
-                "office",
-                "hotel"
+                "mixed_use",
+                "residential"
               ]
             }
           },
@@ -9487,12 +9548,15 @@
                   "description": "Primary asset class. Always populated. For Development projects, use the post-development intended use (e.g. residential). For Acquisition, use current operating use. For Land, use consented or proposed use.",
                   "type": "string",
                   "enum": [
-                    "residential",
-                    "mixed_use",
+                    "apartment",
+                    "single_family",
+                    "hotel",
+                    "portfolio",
+                    "office",
                     "retail",
                     "industrial",
-                    "office",
-                    "hotel"
+                    "mixed_use",
+                    "residential"
                   ]
                 },
                 "asset_class_secondary": {
@@ -9502,36 +9566,49 @@
                     "null"
                   ],
                   "enum": [
-                    "residential",
-                    "mixed_use",
+                    "apartment",
+                    "single_family",
+                    "hotel",
+                    "portfolio",
+                    "office",
                     "retail",
                     "industrial",
-                    "office",
-                    "hotel"
+                    "mixed_use",
+                    "residential"
                   ]
                 },
                 "asset_class_display": {
                   "description": "Derived display value. 'mixed_use' if asset_class_secondary is populated or the project is explicitly mixed-use; otherwise equals asset_class_primary.",
                   "type": "string",
                   "enum": [
-                    "residential",
-                    "mixed_use",
+                    "apartment",
+                    "single_family",
+                    "hotel",
+                    "portfolio",
+                    "office",
                     "retail",
                     "industrial",
-                    "office",
-                    "hotel"
+                    "mixed_use",
+                    "residential"
                   ]
                 },
                 "project_type": {
                   "type": "object",
                   "properties": {
                     "category": {
-                      "description": "Project type axis per KAN-73: development / acquisition / land. Category value for backend logic.",
+                      "description": "Deal-type axis (ACRE-aligned): land_development / development / standalone / acquisition / value_add / debt. Determines the underwriting model pathway. Category value for backend logic.",
                       "type": "string",
                       "enum": [
+                        "land_development",
                         "development",
+                        "standalone",
                         "acquisition",
-                        "land"
+                        "value_add",
+                        "debt",
+                        "land",
+                        "refinance",
+                        "hold",
+                        "disposal"
                       ]
                     },
                     "description": {
@@ -13956,6 +14033,171 @@
             "value"
           ]
         },
+        "sellable_area": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Net sellable area (NSA) — the total area of the units that will be sold, where the source states it under 'sellable area', 'net sales area' or 'saleable area'. This is NOT GIA or NIA; when the source gives only a sellable-area figure (common in residential appraisals), populate this field and leave GIA/NIA null. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Valid labels or aliases: Sellable area, NSA, net sales area, saleable area, sq ft sellable. Reject and return null for: GIA, Gross Internal Area, GEA, site area, land area, plot. If the source states it in both sq ft and m², extract the sq ft figure. Do not convert GIA/NIA into sellable area — only extract a stated sellable-area figure.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "value": {
+                  "description": "Numeric area explicitly stated for this exact metric and scope. Prefer an explicit whole-scope figure. Do not add areas together unless the field description explicitly allows aggregation from one exhaustive table with the same exact metric label.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "unit": {
+                  "description": "Area unit explicitly shown with the extracted value or clearly attached to the same metric in the source. Do not convert units.",
+                  "type": "string",
+                  "enum": [
+                    "sqm",
+                    "sqft",
+                    "acres",
+                    "hectares"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "unit"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "community_infrastructure_levy": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Community Infrastructure Levy (CIL) liability stated for the scheme — a numeric amount (e.g. '£426,678'). Extract the CIL figure here; never fold CIL into the planning_status text.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
         "ground_rent_per_annum": {
           "type": "object",
           "properties": {
@@ -14277,6 +14519,138 @@
                 "description": "Tenant name explicitly stated in the source.",
                 "type": "string"
               }
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "tenant_research": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Tenant covenant web research — entity type, summary, adverse findings.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "tenants": {
+                  "description": "Covenant-strength findings per tenant.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "entity_type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "covenant_summary": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "parent_company": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "adverse_findings": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      "adverse_note": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "source": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "entity_type",
+                      "covenant_summary",
+                      "parent_company",
+                      "adverse_findings",
+                      "adverse_note",
+                      "source"
+                    ]
+                  }
+                },
+                "researched_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "tenants",
+                "researched_at"
+              ]
             }
           },
           "required": [
@@ -15874,6 +16248,207 @@
             "value"
           ]
         },
+        "developer_research": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Developer/company web research — real projects and credibility evidence.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "developer_name": {
+                  "description": "Operating developer company identified from web research — not the deal SPV.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "resolved_as_spv": {
+                  "description": "True when only the deal SPV could be identified.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "track_record": {
+                  "description": "Named prior/current development projects found in web research.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "location": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "gdv": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "units": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "year": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "source": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "description",
+                      "location",
+                      "status",
+                      "gdv",
+                      "units",
+                      "year",
+                      "source"
+                    ]
+                  }
+                },
+                "credibility": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "developer_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "companies_house_found": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "companies_house_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "adverse_press_found": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "adverse_press_note": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "developer_name",
+                    "companies_house_found",
+                    "companies_house_url",
+                    "adverse_press_found",
+                    "adverse_press_note"
+                  ]
+                },
+                "researched_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "developer_name",
+                "resolved_as_spv",
+                "track_record",
+                "credibility",
+                "researched_at"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
         "facilities_inventory": {
           "type": "object",
           "properties": {
@@ -17357,11 +17932,14 @@
         "equivalent_yield",
         "total_land_area",
         "net_internal_area",
+        "sellable_area",
+        "community_infrastructure_levy",
         "ground_rent_per_annum",
         "epc_rating",
         "wault_to_break",
         "wault_to_expiry",
         "tenants",
+        "tenant_research",
         "vacancy_rate",
         "vacant_area",
         "building_specification",
@@ -17383,6 +17961,7 @@
         "geolocation",
         "debt_structure",
         "sponsor_principals",
+        "developer_research",
         "facilities_inventory",
         "project_gdv",
         "market_value",

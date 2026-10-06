@@ -206,6 +206,56 @@
               ]
             }
           },
+          "stated_interest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "amount": {
+                "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[a-zA-Z]{3}$",
+                "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ]
+          },
+          "stated_redemption": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "amount": {
+                "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[a-zA-Z]{3}$",
+                "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ]
+          },
           "facility_party_ids": {
             "type": "array",
             "items": {
@@ -3305,8 +3355,12 @@
             ],
             "enum": [
               "granted",
+              "granted_conditions_outstanding",
+              "prior_approval_granted",
+              "phased_part_granted",
               "pending",
               "refused",
+              "not_required",
               "unknown"
             ]
           },
