@@ -37,6 +37,11 @@ pub struct ExtractRequest {
     /// DEAL_EXTRACT_COVERAGE_MODEL env, then gpt-5.6-sol.
     #[serde(default)]
     pub coverage_model: Option<String>,
+    /// Model for pass A (structure / facility graph). Defaults to
+    /// DEAL_EXTRACT_STRUCTURE_MODEL env, then gpt-5.6-sol. Pass B and
+    /// repair stay on `model` — Sol sets the skeleton, Luna fills it.
+    #[serde(default)]
+    pub structure_model: Option<String>,
 }
 
 fn default_model() -> String {
@@ -227,7 +232,17 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
             coverage_owned = Extractor::new(&cov_model).ok();
             coverage_owned.as_ref()
         };
-        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex).await?;
+        let struct_model = req.structure_model.clone()
+            .or_else(|| std::env::var("DEAL_EXTRACT_STRUCTURE_MODEL").ok())
+            .unwrap_or_else(|| "gpt-5.6-sol".to_string());
+        let structure_owned;
+        let structure_ex: Option<&Extractor> = if struct_model == req.model {
+            None
+        } else {
+            structure_owned = Extractor::new(&struct_model).ok();
+            structure_owned.as_ref()
+        };
+        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex, structure_ex).await?;
         let diag = result.diagnostics;
         Ok(ExtractResponse {
             canonical_deal: result.document.get("canonical_deal").cloned(),

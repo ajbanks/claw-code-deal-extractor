@@ -32,6 +32,7 @@ pub async fn run_multi_pass(
     corpus: &Corpus,
     max_repair_rounds: usize,
     coverage_ex: Option<&Extractor>,
+    structure_ex: Option<&Extractor>,
 ) -> Result<PipelineResult, String> {
     let pipeline_start = std::time::Instant::now();
     let mut pass_times: Vec<(&'static str, u64)> = Vec::new();
@@ -39,7 +40,11 @@ pub async fn run_multi_pass(
     // ── Pass A: Structure (classification + facilities + focus) ──────────
     let t = std::time::Instant::now();
     eprintln!("[pipeline] pass A — structure");
-    let pass_a_text = extractor.call(prompts::PASS_A_STRUCTURE, &corpus.render()).await?;
+    // Pass A (structure) runs on Sol when configured — it lays down the
+    // facility graph and deal skeleton that every later pass builds on.
+    let structure_model = structure_ex.unwrap_or(extractor);
+    eprintln!("[pipeline] pass A model: {}", structure_model.model);
+    let pass_a_text = structure_model.call(prompts::PASS_A_STRUCTURE, &corpus.render()).await?;
     let pass_a: Value = crate::extract::parse_json(&pass_a_text)?;
     let classification = pass_a.get("classification").cloned().unwrap_or(json!(null));
     let doc_annotations = pass_a.get("document_annotations").cloned().unwrap_or(json!([]));
