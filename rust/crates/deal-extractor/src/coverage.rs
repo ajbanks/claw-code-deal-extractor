@@ -174,11 +174,32 @@ pub async fn fill_missing(
 
     let baseline_errors: std::collections::HashSet<String> = crate::validate::validate(doc)
         .iter().map(|i| i.path.clone()).collect();
+    // Default evidence source per path — the document where the keyword hit.
+    let source_for = |path: &str| -> Option<String> {
+        issues.iter().find(|i| i.path == path).and_then(|i| {
+            i.message.lines().find(|l| l.contains(": ") && l.contains("("))
+                .map(|l| l.split(" (").next().unwrap_or("").trim().to_string())
+                .filter(|n| !n.is_empty())
+        })
+    };
     let mut merged = Vec::new();
     let mut rejected = Vec::new();
     for (path, value) in obj {
         let snapshot = doc.clone();
-        set_path(doc, path, value.clone());
+        // details.* values are WithSource — a missing source would break
+        // provenance, so default it to the evidence document.
+        let mut v = value.clone();
+        if path.starts_with("details.") {
+            if let Some(o) = v.as_object_mut() {
+                let src_empty = o.get("source").and_then(|s| s.as_str()).map_or(true, |s| s.trim().is_empty());
+                if src_empty {
+                    if let Some(name) = source_for(path) {
+                        o.insert("source".to_string(), Value::String(name));
+                    }
+                }
+            }
+        }
+        set_path(doc, path, v);
         let new_issues = crate::validate::validate(doc);
         let bad = new_issues.iter().any(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path));
         let worse = new_issues.iter().filter(|i| !baseline_errors.contains(&i.path)).count() > 6;
