@@ -156,6 +156,7 @@ async fn repair_round(
             .send_message(&req)
             .await
             .map_err(|e| format!("API error: {e:?}"))?;
+        ex.usage.record("repair", &r.usage);
 
         // Collect tool uses.
         let tool_uses: Vec<(String, String, Value)> = r

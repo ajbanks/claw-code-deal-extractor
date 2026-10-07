@@ -14,6 +14,33 @@ pub struct Extractor {
     pub client: ProviderClient,
     pub model: String,
     pub max_tokens: u32,
+    /// Running token totals across every call this extractor makes.
+    pub usage: TokenUsage,
+}
+
+/// Thread-safe per-extraction token counters.
+#[derive(Default, Debug)]
+pub struct TokenUsage {
+    pub calls: std::sync::atomic::AtomicU64,
+    pub input_tokens: std::sync::atomic::AtomicU64,
+    pub output_tokens: std::sync::atomic::AtomicU64,
+}
+
+impl TokenUsage {
+    pub fn record(&self, label: &str, u: &api::Usage) {
+        use std::sync::atomic::Ordering::Relaxed;
+        let input = u64::from(u.input_tokens) + u64::from(u.cache_read_input_tokens) + u64::from(u.cache_creation_input_tokens);
+        self.calls.fetch_add(1, Relaxed);
+        self.input_tokens.fetch_add(input, Relaxed);
+        self.output_tokens.fetch_add(u64::from(u.output_tokens), Relaxed);
+        eprintln!("[usage] {label} — in={input} out={}", u.output_tokens);
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> (u64, u64, u64) {
+        use std::sync::atomic::Ordering::Relaxed;
+        (self.calls.load(Relaxed), self.input_tokens.load(Relaxed), self.output_tokens.load(Relaxed))
+    }
 }
 
 impl Extractor {
@@ -24,6 +51,7 @@ impl Extractor {
             client,
             model: model.to_string(),
             max_tokens,
+            usage: TokenUsage::default(),
         })
     }
 
@@ -51,6 +79,7 @@ impl Extractor {
             .send_message(&req)
             .await
             .map_err(|e| format!("API error: {e:?}"))?;
+        self.usage.record("call", &r.usage);
         response_text(&r).ok_or_else(|| "no text in response".into())
     }
 }

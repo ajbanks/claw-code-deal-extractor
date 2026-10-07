@@ -82,6 +82,21 @@ pub struct Diagnostics {
     pub issues_remaining: Vec<IssueView>,
     pub elapsed_ms: u64,
     pub corpus: CorpusStats,
+    pub usage: UsageView,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UsageView {
+    pub model: String,
+    pub llm_calls: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+}
+
+fn usage_view(ex: &Extractor) -> UsageView {
+    let (llm_calls, input_tokens, output_tokens) = ex.usage.snapshot();
+    eprintln!("[usage] total — model={} calls={llm_calls} in={input_tokens} out={output_tokens}", ex.model);
+    UsageView { model: ex.model.clone(), llm_calls, input_tokens, output_tokens }
 }
 
 #[derive(Debug, Serialize)]
@@ -209,6 +224,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 issues_remaining: diag.issues_remaining.iter().map(IssueView::from).collect(),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
+                usage: usage_view(&extractor),
             },
         })
     } else {
@@ -236,6 +252,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 issues_remaining: issues.iter().map(IssueView::from).collect(),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
+                usage: usage_view(&extractor),
             },
         })
     }
