@@ -228,7 +228,6 @@ pub async fn repair_loop(
     max_rounds: usize,
 ) -> (Value, Vec<Issue>, usize) {
     let mut issues = validate::validate(&candidate);
-    issues.extend(crate::coverage::coverage_issues(&candidate, corpus));
     let mut best_errors = validate::error_count(&issues);
     let mut rounds_used = 0;
 
@@ -244,8 +243,7 @@ pub async fn repair_loop(
                 if !restored.is_empty() {
                     eprintln!("[repair] round {rounds_used} dropped data — restored: {}", restored.join(", "));
                 }
-                let mut next_issues = validate::validate(&next);
-                next_issues.extend(crate::coverage::coverage_issues(&next, corpus));
+                let next_issues = validate::validate(&next);
                 let next_errors = validate::error_count(&next_issues);
                 eprintln!("[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})");
                 if next_errors >= best_errors {

@@ -33,6 +33,10 @@ pub struct ExtractRequest {
     pub multi_pass: bool,
     /// Documents to extract from.
     pub documents: Vec<InputDocument>,
+    /// Model for the coverage gap-fill patch call. Defaults to
+    /// DEAL_EXTRACT_COVERAGE_MODEL env, then gpt-5.6-sol.
+    #[serde(default)]
+    pub coverage_model: Option<String>,
 }
 
 fn default_model() -> String {
@@ -211,7 +215,19 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
     let extractor = Extractor::new(&req.model)?;
 
     if req.multi_pass {
-        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds).await?;
+        // Coverage gap-fill runs on Sol by default — better at scoped entity
+        // extraction, and the single patch call keeps it cheap.
+        let cov_model = req.coverage_model.clone()
+            .or_else(|| std::env::var("DEAL_EXTRACT_COVERAGE_MODEL").ok())
+            .unwrap_or_else(|| "gpt-5.6-sol".to_string());
+        let coverage_owned;
+        let coverage_ex: Option<&Extractor> = if cov_model == req.model {
+            Some(&extractor) // same model — reuse it for the fill
+        } else {
+            coverage_owned = Extractor::new(&cov_model).ok();
+            coverage_owned.as_ref()
+        };
+        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex).await?;
         let diag = result.diagnostics;
         Ok(ExtractResponse {
             canonical_deal: result.document.get("canonical_deal").cloned(),

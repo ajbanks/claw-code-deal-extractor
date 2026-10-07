@@ -66,9 +66,19 @@ impl Extractor {
         parse_json(&text)
     }
 
+    /// Send one message with no document context — used by the coverage
+    /// patch call where the evidence travels inside the prompt itself.
+    pub(crate) async fn call_text(&self, prompt: &str) -> Result<String, String> {
+        self.send(format!("{prompt}\n\nReturn ONLY a JSON object.")).await
+    }
+
     /// Send one message and return the first text block. Shared by repair.
     pub(crate) async fn call(&self, prompt: &str, corpus: &str) -> Result<String, String> {
         let user_text = format!("{prompt}\n\n--- DOCUMENTS ---\n{corpus}");
+        self.send(user_text).await
+    }
+
+    async fn send(&self, user_text: String) -> Result<String, String> {
         let req = json_request(
             &self.model,
             self.max_tokens,

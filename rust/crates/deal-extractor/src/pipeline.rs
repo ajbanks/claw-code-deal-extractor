@@ -7,6 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::corpus::Corpus;
+use crate::coverage;
 use crate::extract::Extractor;
 use crate::prompts;
 use crate::repair;
@@ -30,6 +31,7 @@ pub async fn run_multi_pass(
     extractor: &Extractor,
     corpus: &Corpus,
     max_repair_rounds: usize,
+    coverage_ex: Option<&Extractor>,
 ) -> Result<PipelineResult, String> {
     let pipeline_start = std::time::Instant::now();
     let mut pass_times: Vec<(&'static str, u64)> = Vec::new();
@@ -116,8 +118,26 @@ pub async fn run_multi_pass(
     let initial_errors = validate::error_count(&initial_issues);
     eprintln!("[pipeline] assembled — {initial_errors} validation errors");
 
-    let (final_doc, _pre_coverage_issues, repair_rounds) =
+    let (mut final_doc, _pre_coverage_issues, repair_rounds) =
         repair::repair_loop(extractor, corpus, document, max_repair_rounds).await;
+
+    // ── Coverage fill (Sol) ──
+    // One small patch call per extraction, not folded into the repair loop:
+    // the evidence travels inline so no tool loop is needed. Sol is better
+    // at scoped entity fills and the patch output keeps latency low.
+    if let Some(cov_ex) = coverage_ex {
+        let missing = coverage::coverage_issues(&final_doc, corpus);
+        if !missing.is_empty() {
+            eprintln!("[coverage] {} missing fields with evidence — Sol patch call ({}): {}",
+                missing.len(), cov_ex.model,
+                missing.iter().map(|i| i.path.clone()).collect::<Vec<_>>().join(", "));
+            let t = std::time::Instant::now();
+            match coverage::fill_missing(cov_ex, &mut final_doc, &missing).await {
+                Ok(paths) => eprintln!("[coverage] filled {} paths in {:.1}s", paths.len(), t.elapsed().as_secs_f64()),
+                Err(e) => eprintln!("[coverage] fill FAILED: {e}"),
+            }
+        }
+    }
 
     let remaining_issues = validate::validate(&final_doc);
     eprintln!("[pipeline] complete — {} repair rounds, {} issues, {:.1}s total",

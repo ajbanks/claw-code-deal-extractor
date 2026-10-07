@@ -77,15 +77,18 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
         if !field_is_empty(doc, path) {
             continue;
         }
-        // Evidence = any keyword hits; collect the documents they appear in.
+        // Evidence = keyword hits; keep the strongest snippets inline so the
+        // fill call can extract without needing document tools.
+        let mut hits = Vec::new();
         let mut doc_names: Vec<String> = Vec::new();
         for kw in *keywords {
             for hit in corpus.search(kw, 3) {
                 if !doc_names.contains(&hit.doc_name) {
                     doc_names.push(hit.doc_name.clone());
                 }
+                hits.push(format!("{} ({}): {}", hit.doc_name, hit.page_label, hit.snippet.trim()));
             }
-            if !doc_names.is_empty() {
+            if !doc_names.is_empty() && hits.len() >= 4 {
                 break;
             }
         }
@@ -96,9 +99,8 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
             code: "missing_with_evidence",
             path: (*path).to_string(),
             message: format!(
-                "{path} is empty but the corpus contains evidence in {} — extract {hint}. \
-                 Use search_documents/read_page to find the value; do not guess.",
-                doc_names.join(", "),
+                "{path} — extract {hint}. Evidence:\n{}",
+                hits.iter().take(4).cloned().collect::<Vec<_>>().join("\n"),
             ),
             severity: Severity::Error,
         });
@@ -146,5 +148,65 @@ mod tests {
         let c = corpus_with("unrelated prose with no keywords at all");
         let issues = coverage_issues(&doc, &c);
         assert!(issues.is_empty());
+    }
+}
+
+const PATCH_PROMPT: &str = "You are filling specific gaps in an extracted deal document. For each field below, the extraction left it empty but the quoted evidence shows the value. Return a JSON object mapping each path to its extracted value.\n\nSHAPE RULES:\n- paths under `details.` → a WithSource object   `{\"value\": <value>, \"source\": \"<document name>\", \"source_type\": \"extracted\", \"evidence_text\": \"<short quote>\", \"notes\": null, \"scope\": null}`\n- paths under `canonical_deal.` → the raw value only (array or object), matching   the shapes used elsewhere in the document\n- extract only what the evidence supports; do not guess or round to invented precision\n- omit a path entirely if the evidence does not answer it\n\nFIELDS TO FILL:\n";
+
+/// Ask the coverage model for a `{path: value}` patch and merge the paths
+/// that don't introduce validation errors. Returns the merged paths.
+pub async fn fill_missing(
+    ex: &crate::extract::Extractor,
+    doc: &mut Value,
+    issues: &[Issue],
+) -> Result<Vec<String>, String> {
+    if issues.is_empty() {
+        return Ok(Vec::new());
+    }
+    let prompt = format!(
+        "{PATCH_PROMPT}{}\n\nDOCUMENT (for shape reference):\n{}",
+        issues.iter().map(|i| i.message.as_str()).collect::<Vec<_>>().join("\n\n"),
+        serde_json::to_string(doc).map_err(|e| e.to_string())?,
+    );
+    let text = ex.call_text(&prompt).await?;
+    let patch: Value = crate::extract::parse_json(&text)?;
+    let obj = patch.as_object().ok_or("coverage patch is not an object")?;
+
+    let baseline_errors: std::collections::HashSet<String> = crate::validate::validate(doc)
+        .iter().map(|i| i.path.clone()).collect();
+    let mut merged = Vec::new();
+    let mut rejected = Vec::new();
+    for (path, value) in obj {
+        let snapshot = doc.clone();
+        set_path(doc, path, value.clone());
+        let new_issues = crate::validate::validate(doc);
+        let bad = new_issues.iter().any(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path));
+        let worse = new_issues.iter().filter(|i| !baseline_errors.contains(&i.path)).count() > 6;
+        if bad || worse {
+            *doc = snapshot;
+            rejected.push(path.clone());
+        } else {
+            merged.push(path.clone());
+        }
+    }
+    if !rejected.is_empty() {
+        eprintln!("[coverage] rejected patch paths (validation): {}", rejected.join(", "));
+    }
+    Ok(merged)
+}
+
+/// Set `a.b.c = value`, creating intermediate objects as needed.
+fn set_path(doc: &mut Value, path: &str, value: Value) {
+    let mut cur = doc;
+    let segs: Vec<&str> = path.split('.').collect();
+    for seg in &segs[..segs.len() - 1] {
+        let entry = cur.as_object_mut().map(|o| o.entry(seg.to_string()).or_insert_with(|| Value::Object(serde_json::Map::new())));
+        match entry {
+            Some(v) => cur = v,
+            None => return,
+        }
+    }
+    if let Some(o) = cur.as_object_mut() {
+        o.insert(segs[segs.len() - 1].to_string(), value);
     }
 }
