@@ -7,6 +7,7 @@
 
 pub mod contract;
 pub mod corpus;
+pub mod coverage;
 pub mod documents;
 pub mod extract;
 pub mod pipeline;

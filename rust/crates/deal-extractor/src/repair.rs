@@ -109,7 +109,7 @@ fn format_issues(issues: &[Issue]) -> String {
 
 /// One repair round: show the agent its candidate + the issues, let it use
 /// tools to verify, and return the corrected document.
-async fn repair_round(
+pub(crate) async fn repair_round(
     ex: &Extractor,
     corpus: &Corpus,
     candidate: &Value,
@@ -270,7 +270,7 @@ const PRESERVED_ARRAYS: &[&str] = &["facilities", "valuations", "phases", "capit
 
 /// Restore canonical arrays the repair shrank, a dropped focus id, and
 /// details keys that vanished. Returns the restored paths.
-fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<String> {
+pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<String> {
     let mut restored = Vec::new();
     let len = |v: Option<&Value>| v.and_then(Value::as_array).map_or(0, Vec::len);
 

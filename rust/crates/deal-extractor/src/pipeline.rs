@@ -7,6 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::corpus::Corpus;
+use crate::coverage;
 use crate::extract::Extractor;
 use crate::prompts;
 use crate::repair;
@@ -116,17 +117,59 @@ pub async fn run_multi_pass(
     let initial_errors = validate::error_count(&initial_issues);
     eprintln!("[pipeline] assembled — {initial_errors} validation errors");
 
-    let (final_doc, remaining_issues, repair_rounds) =
+    let (mut final_doc, _pre_coverage_issues, repair_rounds) =
         repair::repair_loop(extractor, corpus, document, max_repair_rounds).await;
 
-    eprintln!("[pipeline] complete — {} rounds, {} issues, {:.1}s total",
-        repair_rounds, remaining_issues.len(), pipeline_start.elapsed().as_secs_f64());
+    // ── Coverage pass ──
+    // Whole-corpus passes can leave a field empty even though the corpus
+    // plainly contains it. Emit targeted issues naming the field and the
+    // evidence; one bounded tool-equipped round fills them cheaply.
+    let mut coverage_rounds = 0usize;
+    for _round in 0..2 {
+        let missing = coverage::coverage_issues(&final_doc, corpus);
+        if missing.is_empty() {
+            break;
+        }
+        coverage_rounds += 1;
+        eprintln!("[coverage] round {coverage_rounds} — {} missing fields with corpus evidence",
+            missing.len());
+        for i in &missing {
+            eprintln!("[coverage]   {}", i.path);
+        }
+        match repair::repair_round(extractor, corpus, &final_doc, &missing).await {
+            Ok(mut next) => {
+                let restored = repair::restore_dropped_structure(&final_doc, &mut next);
+                if !restored.is_empty() {
+                    eprintln!("[coverage] round {coverage_rounds} dropped data — restored: {}", restored.join(", "));
+                }
+                // Keep the coverage output only when it actually filled
+                // something and didn't regress validation errors.
+                let before_errs = validate::error_count(&validate::validate(&final_doc));
+                let after_errs = validate::error_count(&validate::validate(&next));
+                let filled_again = coverage::coverage_issues(&next, corpus).len() < missing.len();
+                eprintln!("[coverage] round {coverage_rounds} done — errors {before_errs} -> {after_errs}, progress={filled_again}");
+                if filled_again && after_errs <= before_errs {
+                    final_doc = next;
+                } else {
+                    break;
+                }
+            }
+            Err(e) => {
+                eprintln!("[coverage] round {coverage_rounds} FAILED: {e}");
+                break;
+            }
+        }
+    }
+
+    let remaining_issues = validate::validate(&final_doc);
+    eprintln!("[pipeline] complete — {} repair + {} coverage rounds, {} issues, {:.1}s total",
+        repair_rounds, coverage_rounds, remaining_issues.len(), pipeline_start.elapsed().as_secs_f64());
 
     Ok(PipelineResult {
         document: final_doc,
         diagnostics: PipelineDiagnostics {
             pass_times_ms: pass_times,
-            repair_rounds,
+            repair_rounds: repair_rounds + coverage_rounds,
             issues_initial: initial_errors,
             issues_remaining: remaining_issues,
         },
