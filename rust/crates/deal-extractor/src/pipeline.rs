@@ -6,6 +6,7 @@
 
 use serde_json::{json, Value};
 
+use crate::conform;
 use crate::corpus::Corpus;
 use crate::coverage;
 use crate::extract::Extractor;
@@ -118,7 +119,12 @@ pub async fn run_multi_pass(
         "classification": classification,
     });
 
-    // ── Validate & repair ───────────────────────────────────────────────
+    // ── Conform → validate & repair ─────────────────────────────────────
+    let mut document = document;
+    let fixes = conform::conform_document(&mut document);
+    if fixes > 0 {
+        eprintln!("[pipeline] mechanical conform applied {fixes} fixes");
+    }
     let initial_issues = validate::validate(&document);
     let initial_errors = validate::error_count(&initial_issues);
     eprintln!("[pipeline] assembled — {initial_errors} validation errors");

@@ -171,10 +171,22 @@ pub(crate) async fn repair_round(
             .collect();
 
         if tool_uses.is_empty() || r.stop_reason.as_deref() != Some("tool_use") {
-            // Final answer — parse the text as the corrected document.
+            // Final answer — a {"fixes": {path: value}} patch, applied to the
+            // candidate. Patch mode means the model cannot drop data.
             let text = extract::response_text(&r)
                 .ok_or_else(|| "no text in repair response".to_string())?;
-            return extract::parse_json(&text);
+            let raw = extract::parse_json(&text)?;
+            let fixes = raw.get("fixes").and_then(|f| f.as_object()).cloned()
+                .unwrap_or_else(|| raw.as_object().cloned().unwrap_or_default());
+            if fixes.is_empty() {
+                return Err("repair returned an empty patch".to_string());
+            }
+            let mut next = candidate.clone();
+            for (path, value) in &fixes {
+                crate::coverage::set_path(&mut next, path, value.clone());
+            }
+            eprintln!("[repair] applied {} patch entries", fixes.len());
+            return Ok(next);
         }
 
         // Echo the assistant turn, then feed tool results.
@@ -239,10 +251,9 @@ pub async fn repair_loop(
         eprintln!("[repair] round {rounds_used} — {best_errors} errors, calling LLM...");
         match repair_round(ex, corpus, &candidate, &issues).await {
             Ok(mut next) => {
-                let restored = restore_dropped_structure(&candidate, &mut next);
-                if !restored.is_empty() {
-                    eprintln!("[repair] round {rounds_used} dropped data — restored: {}", restored.join(", "));
-                }
+                // Mechanical conformance before scoring — don't let shape
+                // errors count for (or against) the model's repair.
+                crate::conform::conform_document(&mut next);
                 let next_issues = validate::validate(&next);
                 let next_errors = validate::error_count(&next_issues);
                 eprintln!("[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})");
@@ -263,13 +274,14 @@ pub async fn repair_loop(
     (candidate, issues, rounds_used)
 }
 
-/// Canonical arrays the repair model may edit but must never shrink: a
-/// repair round "fixes" validation errors by deleting the offending entries
-/// far too readily (observed: all 6 facilities removed in one round).
+/// Canonical arrays a full-document repair may never shrink — retained for
+/// the legacy full-doc path; patch-mode repair cannot drop data.
+#[allow(dead_code)]
 const PRESERVED_ARRAYS: &[&str] = &["facilities", "valuations", "phases", "capital_events", "capital_snapshots"];
 
 /// Restore canonical arrays the repair shrank, a dropped focus id, and
 /// details keys that vanished. Returns the restored paths.
+#[allow(dead_code)]
 pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<String> {
     let mut restored = Vec::new();
     let len = |v: Option<&Value>| v.and_then(Value::as_array).map_or(0, Vec::len);

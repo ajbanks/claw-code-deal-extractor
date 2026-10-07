@@ -217,17 +217,59 @@ pub async fn fill_missing(
 }
 
 /// Set `a.b.c = value`, creating intermediate objects as needed.
-fn set_path(doc: &mut Value, path: &str, value: Value) {
-    let mut cur = doc;
+/// Supports array indices (`facilities[2].commitment.amount`); setting an
+/// array element to null splices it out (the model's way to delete entries).
+pub(crate) fn set_path(doc: &mut Value, path: &str, value: Value) {
     let segs: Vec<&str> = path.split('.').collect();
-    for seg in &segs[..segs.len() - 1] {
-        let entry = cur.as_object_mut().map(|o| o.entry(seg.to_string()).or_insert_with(|| Value::Object(serde_json::Map::new())));
-        match entry {
-            Some(v) => cur = v,
-            None => return,
-        }
+    set_path_at(doc, &segs, value);
+}
+
+fn set_path_at(node: &mut Value, segs: &[&str], value: Value) {
+    if segs.is_empty() {
+        *node = value;
+        return;
     }
-    if let Some(o) = cur.as_object_mut() {
-        o.insert(segs[segs.len() - 1].to_string(), value);
+    let (key, idx) = match segs[0].split_once('[') {
+        Some((k, i)) => (k, i.trim_end_matches(']').parse::<usize>().ok()),
+        None => (segs[0], None),
+    };
+    let child = if key.is_empty() {
+        Some(node)
+    } else {
+        if !node.is_object() {
+            *node = Value::Object(serde_json::Map::new());
+        }
+        node.as_object_mut()
+            .map(|o| o.entry(key.to_string()).or_insert_with(|| if idx.is_some() { Value::Array(Vec::new()) } else { Value::Object(serde_json::Map::new()) }))
+    };
+    let Some(child) = child else { return };
+    match idx {
+        Some(i) => {
+            if !child.is_array() {
+                *child = Value::Array(Vec::new());
+            }
+            let arr = child.as_array_mut().unwrap();
+            while arr.len() <= i {
+                arr.push(Value::Null);
+            }
+            if segs.len() == 1 && value.is_null() {
+                arr.remove(i); // delete element
+            } else if segs.len() == 1 {
+                arr[i] = value;
+            } else {
+                if arr[i].is_null() {
+                    arr[i] = Value::Object(serde_json::Map::new());
+                }
+                let slot = &mut arr[i];
+                set_path_at(slot, &segs[1..], value);
+            }
+        }
+        None => {
+            if segs.len() == 1 {
+                *child = value;
+            } else {
+                set_path_at(child, &segs[1..], value);
+            }
+        }
     }
 }

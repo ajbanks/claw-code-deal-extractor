@@ -101,9 +101,13 @@ RULES:
 - Do NOT sum unrelated facilities into loan_amount or gross_debt.
 - Amounts are exact decimal strings in absolute units ("25750000"), never millions shorthand.
 - The focus facility is the NEW money being requested (disposition "requested"), not repaid/existing/proposed debt.
-- Return the COMPLETE corrected document — the same shape as before, every field present.
+- Return a JSON PATCH object, not the whole document:
+  `{"fixes": {"<json.path.from.the.issue>": <corrected value>, ...}}`
+- Use exact paths from the issues (e.g. `canonical_deal.facilities[0].commitment.amount`).
+  To delete a bad array element, set its path to null.
+- Include ONLY the fields you changed; every field not listed is kept as-is.
 
-Return ONLY the corrected valid JSON document."#;
+Return ONLY the JSON patch object."#;
 
 // ─── Two-pass prompts ────────────────────────────────────────────────────────
 

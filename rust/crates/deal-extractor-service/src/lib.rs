@@ -260,10 +260,11 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
         })
     } else {
         eprintln!("[extract] single-pass mode — round 0 calling LLM...");
-        let candidate = extractor.extract(&corpus).await.map_err(|e| {
+        let mut candidate = extractor.extract(&corpus).await.map_err(|e| {
             eprintln!("[extract] round 0 FAILED: {e}");
             e
         })?;
+        deal_extractor::conform::conform_document(&mut candidate);
         let initial_issues = validate::validate(&candidate);
         let initial_errors = validate::error_count(&initial_issues);
         eprintln!("[extract] round 0 done — {initial_errors} validation errors");

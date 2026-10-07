@@ -6,6 +6,7 @@
 //! hand-written serde structs. Deals travel as `serde_json::Value`.
 
 pub mod contract;
+pub mod conform;
 pub mod corpus;
 pub mod coverage;
 pub mod documents;
