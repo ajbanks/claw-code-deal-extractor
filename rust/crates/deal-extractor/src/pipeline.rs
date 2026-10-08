@@ -34,6 +34,7 @@ pub async fn run_multi_pass(
     max_repair_rounds: usize,
     coverage_ex: Option<&Extractor>,
     structure_ex: Option<&Extractor>,
+    details_ex: Option<&Extractor>,
 ) -> Result<PipelineResult, String> {
     let pipeline_start = std::time::Instant::now();
     let mut pass_times: Vec<(&'static str, u64)> = Vec::new();
@@ -69,7 +70,9 @@ pub async fn run_multi_pass(
     let pass_b_prompt = prompts::PASS_B_DETAILS
         .replace("{focus_summary}", &focus_summary)
         .replace("{classification_summary}", &classification_summary);
-    let pass_b_text = extractor.call(&pass_b_prompt, &corpus.render()).await?;
+    let details_extractor = details_ex.unwrap_or(extractor);
+    eprintln!("[pipeline] pass B model: {}", details_extractor.model);
+    let pass_b_text = details_extractor.call(&pass_b_prompt, &corpus.render()).await?;
     let pass_b: Value = crate::extract::parse_json(&pass_b_text)?;
     let valuations = pass_b.get("valuations").cloned().unwrap_or(json!([]));
     let phases = pass_b.get("phases").cloned().unwrap_or(json!([]));

@@ -42,6 +42,10 @@ pub struct ExtractRequest {
     /// repair stay on `model` — Sol sets the skeleton, Luna fills it.
     #[serde(default)]
     pub structure_model: Option<String>,
+    /// Model for pass B (details). Defaults to `model`. Kept separate so
+    /// detail extraction can run on Sol while repair stays on Luna.
+    #[serde(default)]
+    pub details_model: Option<String>,
 }
 
 fn default_model() -> String {
@@ -242,7 +246,17 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
             structure_owned = Extractor::new(&struct_model).ok();
             structure_owned.as_ref()
         };
-        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex, structure_ex).await?;
+        let det_model = req.details_model.clone()
+            .or_else(|| std::env::var("DEAL_EXTRACT_DETAILS_MODEL").ok())
+            .unwrap_or_else(|| req.model.clone());
+        let details_owned;
+        let details_ex: Option<&Extractor> = if det_model == req.model {
+            None
+        } else {
+            details_owned = Extractor::new(&det_model).ok();
+            details_owned.as_ref()
+        };
+        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex, structure_ex, details_ex).await?;
         let diag = result.diagnostics;
         Ok(ExtractResponse {
             canonical_deal: result.document.get("canonical_deal").cloned(),
