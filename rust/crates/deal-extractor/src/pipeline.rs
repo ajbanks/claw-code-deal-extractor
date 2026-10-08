@@ -141,7 +141,8 @@ pub async fn run_multi_pass(
     // empty, never overwriting populated values.
     if let Some(cov_ex) = coverage_ex {
         let gaps = coverage::coverage_issues(&final_doc, corpus);
-        if gaps.len() >= 4 && cov_ex.model != extractor.model {
+        let details_model = details_ex.map(|d| d.model.as_str()).unwrap_or(extractor.model.as_str());
+        if gaps.len() >= 4 && cov_ex.model != details_model {
             eprintln!("[pipeline] thin document — {} evidenced gaps, escalating pass B to {}",
                 gaps.len(), cov_ex.model);
             let pass_b_prompt = prompts::PASS_B_DETAILS
