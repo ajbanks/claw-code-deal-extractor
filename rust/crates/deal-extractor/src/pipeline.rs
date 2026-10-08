@@ -132,6 +132,59 @@ pub async fn run_multi_pass(
     let (mut final_doc, _pre_coverage_issues, repair_rounds) =
         repair::repair_loop(extractor, corpus, document, max_repair_rounds).await;
 
+    // ── Thin-doc escalation ──
+    // When pass B produced a sparse document (many evidenced-but-empty fields),
+    // re-run the details pass on Sol and merge — but ONLY into fields still
+    // empty, never overwriting populated values.
+    if let Some(cov_ex) = coverage_ex {
+        let gaps = coverage::coverage_issues(&final_doc, corpus);
+        if gaps.len() >= 4 && cov_ex.model != extractor.model {
+            eprintln!("[pipeline] thin document — {} evidenced gaps, escalating pass B to {}",
+                gaps.len(), cov_ex.model);
+            let pass_b_prompt = prompts::PASS_B_DETAILS
+                .replace("{focus_summary}", &focus_summary)
+                .replace("{classification_summary}", &classification_summary);
+            match cov_ex.call(&pass_b_prompt, &corpus.render()).await {
+                Ok(text) => match crate::extract::parse_json(&text) {
+                    Ok(esc) => {
+                        let mut filled = 0usize;
+                        for section in ["details", "kpis"] {
+                            let (Some(base), Some(extra)) = (final_doc.get_mut(section), esc.get(section)) else { continue };
+                            let (Some(base_o), Some(extra_o)) = (base.as_object_mut(), extra.as_object()) else { continue };
+                            for (k, v) in extra_o {
+                                let empty = base_o.get(k).map_or(true, |e| {
+                                    e.is_null()
+                                        || e.as_object().map(|o| o.is_empty() || o.get("value").map_or(false, |v| v.is_null())).unwrap_or(false)
+                                        || e.as_array().map(|a| a.is_empty()).unwrap_or(false)
+                                });
+                                if empty {
+                                    base_o.insert(k.clone(), v.clone());
+                                    filled += 1;
+                                }
+                            }
+                        }
+                        // Canonical arrays the escalation produced that Luna lacked.
+                        if let (Some(cd), Some(ecd)) = (final_doc.get_mut("canonical_deal").and_then(|v| v.as_object_mut()), esc.get("canonical_deal").and_then(|v| v.as_object())) {
+                            for k in ["valuations", "phases", "planning_applications", "facility_parties", "construction_budgets"] {
+                                let empty = cd.get(k).and_then(|v| v.as_array()).map_or(true, |a| a.is_empty());
+                                if empty {
+                                    if let Some(arr) = ecd.get(k).and_then(|v| v.as_array()).filter(|a| !a.is_empty()) {
+                                        cd.insert(k.to_string(), Value::Array(arr.clone()));
+                                        filled += 1;
+                                    }
+                                }
+                            }
+                        }
+                        conform::conform_document(&mut final_doc);
+                        eprintln!("[pipeline] escalation merged {filled} fields");
+                    }
+                    Err(e) => eprintln!("[pipeline] escalation parse failed: {e}"),
+                },
+                Err(e) => eprintln!("[pipeline] escalation call failed: {e}"),
+            }
+        }
+    }
+
     // ── Coverage fill (Sol) ──
     // One small patch call per extraction, not folded into the repair loop:
     // the evidence travels inline so no tool loop is needed. Sol is better

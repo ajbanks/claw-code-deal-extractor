@@ -202,7 +202,7 @@ RULES:
 For each: { id, name, sequence, status, unit_count }.
 
 ## DETAILS
-Every field is a sourced-value object: { "source": "<filename>", "source_type": "extracted|calculated|assumed|unknown", "notes": <string|null>, "scope": "deal|project|null", "evidence_text": <string|null>, "value": <type-specific|null> }.
+Every field is a sourced-value object: { "source": "<filename>", "source_type": "extracted|calculated|assumed|unknown", "notes": <string|null>, "scope": "deal|project|null", "evidence_text": <string|null>, "value": <type-specific|null>, "confidence": <0.0-1.0 or omit> }. Include "confidence" on monetary/quantity values: ~1.0 when stated explicitly in the source, lower when inferred or ambiguous — this lets downstream arbitration catch wrong-but-plausible figures.
 
 Emit every field. Use "value": null where the documents give no evidence.
 
