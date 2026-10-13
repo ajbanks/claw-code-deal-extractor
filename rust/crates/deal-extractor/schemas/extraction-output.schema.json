@@ -311,6 +311,389 @@
                   "null"
                 ]
               },
+              "loan_components": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "gross_facility": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                        "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "net_proceeds": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                        "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "retained_interest": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                        "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "fees": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "enum": [
+                            "arrangement",
+                            "exit",
+                            "lender",
+                            "monitoring",
+                            "commitment",
+                            "non_utilisation",
+                            "other"
+                          ]
+                        },
+                        "amount": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "amount": {
+                              "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                              "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                              "type": "string"
+                            },
+                            "currency": {
+                              "pattern": "^[a-zA-Z]{3}$",
+                              "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "currency"
+                          ]
+                        },
+                        "treatment": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "enum": [
+                            "deducted_from_gross",
+                            "financed",
+                            "paid_separately",
+                            "included_in_total",
+                            "unknown"
+                          ]
+                        },
+                        "stated": {
+                          "type": "boolean"
+                        },
+                        "evidence": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "file_id": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "document_type": {
+                                "type": "string",
+                                "enum": [
+                                  "investment_memorandum",
+                                  "brochure",
+                                  "teaser",
+                                  "hotel_operator_pack",
+                                  "developer_cv",
+                                  "development_appraisal",
+                                  "asset_liability_statement",
+                                  "valuation_report",
+                                  "monitoring_surveyor_report",
+                                  "building_survey",
+                                  "environmental_report",
+                                  "titledocuments",
+                                  "lease_tenancy_agreement",
+                                  "planning_documents",
+                                  "structure_chart",
+                                  "financial_model",
+                                  "rent_roll",
+                                  "construction_contract_cost_plan",
+                                  "agency_market_report",
+                                  "comparable_evidence_schedule",
+                                  "facility_agreement",
+                                  "term_sheet",
+                                  "intercreditor_agreement",
+                                  "guarantee_agreement",
+                                  "security_agreement",
+                                  "acquisition_agreement",
+                                  "other"
+                                ]
+                              },
+                              "pdf_page": {
+                                "minimum": 1,
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "sheet_name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "section": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "table": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "row": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "column": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "quote": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "span_start": {
+                                "minimum": 0,
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "span_end": {
+                                "minimum": 0,
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "bbox": {
+                                "type": [
+                                  "array",
+                                  "null"
+                                ],
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "table_id": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "cell_ids": {
+                                "type": [
+                                  "array",
+                                  "null"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "page_artifact_hash": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "parser_version": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "evidence_role": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "direct",
+                                  "supporting",
+                                  "derived"
+                                ]
+                              },
+                              "derived_from_assertion_ids": {
+                                "type": [
+                                  "array",
+                                  "null"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "file_id",
+                              "document_type",
+                              "pdf_page",
+                              "sheet_name",
+                              "section",
+                              "table",
+                              "row",
+                              "column",
+                              "quote"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "kind",
+                        "amount",
+                        "treatment",
+                        "stated",
+                        "evidence"
+                      ]
+                    }
+                  },
+                  "total_repayment_obligation": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                        "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "gross_facility_stated": {
+                    "type": "boolean"
+                  },
+                  "net_proceeds_stated": {
+                    "type": "boolean"
+                  },
+                  "retained_interest_stated": {
+                    "type": "boolean"
+                  },
+                  "total_repayment_stated": {
+                    "type": "boolean"
+                  },
+                  "evidence_assertion_ids": {
+                    "type": "array",
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "gross_facility",
+                  "net_proceeds",
+                  "retained_interest",
+                  "fees",
+                  "total_repayment_obligation",
+                  "gross_facility_stated",
+                  "net_proceeds_stated",
+                  "retained_interest_stated",
+                  "total_repayment_stated",
+                  "evidence_assertion_ids"
+                ]
+              },
               "evidence": {
                 "type": "array",
                 "items": {
@@ -1810,6 +2193,21 @@
           ]
         },
         "focus_resolution_status": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "ambiguous",
+            "unresolved"
+          ]
+        },
+        "resolved_focus_facility_id": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_focus_resolution_status": {
           "type": "string",
           "enum": [
             "resolved",
@@ -3617,6 +4015,8 @@
                   "stabilised_value",
                   "estimated_rental_value",
                   "purchase_price",
+                  "asking_price",
+                  "total_acquisition_cost",
                   "ninety_day_sale_value",
                   "day_1_value",
                   "unclassified"
@@ -3918,6 +4318,53 @@
                 }
               },
               "basis_note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "transaction_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "confidence": {
+                "minimum": 0,
+                "maximum": 1,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "extraction_status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "stated",
+                  "estimated",
+                  "inferred"
+                ]
+              },
+              "review_status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "resolved",
+                  "needs_review"
+                ]
+              },
+              "raw_amount": {
                 "type": [
                   "string",
                   "null"
@@ -8281,6 +8728,56 @@
                       "null"
                     ]
                   },
+                  "unit_break_penalty": {
+                    "description": "Break penalty for this specific unit — a stated payment due to exercise the break (e.g. '£135,234.48 break penalty'). Only when the source states an amount.",
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "minimum": 0,
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "unit_break_notice_months": {
+                    "description": "Notice period in months required to exercise this unit's break, only when the source states it.",
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "unit_extension_approach": {
+                    "description": "Stated extension / renewal position for this unit's tenant — e.g. 'the tenant has approached for a 5-year extension'. Verbatim schedule wording only; do not infer.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit_lease_notes": {
+                    "description": "Other lease terms stated for this specific unit — rent-free periods, exclusivity, stepping, tax/rent-share clauses. Only terms printed against this unit or tenant.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "lease_type": {
                     "description": "Lease type for this specific unit explicitly stated in the source, such as FRI or IRI. Do not copy a general asset-level lease statement into each row.",
                     "type": [
@@ -8364,6 +8861,10 @@
                   "unit_lease_start",
                   "unit_lease_expiry",
                   "unit_break_date",
+                  "unit_break_penalty",
+                  "unit_break_notice_months",
+                  "unit_extension_approach",
+                  "unit_lease_notes",
                   "lease_type",
                   "tenant_credit_rating",
                   "unit_purchaser",
@@ -14627,6 +15128,298 @@
                           "string",
                           "null"
                         ]
+                      },
+                      "profile": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "full",
+                          "summary"
+                        ]
+                      },
+                      "legal_name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "company_number": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ch_url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "match_confidence": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "match_basis": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "accounts": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "type": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "period_end": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "overdue": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          },
+                          "going_concern_note": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "period_end",
+                          "overdue",
+                          "going_concern_note"
+                        ]
+                      },
+                      "financials": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "year_end": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "turnover": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "operating_profit": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "net_profit": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "net_assets": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "cash": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "borrowings": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "year_end",
+                            "turnover",
+                            "operating_profit",
+                            "net_profit",
+                            "net_assets",
+                            "cash",
+                            "borrowings"
+                          ]
+                        }
+                      },
+                      "risk_signals": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "summary": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "source": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "date": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "summary",
+                            "source",
+                            "date"
+                          ]
+                        }
+                      },
+                      "post_document_events": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "summary": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "source": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "date": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "summary",
+                            "source",
+                            "date"
+                          ]
+                        }
+                      },
+                      "covenant_tier": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "strong",
+                          "moderate",
+                          "weak",
+                          "insufficient_data"
+                        ]
+                      },
+                      "covenant_rule": {
+                        "description": "Human-readable rule that produced the tier.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rent_share_pct": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "rent_per_annum": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "lease_start": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "lease_expiry": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "break_date": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "months_past_maturity": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "guarantor": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "units": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     },
                     "required": [
@@ -14636,9 +15429,95 @@
                       "parent_company",
                       "adverse_findings",
                       "adverse_note",
-                      "source"
+                      "source",
+                      "profile",
+                      "legal_name",
+                      "company_number",
+                      "ch_url",
+                      "match_confidence",
+                      "match_basis",
+                      "accounts",
+                      "financials",
+                      "risk_signals",
+                      "post_document_events",
+                      "covenant_tier",
+                      "covenant_rule",
+                      "rent_share_pct",
+                      "rent_per_annum",
+                      "lease_start",
+                      "lease_expiry",
+                      "break_date",
+                      "months_past_maturity",
+                      "guarantor",
+                      "units"
                     ]
                   }
+                },
+                "roll_up": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "total_passing_rent": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "strong_income_pct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "income_at_risk_in_term": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "income_at_risk_pct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "occupancy_at_maturity_base_pct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "occupancy_at_maturity_stressed_pct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "icr_top1_fail": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "icr_top3_fail": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "total_passing_rent",
+                    "strong_income_pct",
+                    "income_at_risk_in_term",
+                    "income_at_risk_pct",
+                    "occupancy_at_maturity_base_pct",
+                    "occupancy_at_maturity_stressed_pct",
+                    "icr_top1_fail",
+                    "icr_top3_fail"
+                  ]
                 },
                 "researched_at": {
                   "type": [
@@ -14649,6 +15528,7 @@
               },
               "required": [
                 "tenants",
+                "roll_up",
                 "researched_at"
               ]
             }
@@ -16898,6 +17778,88 @@
             "value"
           ]
         },
+        "total_acquisition_cost": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "All-in total cost of acquiring the asset explicitly stated as a single figure (e.g. 'total acquisition cost: £25,285,000', 'total consideration', 'all-in cost'). This INCLUDES the purchase price plus taxes, fees and costs ONLY where the source states the combined total — do NOT compute it from purchase_price + purchaser_costs, and do NOT copy the purchase price here. Use null unless the source states an explicit all-in acquisition total.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
         "residual_value": {
           "type": "object",
           "properties": {
@@ -17967,6 +18929,7 @@
         "market_value",
         "ninety_day_sale_value",
         "purchase_price",
+        "total_acquisition_cost",
         "residual_value",
         "valuation_finance_rate",
         "phase_1_construction_months",
