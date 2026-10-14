@@ -88,6 +88,8 @@ Every details field is a sourced-value object { source, source_type, notes, scop
 - loan_to_value.value = loan_amount / market_value as a percentage — LTV is loan/market value, NOT loan/GDV.
 - loan_to_gdv.value = loan_amount / gross_development_value as a percentage.
 - build_cost_per_area_unit = { amount, currency: "gbp" } build cost per sqft.
+- loan_balance_including_interest = { amount, currency } — the stated all-in loan figure (e.g. "loan incl. interest £5,699,659", a redemption or maturity balance) when the pack quotes one; put the quoted sentence in evidence_text.
+- finance_costs (details) = { amount, currency } — a stated total interest/finance cost over the term (e.g. "Finance costs £749,659"). Stated amount only — never rate × term.
 
 Return ONLY valid JSON: { "canonical_deal": {...}, "details": {...}, "kpis": {...}, "classification": {...} }"#;
 
