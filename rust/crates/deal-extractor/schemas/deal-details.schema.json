@@ -3418,6 +3418,170 @@
         "value"
       ]
     },
+    "finance_costs": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+          "type": "string"
+        },
+        "source_type": {
+          "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+          "type": "string",
+          "enum": [
+            "extracted",
+            "calculated",
+            "assumed",
+            "web_search",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "deal",
+            "project"
+          ]
+        },
+        "evidence_text": {
+          "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Stated total interest / finance costs over the loan term (e.g. \"Finance costs £749,659\"). Stated amount only — never compute rate × term here.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "amount": {
+              "minimum": 0,
+              "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "currency": {
+              "pattern": "^[a-zA-Z]{3}$",
+              "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "source_type",
+        "notes",
+        "scope",
+        "evidence_text",
+        "value"
+      ]
+    },
+    "loan_including_interest": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+          "type": "string"
+        },
+        "source_type": {
+          "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+          "type": "string",
+          "enum": [
+            "extracted",
+            "calculated",
+            "assumed",
+            "web_search",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "deal",
+            "project"
+          ]
+        },
+        "evidence_text": {
+          "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "The all-in loan figure including rolled interest (e.g. \"loan including interest £5,699,659\", \"gross loan incl. rolled interest\"). Quoted amount only.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "amount": {
+              "minimum": 0,
+              "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "currency": {
+              "pattern": "^[a-zA-Z]{3}$",
+              "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "source_type",
+        "notes",
+        "scope",
+        "evidence_text",
+        "value"
+      ]
+    },
     "mezzanine_debt": {
       "type": "object",
       "properties": {
@@ -10916,6 +11080,8 @@
     "fees",
     "drawdown_schedule",
     "total_investment_cost",
+    "finance_costs",
+    "loan_including_interest",
     "mezzanine_debt",
     "gross_development_value",
     "loan_to_cost",
