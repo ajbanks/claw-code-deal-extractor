@@ -36,6 +36,8 @@ const FIELD_SPECS: &[(&str, &[&str], &str)] = &[
     ("canonical_deal.phases", &["phase"], "scheme phases with unit_count and status"),
     ("canonical_deal.facility_parties", &["lender", "borrower", "spv"], "borrower and lender parties per facility"),
     ("canonical_deal.valuations", &["valuation", "valuer", "report"], "valuation entries (value, basis, valuer, date)"),
+    ("details.finance_costs", &["finance cost", "rolled interest", "interest over the term"], "stated finance/interest total over the loan term (e.g. \"Finance costs £749,659\")"),
+    ("details.loan_including_interest", &["incl. interest", "including interest", "rolled interest"], "the all-in loan figure incl. rolled interest (e.g. \"loan including interest £5,699,659\")"),
 ];
 
 const MAX_ISSUES: usize = 12;
