@@ -166,6 +166,8 @@ The focus is the NEW money being requested — not repaid/existing/proposed debt
 - For a bridge deal: the bridge facility with disposition "requested".
 - For a development deal: the development facility with disposition "requested".
 - If exactly one facility has disposition "requested", that is the focus.
+- If NO facility is being requested (a structured transaction such as sale & leaseback, forward purchase, promotion agreement, or an extension/variation of existing debt), leave focus_facility_id null — do not point it at an existing facility.
+- A maturity extension or amendment asks to vary an EXISTING facility, not to take new money — mark that facility disposition "existing" and focus_facility_id null.
 
 ## CAPITAL EVENTS
 { id, facility_id, event_type, effective_date, trigger, amount, resulting_balance, evidence }.
@@ -257,6 +259,15 @@ Use the classification from pass A to prioritise:
 - Development deal: project_gdv AND gross_development_value (full scheme), total_development_cost, total_investment_cost, construction_costs, residential_units with per-unit expected_gdv, phases, construction_timelines, planning_status, profit stated figures.
 - Equity deal: deal_type "equity", purchase_price, purchaser_costs, the equity raise amount, target IRR/return metrics stated to investors, and the underlying asset economics (rent, value, NIY) — equity docs still describe the asset.
 - Refinance / disposal bridge: market_value, day_1_value, stabilised_value, loan_term, interest_rate, fees, exit_plan, current_asset_description.
+- Structured non-debt transactions (sale & leaseback, ground lease, income strip, forward funding / forward commitment, promotion agreement): DO NOT fabricate a loan — the pack describes an investor paying a capital sum or rent stream, not a lender advancing a facility. Emit the facilities that actually exist (often none). Extract deal_type, finance_structure, sale_price / strip_price, leaseback_rent_per_annum / strip_rent_per_annum, leaseback_term_years / strip_term_years, rent_review, buyback_option, reversion, forward_purchase_price, forward_commitment, promoter_share.
+- Planning-gain / strategic land (option agreement, promotion agreement, hybrid): current market_value vs consented_value are distinct — do not merge them. Extract option_agreement, promotion_agreement, planning_budget, overage_clause, deferred_consideration.
+- Islamic finance (diminishing musharaka, ijara): the financier's contribution is the facility (emit it as a debt_facility with role senior_debt); the customer_contribution is equity. Extract finance_structure, customer_contribution.
+- Social housing / registered provider: the lending basis is euv_sh_value; open_market_value_vacant_possession is an information-only comparator — extract both separately.
+- Specialist residential (HMO, MUFB, PBSA): extract rental_assessment (e.g. gross rent less 25% deduction) and nomination_agreement (operator, beds, coverage).
+- Trading assets (care home, hotel, nursery, pub): adjusted_ebitda is the sizing figure; market_value may carry an MV1/MV2/MV3 basis note.
+- Workouts / amendments (maturity extension, covenant breach, cure, stressed refi): the existing facility usually IS the answer — extract existing_debt, extension_request, covenant_status, amendment_fee, warrants as stated.
+- Second charge / additional debt: existing_debt stays in place; the ask is incremental. Note combined-LTV context in notes.
+- Portfolio / cross-collateralised: extract portfolio_assets with per-asset value and release price; market_value is the aggregate.
 
 ## KPIs
 Every KPI is: { source, source_type, notes, scope, evidence_text, value }.

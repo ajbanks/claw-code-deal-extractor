@@ -18987,6 +18987,2571 @@
             "evidence_text",
             "value"
           ]
+        },
+        "sale_price": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Agreed sale price / capital sum in a structured transaction (e.g. sale & leaseback, ground lease sale, income strip purchase price). This is the headline consideration paid by the investor — NOT a loan. Do not use purchase_price when the source calls it a sale price or capital sum.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "forward_purchase_price": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Price an institutional investor commits to pay for the completed asset under a forward-funding or forward-purchase agreement (e.g. 'Forward purchase price: £40m'). This is the exit value, not a loan and not necessarily today's GDV.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "consented_value": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Value of land or an asset with planning consent / on grant of consent explicitly stated (e.g. 'consented value £6m', 'value with planning'). Distinct from current market value — the uplift is hope value.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "open_market_value_vacant_possession": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Open market value assuming vacant possession, explicitly stated by the valuer (e.g. OMV-VP £42m against an EUV-SH basis of £18m). This is an information-only comparator for social-housing or let assets — do NOT treat it as the lending basis.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "euv_sh_value": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Existing Use Value — Social Housing (EUV-SH) explicitly stated by the valuer for a registered-provider security. This is the lending basis for social-housing facilities, not open-market value.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "adjusted_ebitda": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Adjusted EBITDA explicitly stated for a trading property (care home, hotel, nursery, pub) — the maintainable earnings figure the loan is sized on. Do not compute from accounts lines.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "existing_debt": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Outstanding balance of existing secured debt being refinanced or remaining in place, explicitly stated (e.g. 'existing facility £5.08m', 'current balance £4.5m'). Do not confuse with the requested facility amount.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "deferred_consideration": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Portion of the purchase price payable later under a deferred-consideration or vendor-deferral arrangement (e.g. '£1.6m deferred over 24 months'). The full purchase price includes this amount.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "amendment_fee": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Amendment, extension or waiver fee stated on a loan variation or stressed refinance (e.g. 'amendment fee £300k', 'extension fee 1%').",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "promoter_share": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Promoter's share of sale proceeds under a promotion agreement, explicitly stated (e.g. '20% of net proceeds', monetary or percentage). This is a profit share, not a fee or a loan.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "planning_budget": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Budget or facility for planning/promotion costs on strategic land before consent (e.g. 'planning costs facility £350k').",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "customer_contribution": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Customer/sponsor contribution under a co-ownership or partnership finance structure (e.g. diminishing musharaka deposit). The financier's contribution is the facility; this is the customer's own stake.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "freehold_comparable_value": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Value of a comparable unencumbered/freehold interest stated as a comparator (e.g. '£560k freehold value' against a short-leasehold asset). This is NOT the subject's value.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "underlying_asset_value": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Value of the underlying assets behind a ground-rent or reversionary investment (e.g. aggregate value of leasehold flats behind a freehold ground-rent purchase). This is a comparator, not the security value.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "leaseback_rent_per_annum": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Annual rent payable under a sale-and-leaseback or ground-lease arrangement, explicitly stated (e.g. 'leaseback rent £200,000 p.a.'). This is the repayment stream to the investor, not a loan coupon.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "strip_price": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Price paid for an income strip — the capitalised value of a contracted rent stream, explicitly stated (e.g. 'strip price £12m'). No reversionary value is included.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "strip_rent_per_annum": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Annual income payable under an income-strip arrangement, explicitly stated.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "leaseback_term_years": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Term of a sale-and-leaseback or ground-lease arrangement in years, explicitly stated (e.g. 125 for a 125-year ground lease).",
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "strip_term_years": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Term of an income-strip arrangement in years, explicitly stated.",
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "deferred_management_fee_stream": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Deferred management fee (DMF) stream or event-fee income stated for a later-living / retirement scheme. This is recurring income, not sales GDV — do not fold it into gross_development_value.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "pattern": "^[a-zA-Z]{3}$",
+                  "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "option_agreement": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Terms of a land option agreement — who may buy, at what price formula, exercisable when (e.g. 'option to purchase at 90% of consented open-market value, exercisable within 24 months of grant').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "promotion_agreement": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Terms of a land promotion agreement — promoter's obligations and share of proceeds.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "overage_clause": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Overage or clawback provision on a site purchase (e.g. '25% of GDV above £9m payable to vendor'). This is contingent consideration, often excluded from stated cost.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "warrants": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Warrants, equity kickers or other equity upside granted to a lender or investor (e.g. 'warrants over 10% of SPV equity').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "covenant_status": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Covenant breach, waiver, cure or compliance status stated for an existing facility (e.g. 'LTV covenant 70% breached — £800k cure proposed').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "extension_request": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Maturity-extension or covenant-reset request stated for an existing facility (e.g. '12-month extension at current balance, margin +150bps').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "finance_structure": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Non-conventional financing structure (e.g. 'Diminishing Musharaka', 'Ijara wa Iqtina', 'forward funding', 'income strip').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "nomination_agreement": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "description": "Nomination agreement for PBSA or specialist accommodation — operator/university, beds covered, coverage percentage, terms."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "rental_assessment": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "description": "Specialist rental assessment basis (e.g. HMO/MUFB gross rent less 25% void/management deduction before operating costs)."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "portfolio_assets": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "description": "Per-asset schedule for a portfolio or cross-collateralised facility — asset_id, value, release price per asset."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "construction_method": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Construction method where relevant to the facility structure (e.g. 'volumetric modular — 30% factory deposit').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "forward_commitment": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Forward purchase or forward commitment terms — who commits to buy, when, at what price (e.g. 'institutional purchaser committed to buy at PC for £40m').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "seller": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Seller or counterparty where relevant (e.g. 'fixed charge receivers acting for the mortgagee').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "regulated": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Whether the lending is FCA-regulated (owner-occupied or consumer security under MCOB).",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "reversion": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Reversionary terms of a structured transaction (e.g. 'freehold reverts to tenant at expiry for nil consideration').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
+        },
+        "buyback_option": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "description": "Source file id from which this value was extracted. If no file had supporting evidence for this value, leave an empty string",
+              "type": "string"
+            },
+            "source_type": {
+              "description": "How this value was produced: extracted from a source file, calculated from other fields, assumed in the absence of evidence, or derived from a web search.",
+              "type": "string",
+              "enum": [
+                "extracted",
+                "calculated",
+                "assumed",
+                "web_search",
+                "unknown"
+              ]
+            },
+            "notes": {
+              "description": "Optional note explaining scope, method, or why a value differs from source. Null if not needed.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "Whether this value belongs to the deal-specific facility scope or the overall project scope. Use 'deal' for the focus facility being underwritten. Use 'project' for whole-scheme totals. Null if scope is ambiguous or not applicable.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "deal",
+                "project"
+              ]
+            },
+            "evidence_text": {
+              "description": "Short human-readable description of where the value was found in the source, e.g. 'Term sheet, page 5, row 3' or 'Sheet: Cash Flow, cell B12'. Null if no specific evidence location is available.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Buy-back / repurchase option in a sale & leaseback or ground-lease transaction (e.g. '£1 nominal at year 75').",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value"
+          ]
         }
       },
       "required": [
@@ -19107,7 +21672,43 @@
         "construction_costs_by_phase",
         "construction_timelines_by_phase",
         "facilities_by_phase",
-        "gross_internal_area_by_phase"
+        "gross_internal_area_by_phase",
+        "sale_price",
+        "forward_purchase_price",
+        "consented_value",
+        "open_market_value_vacant_possession",
+        "euv_sh_value",
+        "adjusted_ebitda",
+        "existing_debt",
+        "deferred_consideration",
+        "amendment_fee",
+        "promoter_share",
+        "planning_budget",
+        "customer_contribution",
+        "freehold_comparable_value",
+        "underlying_asset_value",
+        "leaseback_rent_per_annum",
+        "strip_price",
+        "strip_rent_per_annum",
+        "leaseback_term_years",
+        "strip_term_years",
+        "deferred_management_fee_stream",
+        "option_agreement",
+        "promotion_agreement",
+        "overage_clause",
+        "warrants",
+        "covenant_status",
+        "extension_request",
+        "finance_structure",
+        "nomination_agreement",
+        "rental_assessment",
+        "portfolio_assets",
+        "construction_method",
+        "forward_commitment",
+        "seller",
+        "regulated",
+        "reversion",
+        "buyback_option"
       ]
     },
     "kpis": {
