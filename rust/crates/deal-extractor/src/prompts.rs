@@ -36,7 +36,7 @@ For each facility:
 
 CRITICAL RULES:
 1. Include repaid/refinanced facilities (e.g. existing Shojin debt being repaid) with status "repaid" and a matching fully_repaid/refinanced capital_event.
-2. Include future/planned facilities (e.g. a development facility that will replace the bridge) with disposition "proposed" and scope_level "project".
+2. Include future/planned facilities (e.g. a development facility that will replace the bridge) with disposition "proposed" and scope_level "project". ALWAYS give a proposed facility its commitment when the pack states or models it (e.g. the appraisal's development facility line, "gross development facility £35.8m", or a facility sized off TDC) — a proposed facility without an amount hides half the ask. Only omit commitment when no figure exists anywhere.
 3. Do NOT sum unrelated facilities — each facility is its own entry.
 4. A bridge facility is short-term (≤12 months) acquisition/refinance financing; a development facility is longer-term construction financing.
 5. "whole_loan" means one facility covering senior+mezzanine — check for "whole loan" wording before generic "loan"/"debt".
@@ -156,7 +156,7 @@ For each:
 
 RULES:
 1. Include repaid facilities (status "repaid", disposition "repaid") with a matching capital_event.
-2. Include proposed/future facilities (disposition "proposed", scope_level "project").
+2. Include proposed/future facilities (disposition "proposed", scope_level "project") — ALWAYS with their commitment when the pack states or models it; a proposed facility without an amount hides half the ask.
 3. Do NOT sum facilities — each is its own entry.
 4. Equity is NOT debt — use instrument_type ordinary_equity/preferred_equity.
 5. In an equity deal, the reader invests EQUITY — the sponsor's borrowings (senior mortgage, development facility) are context; give them scope_level "project" and do NOT mark them "requested". The focus should be the equity raise itself (preferred_equity/ordinary_equity instrument) — if no equity facility is stated, leave focus_facility_id null rather than pointing at a mortgage the investor isn't taking.
