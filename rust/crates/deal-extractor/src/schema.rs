@@ -359,6 +359,16 @@ pub struct Classification {
     pub loan_rank: Option<CategoryValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operating_model: Option<CategoryValue>,
+    // Plural classification dimensions (Oct 2026 schema expansion) — optional,
+    // multi-valued supersets of the singular axes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_classes: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_types: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub investment_strategies: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub development_status: Option<String>,
     /// Lossless catch-all for fields not yet declared on the struct.
     #[serde(flatten)]
     pub extra: std::collections::BTreeMap<String, Value>,
