@@ -97,10 +97,8 @@ fn scoring_sanity_known_good_ih() {
                     name: Some("Bridge Facility".into()),
                     role: Some("senior_debt".into()),
                     loan_type: Some("bridge".into()),
-                    commitment: Some(Money {
-                        amount: 25_750_000.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 25_750_000.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     term_months: Some(6),
                     status: Some("candidate".into()),
                     disposition: Some("requested".into()),
@@ -111,10 +109,8 @@ fn scoring_sanity_known_good_ih() {
                     name: Some("Development Facility".into()),
                     role: Some("senior_debt".into()),
                     loan_type: Some("development".into()),
-                    commitment: Some(Money {
-                        amount: 73_393_202.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 73_393_202.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     term_months: Some(24),
                     status: Some("candidate".into()),
                     disposition: Some("proposed".into()),
@@ -124,10 +120,8 @@ fn scoring_sanity_known_good_ih() {
                     id: "shojin_senior".into(),
                     name: Some("Shojin Senior Debt".into()),
                     role: Some("senior_debt".into()),
-                    commitment: Some(Money {
-                        amount: 20_361_250.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 20_361_250.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     status: Some("repaid".into()),
                     disposition: Some("repaid".into()),
                     ..Default::default()
@@ -136,10 +130,8 @@ fn scoring_sanity_known_good_ih() {
                     id: "shojin_mezz".into(),
                     name: Some("Shojin Mezzanine Debt".into()),
                     role: Some("mezzanine_debt".into()),
-                    commitment: Some(Money {
-                        amount: 3_228_000.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 3_228_000.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     status: Some("repaid".into()),
                     disposition: Some("repaid".into()),
                     ..Default::default()
@@ -148,10 +140,8 @@ fn scoring_sanity_known_good_ih() {
                     id: "equity".into(),
                     name: Some("Developer Equity".into()),
                     role: Some("developer_equity".into()),
-                    commitment: Some(Money {
-                        amount: 5_500_000.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 5_500_000.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     ..Default::default()
                 },
             ],
@@ -161,28 +151,22 @@ fn scoring_sanity_known_good_ih() {
                 Valuation {
                     id: "gdv".into(),
                     value_type: Some("gross_development_value".into()),
-                    amount: Money {
-                        amount: 115_200_000.0,
-                        currency: Some("GBP".into()),
-                    },
+                    amount: Money {amount: 115_200_000.0,
+                        currency: Some("GBP".into()), ..Default::default() },
                     ..Default::default()
                 },
                 Valuation {
                     id: "gdv_p1".into(),
                     value_type: Some("gross_development_value".into()),
-                    amount: Money {
-                        amount: 80_545_000.0,
-                        currency: Some("GBP".into()),
-                    },
+                    amount: Money {amount: 80_545_000.0,
+                        currency: Some("GBP".into()), ..Default::default() },
                     ..Default::default()
                 },
                 Valuation {
                     id: "mv".into(),
                     value_type: Some("market_value".into()),
-                    amount: Money {
-                        amount: 32_500_000.0,
-                        currency: Some("GBP".into()),
-                    },
+                    amount: Money {amount: 32_500_000.0,
+                        currency: Some("GBP".into()), ..Default::default() },
                     ..Default::default()
                 },
             ],
@@ -207,12 +191,12 @@ fn scoring_sanity_known_good_ih() {
                     id: "e1".into(),
                     event_type: Some("fully_repaid".into()),
                     facility_id: Some("shojin_senior".into()),
-                },
+               ..Default::default() },
                 CapitalEvent {
                     id: "e2".into(),
                     event_type: Some("fully_repaid".into()),
                     facility_id: Some("shojin_mezz".into()),
-                },
+               ..Default::default() },
             ],
             ..Default::default()
         }),
@@ -221,58 +205,61 @@ fn scoring_sanity_known_good_ih() {
             asset_class_primary: Some("residential".into()),
             project_type: Some(CategoryValue {
                 category: Some("development".into()),
-            }),
+            ..Default::default()
+    }),
             ..Default::default()
         }),
         details: Some(DealDetails {
             loan_amount: Some(SourcedValue {
                 value: Some(serde_json::json!({"total":{"amount":"25750000"}})),
                 source: Some("focus_facility".into()),
-            }),
+           ..Default::default() }),
             senior_debt: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"25750000"})),
                 source: Some("facilities".into()),
-            }),
+           ..Default::default() }),
             gross_debt: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"25750000"})),
                 source: Some("facilities".into()),
-            }),
+           ..Default::default() }),
             developer_equity: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"5500000"})),
                 source: Some("facilities".into()),
-            }),
+           ..Default::default() }),
             market_value: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"32500000"})),
                 source: Some("valuations".into()),
-            }),
+           ..Default::default() }),
             gross_development_value: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"115200000"})),
                 source: Some("valuations".into()),
-            }),
+           ..Default::default() }),
             address: Some(SourcedValue {
                 value: Some(serde_json::json!({"postcode":"W5 5DB"})),
                 source: Some("doc".into()),
-            }),
+           ..Default::default() }),
             gross_internal_area: Some(SourcedValue {
                 value: Some(serde_json::json!(194_871.0)),
                 source: Some("doc".into()),
-            }),
+           ..Default::default() }),
             ..Default::default()
         }),
         kpis: Some(Kpis {
             loan_to_value: Some(SourcedValue {
                 value: Some(serde_json::json!({"value":79.0})),
                 source: Some("computed".into()),
-            }),
+           ..Default::default() }),
             loan_to_gdv: Some(SourcedValue {
                 value: Some(serde_json::json!({"value":22.0})),
                 source: Some("computed".into()),
-            }),
+           ..Default::default() }),
             build_cost_per_area_unit: Some(SourcedValue {
                 value: Some(serde_json::json!({"amount":"180"})),
                 source: Some("doc".into()),
-            }),
+           ..Default::default() }),
+            ..Default::default()
         }),
+        ..Default::default()
     };
     let results = scoring::score_ih(&doc);
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();

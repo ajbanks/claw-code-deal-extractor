@@ -58,8 +58,7 @@ fn lenient_opt_string<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Money {
-    #[serde(default, deserialize_with = "lenient_f64")]
+pub struct Money {#[serde(default, deserialize_with = "lenient_f64")]
     pub amount: f64,
     #[serde(
         default,
@@ -67,6 +66,9 @@ pub struct Money {
         deserialize_with = "lenient_opt_string"
     )]
     pub currency: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 /// A sourced-value wrapper. `value` is untyped — the real contract nests
@@ -82,6 +84,9 @@ pub struct SourcedValue {
         deserialize_with = "lenient_opt_string"
     )]
     pub source: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -98,6 +103,9 @@ pub struct Address {
     pub country: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -152,6 +160,9 @@ pub struct Facility {
     pub graph_entity_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<Vec<Evidence>>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -162,6 +173,9 @@ pub struct Evidence {
     pub page: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quote: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -186,6 +200,9 @@ pub struct Valuation {
     pub scenario: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<Vec<Evidence>>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -208,6 +225,9 @@ pub struct Phase {
         deserialize_with = "lenient_opt_u32"
     )]
     pub unit_count: Option<u32>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -218,6 +238,9 @@ pub struct CapitalEvent {
     pub event_type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub facility_id: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -226,6 +249,9 @@ pub struct CapitalSnapshotPosition {
     pub facility_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -234,6 +260,9 @@ pub struct CapitalSnapshot {
     pub scope_level: Option<String>,
     #[serde(default)]
     pub positions: Vec<CapitalSnapshotPosition>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -252,6 +281,68 @@ pub struct CanonicalDeal {
     pub capital_events: Vec<CapitalEvent>,
     #[serde(default)]
     pub capital_snapshots: Vec<CapitalSnapshot>,
+
+    // ── Passthrough fields (declared in canonical-deal.schema.json; kept
+    // opaque so the struct stays lossless when the schema evolves) ──
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertions: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assets: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_facility_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditions_precedent: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conflict_groups: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conflicts: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub construction_budgets: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub covenants: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deal_scope: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub documents: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facility_parties: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub financial_models: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guarantees: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leases: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub obligations: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parties: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planning_applications: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prepayment_terms: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relations: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_focus_facility_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_focus_resolution_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sections: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub security: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tranches: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub units: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_issues: Option<Vec<Value>>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -268,12 +359,18 @@ pub struct Classification {
     pub loan_rank: Option<CategoryValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operating_model: Option<CategoryValue>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CategoryValue {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -298,6 +395,9 @@ pub struct DealDetails {
     pub gross_internal_area: Option<SourcedValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residential_units: Option<SourcedValue>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -308,6 +408,9 @@ pub struct Kpis {
     pub loan_to_gdv: Option<SourcedValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_cost_per_area_unit: Option<SourcedValue>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 /// The full deal document the gold-standard tests assert against.
@@ -323,6 +426,9 @@ pub struct DealDocument {
     pub details: Option<DealDetails>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kpis: Option<Kpis>,
+    /// Lossless catch-all for fields not yet declared on the struct.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, Value>,
 }
 
 #[cfg(test)]
@@ -337,10 +443,8 @@ mod tests {
                     id: "f1".into(),
                     name: Some("Bridge".into()),
                     loan_type: Some("bridge".into()),
-                    commitment: Some(Money {
-                        amount: 25_750_000.0,
-                        currency: Some("GBP".into()),
-                    }),
+                    commitment: Some(Money {amount: 25_750_000.0,
+                        currency: Some("GBP".into()), ..Default::default() }),
                     ..Default::default()
                 }],
                 focus_facility_id: Some("f1".into()),
