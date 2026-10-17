@@ -113,6 +113,10 @@ pub struct Facility {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_level: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_phase_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub loan_type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commitment: Option<Money>,
@@ -123,11 +127,29 @@ pub struct Facility {
     )]
     pub term_months: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maturity_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interest_terms: Option<Vec<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stated_interest: Option<Money>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stated_redemption: Option<Money>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facility_party_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tranche_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub disposition: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lender_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facility_group_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_reference: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph_entity_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<Vec<Evidence>>,
 }
