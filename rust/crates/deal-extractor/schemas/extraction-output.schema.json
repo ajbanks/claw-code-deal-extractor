@@ -8259,7 +8259,7 @@
               ]
             },
             "value": {
-              "description": "Residential unit mix. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. When a detailed accommodation schedule exists, use that schedule rather than headline bullets or high-level unit-count summaries. Group repeated schedule rows only when all of these are identical across the grouped rows: property_type, bedrooms, floor_area.value, floor_area.unit, expected_gdv.amount, and expected_gdv.currency. Do not merge rows that only share bedroom count. Do not use quantity-weighted or subtotal GDV in expected_gdv. If no detailed schedule exists, you may return the highest-granularity grouping explicitly stated in the source.",
+              "description": "Residential unit mix. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. When a detailed accommodation schedule exists, use that schedule rather than headline bullets or high-level unit-count summaries. Group repeated schedule rows only when all of these are identical across the grouped rows: property_type, bedrooms, floor_area.value, floor_area.unit, expected_gdv.amount, expected_gdv.currency, expected_rent_pcm.amount. Do not merge rows that only share bedroom count. Do not use quantity-weighted or subtotal GDV in expected_gdv. If no detailed schedule exists, you may return the highest-granularity grouping explicitly stated in the source.",
               "type": [
                 "array",
                 "null"
@@ -8352,6 +8352,35 @@
                       "amount",
                       "currency"
                     ]
+                  },
+                  "expected_rent_pcm": {
+                    "description": "Expected rent for one unit of this specific residential unit type only, per calendar month. Extract the schedule's stated rent/ERV for the type — never a blended average across unit types. Null when no per-type rent is stated.",
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "amount": {
+                        "minimum": 0,
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code explicitly shown with the extracted amount or clearly attached to the same metric in the source. Do not guess from document geography or nearby figures.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
                   }
                 },
                 "required": [
@@ -8359,7 +8388,8 @@
                   "property_type",
                   "bedrooms",
                   "floor_area",
-                  "expected_gdv"
+                  "expected_gdv",
+                  "expected_rent_pcm"
                 ]
               }
             }
@@ -17184,7 +17214,7 @@
               ]
             },
             "value": {
-              "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal.",
+              "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal. A principal must belong to the SPONSOR / borrower entity — the party whose deal this is. Staff of the contractor, selling agent, broker, or a third party named in the pack are NOT borrower principals. If a person is labelled as working for a different entity (e.g. the main contractor's team), exclude them rather than listing them under the borrower.",
               "type": [
                 "array",
                 "null"
