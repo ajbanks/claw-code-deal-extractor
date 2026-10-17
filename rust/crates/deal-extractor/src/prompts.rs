@@ -253,21 +253,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - building_specification: description of planned/completed works
 
 ## DEAL-TYPE FIELD EMPHASIS
-Use the classification from pass A to prioritise:
-
-- Acquisition / bridge on an income-producing asset (retail park, office, PLR-style): extract asking_price, purchase_price, day_1_value, market_value, purchaser_costs (SDLT + agent + legal — may be a money amount OR a percentage of price; extract whichever is stated into purchaser_costs), the FULL commercial_units tenancy schedule, passing_rent_per_annum, net_initial_yield, wault_to_break, wault_to_expiry, vacancy_rate, key_tenant, rent_review_next_due, plus loan_term, interest_rate, fees, exit_plan, lender_tenant_exposure.
-- Development deal: project_gdv AND gross_development_value (full scheme), total_development_cost, total_investment_cost, construction_costs, residential_units with per-unit expected_gdv, phases, construction_timelines, planning_status, profit stated figures.
-- Equity deal: deal_type "equity", purchase_price, purchaser_costs, the equity raise amount, target IRR/return metrics stated to investors, and the underlying asset economics (rent, value, NIY) — equity docs still describe the asset.
-- Refinance / disposal bridge: market_value, day_1_value, stabilised_value, loan_term, interest_rate, fees, exit_plan, current_asset_description.
-- Structured non-debt transactions (sale & leaseback, ground lease, income strip, forward funding / forward commitment, promotion agreement): DO NOT fabricate a loan — the pack describes an investor paying a capital sum or rent stream, not a lender advancing a facility. Emit the facilities that actually exist (often none). Extract deal_type, finance_structure, sale_price / strip_price, leaseback_rent_per_annum / strip_rent_per_annum, leaseback_term_years / strip_term_years, rent_review, buyback_option, reversion, forward_purchase_price, forward_commitment, promoter_share.
-- Planning-gain / strategic land (option agreement, promotion agreement, hybrid): current market_value vs consented_value are distinct — do not merge them. Extract option_agreement, promotion_agreement, planning_budget, overage_clause, deferred_consideration.
-- Islamic finance (diminishing musharaka, ijara): the financier's contribution is the facility (emit it as a debt_facility with role senior_debt); the customer_contribution is equity. Extract finance_structure, customer_contribution.
-- Social housing / registered provider: the lending basis is euv_sh_value; open_market_value_vacant_possession is an information-only comparator — extract both separately.
-- Specialist residential (HMO, MUFB, PBSA): extract rental_assessment (e.g. gross rent less 25% deduction) and nomination_agreement (operator, beds, coverage).
-- Trading assets (care home, hotel, nursery, pub): adjusted_ebitda is the sizing figure; market_value may carry an MV1/MV2/MV3 basis note.
-- Workouts / amendments (maturity extension, covenant breach, cure, stressed refi): the existing facility usually IS the answer — extract existing_debt, extension_request, covenant_status, amendment_fee, warrants as stated.
-- Second charge / additional debt: existing_debt stays in place; the ask is incremental. Note combined-LTV context in notes.
-- Portfolio / cross-collateralised: extract portfolio_assets with per-asset value and release price; market_value is the aggregate.
+{deal_type_guidance}
 
 ## KPIs
 Every KPI is: { source, source_type, notes, scope, evidence_text, value }.
@@ -282,3 +268,71 @@ Extract these KPIs from the documents if explicitly stated:
 Set value to null for KPIs not stated or not computable from the documents.
 
 Return ONLY valid JSON."#;
+
+// ─── Per-deal-type emphasis blocks ───────────────────────────────────────────
+// PASS_B is the details pass — its field emphasis should only carry guidance
+// for the deal type in front of it. An always-on list of every archetype
+// bloats the prompt and dilutes the signal; pass A's classification chooses
+// which blocks apply.
+
+use serde_json::Value;
+
+const G_ACQ_INCOME: &str = "- Acquisition / bridge on an income-producing asset (retail park, office, PLR-style): asking_price, purchase_price, day_1_value, market_value, purchaser_costs (SDLT + agent + legal — money amount OR % of price), the FULL commercial_units tenancy schedule, passing_rent_per_annum, net_initial_yield, wault_to_break, wault_to_expiry, vacancy_rate, key_tenant, rent_review_next_due, loan_term, interest_rate, fees, exit_plan, lender_tenant_exposure.";
+const G_DEVELOPMENT: &str = "- Development deal: project_gdv AND gross_development_value (full scheme), total_development_cost, total_investment_cost, construction_costs, residential_units with per-unit expected_gdv AND expected_rent_pcm, phases, construction_timelines, planning_status, profit stated figures.";
+const G_EQUITY: &str = "- Equity deal: deal_type \"equity\", purchase_price, purchaser_costs, the equity raise amount, target IRR/return metrics stated to investors, and the underlying asset economics (rent, value, NIY) — equity docs still describe the asset.";
+const G_REFI_BRIDGE: &str = "- Refinance / disposal bridge: market_value, day_1_value, stabilised_value, loan_term, interest_rate, fees, exit_plan, current_asset_description.";
+const G_STRUCTURED: &str = "- Structured non-debt transactions (sale & leaseback, ground lease, income strip, forward funding / forward commitment, promotion agreement): DO NOT fabricate a loan — the pack describes an investor paying a capital sum or rent stream, not a lender advancing a facility. Emit the facilities that actually exist (often none). Extract deal_type, finance_structure, sale_price / strip_price, leaseback_rent_per_annum / strip_rent_per_annum, leaseback_term_years / strip_term_years, rent_review, buyback_option, reversion, forward_purchase_price, forward_commitment, promoter_share.";
+const G_PLANNING: &str = "- Planning-gain / strategic land (option agreement, promotion agreement, hybrid): current market_value vs consented_value are distinct — do not merge them. Extract option_agreement, promotion_agreement, planning_budget, overage_clause, deferred_consideration.";
+const G_ISLAMIC: &str = "- Islamic finance (diminishing musharaka, ijara): the financier's contribution is the facility (debt_facility, role senior_debt); the customer_contribution is equity. Extract finance_structure, customer_contribution.";
+const G_RP: &str = "- Social housing / registered provider: the lending basis is euv_sh_value; open_market_value_vacant_possession is an information-only comparator — extract both separately.";
+const G_SPECIALIST_RESI: &str = "- Specialist residential (HMO, MUFB, PBSA): extract rental_assessment (e.g. gross rent less 25% deduction) and nomination_agreement (operator, beds, coverage).";
+const G_TRADING: &str = "- Trading assets (care home, hotel, nursery, pub): adjusted_ebitda is the sizing figure; market_value may carry an MV1/MV2/MV3 basis note.";
+const G_WORKOUT: &str = "- Workouts / amendments (maturity extension, covenant breach, cure, stressed refi): the existing facility usually IS the answer — extract existing_debt, extension_request, covenant_status, amendment_fee, warrants as stated.";
+const G_SECOND_CHARGE: &str = "- Second charge / additional debt: existing_debt stays in place; the ask is incremental. Note combined-LTV context in notes.";
+const G_PORTFOLIO: &str = "- Portfolio / cross-collateralised: extract portfolio_assets with per-asset value and release price; market_value is the aggregate.";
+const G_GENERIC: &str = "- Extract every stated valuation, cost, income and structure field in the pack — purchase/market values, GDV, costs, rents/yields, loan terms, structure terms — per the field list above.";
+
+/// Build the `{deal_type_guidance}` block for PASS_B from pass A's
+/// classification. Only blocks matching the deal's signals are included —
+/// a bridge pack shouldn't see specialist-resi or Islamic-finance prose.
+/// Falls back to the generic line when classification gives no signal.
+pub fn deal_type_guidance(classification: &Value) -> String {
+    let text = serde_json::to_string(classification).unwrap_or_default().to_lowercase();
+    let cat = |key: &str| {
+        classification
+            .get(key)
+            .and_then(|o| o.get("category"))
+            .and_then(|c| c.as_str())
+            .unwrap_or("")
+    };
+    let has = |re_terms: &[&str]| re_terms.iter().any(|t| text.contains(t));
+
+    let capital = classification.get("capital_position").and_then(Value::as_str).unwrap_or("");
+    let project = cat("project_type");
+    let loan = cat("loan_type");
+    let operating = cat("operating_model");
+
+    let mut blocks: Vec<&'static str> = Vec::new();
+    let mut push = |b: &'static str| { if !blocks.contains(&b) { blocks.push(b) } };
+
+    // Keyword hits on the serialised classification (descriptions, signals)
+    // catch the archetypes that have no enum category of their own.
+    if has(&["leaseback", "income strip", "income_strip", "forward fund", "forward_fund", "forward commitment", "promotion agreement", "ground rent"]) { push(G_STRUCTURED); }
+    if has(&["option agreement", "promotion agreement", "planning gain", "hope value", "overage", "strategic land"]) { push(G_PLANNING); }
+    if has(&["musharaka", "ijara", "islamic", "sharia"]) { push(G_ISLAMIC); }
+    if has(&["registered provider", "social housing", "euv", "euv-sh"]) { push(G_RP); }
+    if has(&["hmo", "mufb", "pbsa", "student accommodation", "student housing"]) { push(G_SPECIALIST_RESI); }
+    if has(&["covenant breach", "maturity extension", "amendment", "workout", "receivership", "cure"]) { push(G_WORKOUT); }
+    if has(&["second charge", "second_charge", "additional debt"]) { push(G_SECOND_CHARGE); }
+    if has(&["portfolio", "cross-collateral", "cross collateral"]) { push(G_PORTFOLIO); }
+
+    // Category-driven matches.
+    if capital == "equity" || has(&["equity raise", "subscribe", "share capital"]) { push(G_EQUITY); }
+    if project == "development" || operating == "development" || loan == "development" || has(&["gdv", "construction", "build programme"]) { push(G_DEVELOPMENT); }
+    if loan == "bridge" || project == "refinance" || has(&["bridge", "refinanc", "disposal"]) { push(G_REFI_BRIDGE); }
+    if loan == "investment_term" || operating == "income_property" || project == "acquisition" { push(G_ACQ_INCOME); }
+    if operating == "trading" || has(&["ebitda", "care home", "hotel", "nursery", "pub", "holiday park"]) { push(G_TRADING); }
+
+    if blocks.is_empty() { blocks.push(G_GENERIC); }
+    blocks.join("\n")
+}

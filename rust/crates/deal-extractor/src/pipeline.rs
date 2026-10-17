@@ -69,7 +69,8 @@ pub async fn run_multi_pass(
     let classification_summary = format_classification_summary(&classification);
     let pass_b_prompt = prompts::PASS_B_DETAILS
         .replace("{focus_summary}", &focus_summary)
-        .replace("{classification_summary}", &classification_summary);
+        .replace("{classification_summary}", &classification_summary)
+        .replace("{deal_type_guidance}", &prompts::deal_type_guidance(&classification));
     let details_extractor = details_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass B model: {}", details_extractor.model);
     let pass_b_text = details_extractor.call(&pass_b_prompt, &corpus.render()).await?;
@@ -147,7 +148,8 @@ pub async fn run_multi_pass(
                 gaps.len(), cov_ex.model);
             let pass_b_prompt = prompts::PASS_B_DETAILS
                 .replace("{focus_summary}", &focus_summary)
-                .replace("{classification_summary}", &classification_summary);
+                .replace("{classification_summary}", &classification_summary)
+                .replace("{deal_type_guidance}", &prompts::deal_type_guidance(&classification));
             match cov_ex.call(&pass_b_prompt, &corpus.render()).await {
                 Ok(text) => match crate::extract::parse_json(&text) {
                     Ok(esc) => {
