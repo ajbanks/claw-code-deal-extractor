@@ -209,6 +209,16 @@ pub async fn run_multi_pass(
         }
     }
 
+    // ── Verify pass: cheap ground-check of extracted numbers against the
+    // corpus, one cheap LLM call per flagged mismatch. Catches right-field /
+    // wrong-cell errors (e.g. cap rate read as 0.04 vs a stated 0.045) that
+    // conform can't see because they're shape-correct.
+    let verify_model = details_ex.or(coverage_ex).unwrap_or(extractor);
+    let (checked, fixes_applied) = crate::verify::verify_extracted_numbers(&mut final_doc, corpus, verify_model).await;
+    if fixes_applied > 0 {
+        eprintln!("[pipeline] verify — {} fields checked, {} corrections applied", checked, fixes_applied);
+    }
+
     let remaining_issues = validate::validate(&final_doc);
     eprintln!("[pipeline] complete — {} repair rounds, {} issues, {:.1}s total",
         repair_rounds, remaining_issues.len(), pipeline_start.elapsed().as_secs_f64());

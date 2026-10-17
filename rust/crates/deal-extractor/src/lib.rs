@@ -15,5 +15,6 @@ pub mod pipeline;
 pub mod prompts;
 pub mod repair;
 pub mod schema;
+pub mod verify;
 pub mod scoring;
 pub mod validate;
