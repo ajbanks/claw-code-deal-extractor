@@ -12586,7 +12586,7 @@
               ]
             },
             "value": {
-              "description": "Yield explicitly labelled as stabilised yield or equivalent steady-state yield. Do not calculate from rent and value.",
+              "description": "Yield explicitly labelled as stabilised yield, exit yield, or cap rate (capitalisation rate) for the asset's steady-state/income exit. Use the appraisal's stated figure exactly — do not calculate from rent and value, do not average multiple cap rates, and do not mix a type-specific cap (e.g. commercial vs residential vs parking) with the blended/headline cap. When the source states distinct cap rates per unit type (e.g. 'Commercial Cap Rate 7%', 'Residential Cap Rate 4.5%'), use the rate that applies to the deal's primary asset class and note the others in the notes field.",
               "type": [
                 "object",
                 "null"
