@@ -12,6 +12,7 @@ use crate::coverage;
 use crate::extract::Extractor;
 use crate::prompts;
 use crate::repair;
+use crate::tie;
 use crate::validate;
 
 #[derive(Debug)]
@@ -63,6 +64,14 @@ pub struct RecallDiagnostics {
     pub unaccounted_remaining: Vec<String>,
     pub verify_checked: usize,
     pub verify_fixes: usize,
+    /// Tie checks that failed before the fix call: "id: detail".
+    pub ties_initial: Vec<String>,
+    /// details.* paths merged by the tie-fix call.
+    pub tie_fixes: Vec<String>,
+    /// Tie checks still failing after fixes were applied.
+    pub ties_remaining: Vec<String>,
+    /// Tie-fix call failure (truncated); checks still ran.
+    pub tie_error: Option<String>,
 }
 
 /// Model routing shared by the service, the CLI and the scoring tests, so
@@ -520,6 +529,61 @@ pub async fn run_multi_pass(
                 recall.tool_fill_error = Some(e.chars().take(300).collect());
             }
         }
+    }
+
+    // ── Tie checks: figures that don't reconcile with each other (NOI =
+    // gross rent while opex is stated, cap ≠ NOI ÷ value, TIC < TDC, stated
+    // profit ≠ GDV − TDC) get ONE targeted fix call restricted to the
+    // implicated paths — a wrong-but-plausible cell is a misread, not a new
+    // field.
+    let ties = tie::tie_checks(&final_doc);
+    recall.ties_initial = ties
+        .iter()
+        .filter(|t| t.status == "fail")
+        .map(|t| format!("{}: {}", t.id, t.detail))
+        .collect();
+    if !recall.ties_initial.is_empty() {
+        let allowed: std::collections::HashSet<String> = ties
+            .iter()
+            .filter(|t| t.status == "fail")
+            .flat_map(|t| t.fields.iter().cloned())
+            .collect();
+        let tie_ex = details_ex.or(coverage_ex).unwrap_or(extractor);
+        let prompt = format!(
+            "{}\n\n## FAILED CHECKS\n{}",
+            prompts::TIE_FIX_PROMPT,
+            recall.ties_initial.join("\n")
+        );
+        eprintln!(
+            "[ties] {} failed checks — fix call ({}): {}",
+            recall.ties_initial.len(),
+            tie_ex.model,
+            recall.ties_initial.join("; ")
+        );
+        match tie_ex.call_json(&prompt, &corpus.render()).await {
+            Ok((fix_obj, _)) => {
+                let mut scoped = serde_json::Map::new();
+                if let Some(fixes) = fix_obj.get("fixes").and_then(Value::as_object) {
+                    for (p, v) in fixes {
+                        if allowed.contains(p) {
+                            scoped.insert(p.clone(), v.clone());
+                        }
+                    }
+                }
+                let (merged, _rejected) =
+                    coverage::merge_patch_guarded(&mut final_doc, &scoped, |_| None, false);
+                recall.tie_fixes = merged;
+            }
+            Err(e) => {
+                eprintln!("[ties] fix call FAILED: {e}");
+                recall.tie_error = Some(e.chars().take(300).collect());
+            }
+        }
+        recall.ties_remaining = tie::tie_checks(&final_doc)
+            .iter()
+            .filter(|t| t.status == "fail")
+            .map(|t| format!("{}: {}", t.id, t.detail))
+            .collect();
     }
 
     // ── Verify pass: cheap ground-check of extracted numbers against the

@@ -18,5 +18,6 @@ pub mod recall;
 pub mod repair;
 pub mod schema;
 pub mod scoring;
+pub mod tie;
 pub mod validate;
 pub mod verify;

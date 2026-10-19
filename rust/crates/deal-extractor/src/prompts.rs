@@ -220,7 +220,12 @@ NOTE: These fields are computed deterministically — leave their value as null:
 "#;
 
 /// Pass B sub-pass 1: valuations, phases, economics details, and KPIs.
-pub const PASS_B_ECONOMICS: &str = r#"## VALUATIONS
+pub const TIE_FIX_PROMPT: &str = r#"These extracted figures do not reconcile with each other. For each failed check, read the documents and return corrected values ONLY for the listed fields where the extraction misread the source (wrong cell, gross vs net, phase vs full scheme). If the source itself states them inconsistently, change nothing. Return {"fixes": {"details.<field>": <WithSource value>}}."#;
+
+pub const PASS_B_ECONOMICS: &str = r#"## SCOPE TAGGING
+Every money field must carry `scope`: `deal` = the facility being underwritten; `project` = the whole scheme. details-level GDV, total_development_cost, total_investment_cost and construction_costs must be FULL-SCHEME figures. Phase-specific GDVs belong in canonical valuations with `phase_id`. If only a phase figure exists, still emit it but start `notes` with "Phase <n>:". A valuer's residual land value is `value_type: residual_value`; a 90-day value is `value_type: ninety_day_sale_value` with `sale_period_days: 90`; a 180-day value is `value_type: market_value` with `sale_period_days: 180`.
+
+## VALUATIONS
 For each: { id, value_type, amount: {amount, currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence: [{document, page, quote}] }.
 
 value_type: market_value | gross_development_value | residual_value | purchase_price | ninety_day_sale_value | day_1_value | unclassified.
