@@ -68,8 +68,14 @@ pub struct InputDocument {
     #[serde(default)]
     pub pages: Vec<InputPage>,
     /// For kind = "*_base64": the raw document bytes, base64-encoded.
+    /// For kind = "pages" docs that also carry `data`: the raw PDF bytes so
+    /// the service can OCR the pages whose text is thin.
     #[serde(default)]
     pub data: Option<String>,
+    /// For kind = "pages" + `data`: 1-based page labels the caller already
+    /// knows are thin (image-only) — these get vision-OCR'd directly.
+    #[serde(default)]
+    pub ocr_pages: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +106,10 @@ pub struct Diagnostics {
     /// gaps / fills, unaccounted corpus figures, what is still missing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recall: Option<pipeline::RecallDiagnostics>,
+    /// Vision-OCR results for image-only pages (when DEAL_EXTRACT_OCR is on
+    /// and a document carried renderable PDF bytes).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ocr: Option<deal_extractor::ocr::OcrStats>,
 }
 
 #[derive(Debug, Serialize)]
@@ -171,9 +181,27 @@ pub struct ErrorBody {
 
 // ─── Core logic ─────────────────────────────────────────────────────────────
 
-/// Build the corpus from request documents.
-pub fn build_corpus(documents: &[InputDocument]) -> Result<Corpus, String> {
+/// Build the corpus from request documents, also returning the PDF sources
+/// available for page-level OCR: `(doc_name, pdf_bytes, explicit_pages)`.
+/// `pdf_base64` docs get `None` (thin pages are detected by page count);
+/// `pages` docs that carry `data` get their caller-supplied `ocr_pages`
+/// labels parsed to 1-based page numbers.
+pub fn build_corpus(
+    documents: &[InputDocument],
+) -> Result<(Corpus, Vec<deal_extractor::ocr::PdfSource>), String> {
     let mut pages: Vec<DocPage> = Vec::new();
+    let mut pdfs: Vec<deal_extractor::ocr::PdfSource> = Vec::new();
+    let decode = |doc: &InputDocument| -> Result<Vec<u8>, String> {
+        let data = doc.data.as_deref().ok_or_else(|| {
+            format!(
+                "document \"{}\" kind {} requires `data`",
+                doc.name, doc.kind
+            )
+        })?;
+        base64::engine::general_purpose::STANDARD
+            .decode(data)
+            .map_err(|e| format!("document \"{}\": bad base64: {e}", doc.name))
+    };
     for doc in documents {
         match doc.kind.as_str() {
             "pages" | "text" => {
@@ -191,18 +219,26 @@ pub fn build_corpus(documents: &[InputDocument]) -> Result<Corpus, String> {
                             text: p.text.clone(),
                         });
                     }
+                    // A pages doc that also ships the raw PDF lets the OCR
+                    // pass re-read the pages whose text layer was thin.
+                    if let Some(data) = doc.data.as_deref() {
+                        let bytes = base64::engine::general_purpose::STANDARD
+                            .decode(data)
+                            .map_err(|e| format!("document \"{}\": bad base64: {e}", doc.name))?;
+                        let labels: Vec<usize> = doc
+                            .ocr_pages
+                            .iter()
+                            .filter_map(|l| l.parse::<usize>().ok())
+                            .collect();
+                        pdfs.push((doc.name.clone(), bytes, Some(labels)));
+                    }
                 }
             }
             "xlsx_base64" | "xls_base64" | "pdf_base64" => {
-                let data = doc.data.as_deref().ok_or_else(|| {
-                    format!(
-                        "document \"{}\" kind {} requires `data`",
-                        doc.name, doc.kind
-                    )
-                })?;
-                let bytes = base64::engine::general_purpose::STANDARD
-                    .decode(data)
-                    .map_err(|e| format!("document \"{}\": bad base64: {e}", doc.name))?;
+                let bytes = decode(doc)?;
+                if doc.kind == "pdf_base64" {
+                    pdfs.push((doc.name.clone(), bytes.clone(), None));
+                }
                 pages.extend(documents::load_document_bytes(&doc.name, &doc.kind, &bytes));
             }
             other => {
@@ -213,13 +249,34 @@ pub fn build_corpus(documents: &[InputDocument]) -> Result<Corpus, String> {
             }
         }
     }
-    Ok(Corpus::from_pages(pages))
+    Ok((Corpus::from_pages(pages), pdfs))
 }
 
 /// Run the full extraction pipeline.
 pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, String> {
     let start = Instant::now();
-    let corpus = build_corpus(&req.documents)?;
+    let (mut corpus, pdfs) = build_corpus(&req.documents)?;
+
+    // Vision OCR for image-only pages — runs before the corpus stats and
+    // the empty-corpus check so transcribed pages count toward both.
+    let ocr_stats = if std::env::var("DEAL_EXTRACT_OCR").ok().as_deref() == Some("false") {
+        None
+    } else {
+        let vision_model = std::env::var("DEAL_EXTRACT_VISION_MODEL")
+            .unwrap_or_else(|_| "gpt-5.4-2026-03-05".to_string());
+        let stats = deal_extractor::ocr::ocr_thin_pages(&mut corpus, &pdfs, &vision_model).await;
+        if stats.pages_transcribed > 0 || stats.pages_failed > 0 {
+            eprintln!(
+                "[ocr] considered={} transcribed={} failed={} skipped_over_cap={}",
+                stats.pages_considered,
+                stats.pages_transcribed,
+                stats.pages_failed,
+                stats.skipped_over_cap,
+            );
+        }
+        Some(stats)
+    };
+
     let stats = CorpusStats {
         documents: corpus.document_names().len(),
         pages: corpus.pages.len(),
@@ -267,6 +324,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 corpus: stats,
                 usage: usage_view(&extractor),
                 recall: Some(diag.recall),
+                ocr: ocr_stats,
             },
         })
     } else {
@@ -301,6 +359,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 corpus: stats,
                 usage: usage_view(&extractor),
                 recall: None,
+                ocr: ocr_stats,
             },
         })
     }
@@ -336,9 +395,11 @@ mod tests {
                 },
             ],
             data: None,
+            ocr_pages: vec![],
         }];
-        let c = build_corpus(&req_docs).unwrap();
+        let (c, pdfs) = build_corpus(&req_docs).unwrap();
         assert_eq!(c.pages.len(), 2);
+        assert!(pdfs.is_empty());
         assert_eq!(c.page("a.pdf", "2").unwrap().text, "page two");
     }
 
@@ -349,6 +410,7 @@ mod tests {
             kind: "bogus".into(),
             pages: vec![],
             data: None,
+            ocr_pages: vec![],
         }];
         assert!(build_corpus(&req_docs).is_err());
     }

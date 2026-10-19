@@ -196,7 +196,7 @@ async fn run_tool_loop(
             frequency_penalty: None,
             presence_penalty: None,
             stop: None,
-            reasoning_effort: Some("none".to_string()),
+            reasoning_effort: Some(ex.reasoning_effort.clone()),
             extra_body,
         };
 

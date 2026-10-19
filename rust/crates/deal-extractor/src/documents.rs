@@ -115,8 +115,11 @@ fn load_pdf_named(path: &Path, doc_name: &str) -> Vec<DocPage> {
     // Primary: PyMuPDF (Python) — extracts significantly more text than
     // poppler's pdftotext from certain PDFs (e.g. the Oakley Square brochure:
     // 5562 chars vs 96). Falls back to pdftotext if Python/PyMuPDF unavailable.
+    // Emit EVERY page (empty ones too) joined by \f so a page's chunk index
+    // always equals its 0-based PDF page — skipping blank pages here used to
+    // shift every subsequent page label.
     let pymupdf_script = "import sys,fitz;d=fitz.open(sys.argv[1]);\
-print(chr(12).join(p.get_text() for p in d if p.get_text().strip()),end='');d.close()";
+print(chr(12).join(p.get_text() for p in d),end='');d.close()";
     let pymupdf = Command::new("python3")
         .args(["-c", pymupdf_script, &path.to_string_lossy()])
         .output();

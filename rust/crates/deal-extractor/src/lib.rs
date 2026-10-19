@@ -11,6 +11,7 @@ pub mod corpus;
 pub mod coverage;
 pub mod documents;
 pub mod extract;
+pub mod ocr;
 pub mod pipeline;
 pub mod prompts;
 pub mod recall;

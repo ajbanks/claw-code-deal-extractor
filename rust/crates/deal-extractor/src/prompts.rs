@@ -197,21 +197,30 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 
 Return ONLY valid JSON."#;
 
-pub const PASS_B_DETAILS: &str = r#"Extract valuations, phases, deal details, and KPIs from the documents below.
+/// Pass-A adjudication: two independent structure extractions disagreed on
+/// specific points; the model decides each from the evidence and returns one
+/// complete structure JSON in PASS A's format.
+pub const PASS_A_ADJUDICATE: &str = r#"Two independent extractions of this deal's structure disagree on the points listed below. Read the documents, decide each point from the evidence, and return the single correct complete structure JSON in exactly the same format as the inputs (same keys as PASS A). Keep everything the two agree on. Include a facility only if the documents support it."#;
+
+/// Shared prelude for the three pass-B sub-passes: the already-extracted
+/// structure context and the sourced-value object rules.
+pub const PASS_B_HEADER: &str = r#"Extract deal data from the documents below.
 
 ## CONTEXT — already extracted
 Focus facility: {focus_summary}
 Classification: {classification_summary}
 
-Return JSON:
-{
-  "valuations": [...],
-  "phases": [...],
-  "details": {...},
-  "kpis": {...}
-}
+Every details field is a sourced-value object: { "source": "<filename>", "source_type": "extracted|calculated|assumed|unknown", "notes": <string|null>, "scope": "deal|project|null", "evidence_text": <string|null>, "value": <type-specific|null>, "confidence": <0.0-1.0 or omit> }. Include "confidence" on monetary/quantity values: ~1.0 when stated explicitly in the source, lower when inferred or ambiguous — this lets downstream arbitration catch wrong-but-plausible figures.
 
-## VALUATIONS
+Emit every field. Use "value": null where the documents give no evidence.
+
+NOTE: These fields are computed deterministically — leave their value as null:
+- loan_amount, gross_debt, senior_debt, mezzanine_debt, developer_equity (from facility graph)
+- loan_to_value, loan_to_gdv (computed from loan_amount and valuations)
+"#;
+
+/// Pass B sub-pass 1: valuations, phases, economics details, and KPIs.
+pub const PASS_B_ECONOMICS: &str = r#"## VALUATIONS
 For each: { id, value_type, amount: {amount, currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence: [{document, page, quote}] }.
 
 value_type: market_value | gross_development_value | residual_value | purchase_price | ninety_day_sale_value | day_1_value | unclassified.
@@ -225,18 +234,8 @@ RULES:
 For each: { id, name, sequence, status, unit_count }.
 
 ## DETAILS
-Every field is a sourced-value object: { "source": "<filename>", "source_type": "extracted|calculated|assumed|unknown", "notes": <string|null>, "scope": "deal|project|null", "evidence_text": <string|null>, "value": <type-specific|null>, "confidence": <0.0-1.0 or omit> }. Include "confidence" on monetary/quantity values: ~1.0 when stated explicitly in the source, lower when inferred or ambiguous — this lets downstream arbitration catch wrong-but-plausible figures.
-
-Emit every field. Use "value": null where the documents give no evidence.
-
-NOTE: These fields are computed deterministically — leave their value as null:
-- loan_amount, gross_debt, senior_debt, mezzanine_debt, developer_equity (from facility graph)
-- loan_to_value, loan_to_gdv (computed from loan_amount and valuations)
-
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):
-- ai_executive_summary: 2-3 sentence summary of the deal in plain English
 - deal_type: "debt" or "equity"
-- address: { line1, paon, property_name, street_name, city, postcode, country, region, saon, full_address }
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
 - total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency)
@@ -249,27 +248,10 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - gross_internal_area: { value: <number>, unit: "sqft" } — GIA in sqft
 - net_internal_area: { value: <number>, unit: "sqft" } — NIA in sqft
 - residential_units: array of { property_type, bedrooms, quantity, floor_area: { value, unit }, expected_gdv: { amount, currency } } — expected_gdv is the PER-UNIT expected sale price/GDV when the documents state one (e.g. "expected average unit prices", a sales schedule, or per-type target prices); never multiply by quantity
-- commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), unit_break_penalty { amount, currency }, unit_break_notice_months, unit_extension_approach, unit_lease_notes (rent-free, exclusivity, other stated per-unit terms), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
-- agent_details: { name, email, phone } — the selling/marketing agent or named contact in the pack's contact block (e.g. "Morgan Williams", contact footers). Always extract when stated.
-- document_date: the pack/publication date the document states (e.g. "April 2024" particulars, a dated report, an "as at" date). Preserve the stated precision — month-year when no day is given.
-- tenants: flat array of every distinct tenant name
-- key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
-- passing_rent_per_annum, passing_rent_per_area_unit, net_initial_yield, equivalent_yield, reversionary_yield, stabilised_yield, estimated_rental_value — stated asset-level income and yield figures
-- wault_to_break, wault_to_expiry — weighted-average unexpired lease term, stated or schedule-derivable
-- vacancy_rate, vacant_area, vacant_possession — stated vacancy metrics
-- lease_length_remaining, tenure_length, rent_review_mechanism, rent_review_frequency, rent_review_next_due, tenant_credit_rating — asset-level lease/tenure facts
-- net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
-- year_built, last_refurbished
 - debt_structure: "whole_loan" | "senior_mezzanine" | "senior_only" | null
 - interest_rate, loan_term, fees, guarantees, covenants
 - use_of_funds, source_of_funds, exit_plan — the ASSET-LEVEL exit: how the investment ends (unit sales / disposal of the completed scheme / refinance into term debt). When the documents describe both a facility-repayment step (e.g. "bridge repaid by the development facility's first advance") and an asset-level exit (e.g. "sale of completed units"), report the asset-level exit — the facility step is a capital event, not the exit plan.
-- borrower_details: { name, type, track_record, email, phone }
-- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role.
-- planning_status, epc_rating, tenure
-- construction_timelines: { start_date, completion_date, duration_months }
-- insurance_requirements, capex_plan
-- current_asset_description: description of the property in its current state
-- building_specification: description of planned/completed works
+- finance_costs, purchaser_costs, project_gdv, day_1_value, stabilised_value — every other stated money/cost/value figure
 
 ## DEAL-TYPE FIELD EMPHASIS
 {deal_type_guidance}
@@ -284,9 +266,38 @@ Extract these KPIs from the documents if explicitly stated:
 - development_margin, sales_rate_per_sqft
 - Any other KPI mentioned in the documents.
 
-Set value to null for KPIs not stated or not computable from the documents.
+Set value to null for KPIs not stated or not computable from the documents."#;
 
-Return ONLY valid JSON."#;
+/// Pass B sub-pass 2: the income side — tenancy schedule, rents, yields,
+/// lease metrics. Returns {"details": {...}} only.
+pub const PASS_B_INCOME: &str = r#"## DETAILS
+You MUST extract these fields (with value from the documents, NOT null unless truly absent):
+- commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), unit_break_penalty { amount, currency }, unit_break_notice_months, unit_extension_approach, unit_lease_notes (rent-free, exclusivity, other stated per-unit terms), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
+- tenants: flat array of every distinct tenant name
+- key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
+- passing_rent_per_annum, passing_rent_per_area_unit, net_initial_yield, equivalent_yield, reversionary_yield, stabilised_yield, estimated_rental_value — stated asset-level income and yield figures
+- wault_to_break, wault_to_expiry — weighted-average unexpired lease term, stated or schedule-derivable
+- vacancy_rate, vacant_area, vacant_possession — stated vacancy metrics
+- lease_length_remaining, tenure_length, rent_review_mechanism, rent_review_frequency, rent_review_next_due, tenant_credit_rating — asset-level lease/tenure facts
+- net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
+- epc_rating, tenure
+- year_built, last_refurbished"#;
+
+/// Pass B sub-pass 3: parties, narrative and descriptive fields.
+/// Returns {"details": {...}} only.
+pub const PASS_B_PARTIES: &str = r#"## DETAILS
+You MUST extract these fields (with value from the documents, NOT null unless truly absent):
+- ai_executive_summary: 2-3 sentence summary of the deal in plain English
+- address: { line1, paon, property_name, street_name, city, postcode, country, region, saon, full_address }
+- agent_details: { name, email, phone } — the selling/marketing agent or named contact in the pack's contact block (e.g. "Morgan Williams", contact footers). Always extract when stated.
+- document_date: the pack/publication date the document states (e.g. "April 2024" particulars, a dated report, an "as at" date). Preserve the stated precision — month-year when no day is given.
+- borrower_details: { name, type, track_record, email, phone }
+- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role.
+- planning_status
+- construction_timelines: { start_date, completion_date, duration_months }
+- insurance_requirements, capex_plan
+- current_asset_description: description of the property in its current state
+- building_specification: description of planned/completed works"#;
 
 // ─── Per-deal-type emphasis blocks ───────────────────────────────────────────
 // PASS_B is the details pass — its field emphasis should only carry guidance
@@ -433,4 +444,133 @@ pub fn deal_type_guidance(classification: &Value) -> String {
         blocks.push(G_GENERIC);
     }
     blocks.join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    /// Field names appearing in the `- name[, name…]` bullets of a pass-B
+    /// section's `## DETAILS` block, keyed by the pass that owns them.
+    /// (KPI and valuation bullets elsewhere in the const are not details.)
+    fn bullet_fields(section: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut in_details = false;
+        for line in section.lines() {
+            let line = line.trim();
+            if line.starts_with("## ") {
+                in_details = line.contains("DETAILS");
+                continue;
+            }
+            if !in_details {
+                continue;
+            }
+            let Some(rest) = line.strip_prefix("- ") else {
+                continue;
+            };
+            // Field names run up to the first ':' or ' —' description.
+            let head = rest.split(':').next().unwrap_or(rest);
+            let head = head.split(" — ").next().unwrap_or(head);
+            for tok in head.split([',', '/']).map(str::trim) {
+                if !tok.is_empty()
+                    && tok
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
+                {
+                    out.push(tok.to_string());
+                }
+            }
+        }
+        out
+    }
+
+    /// Every details field the old single-pass PASS_B listed, copied from the
+    /// pre-split prompt. Each must land in exactly one of the three sub-passes.
+    const OLD_PASS_B_FIELDS: &[&str] = &[
+        "ai_executive_summary",
+        "deal_type",
+        "address",
+        "asset_class",
+        "construction_costs",
+        "total_development_cost",
+        "total_investment_cost",
+        "community_infrastructure_levy",
+        "sellable_area",
+        "gross_development_value",
+        "market_value",
+        "purchase_price",
+        "gross_internal_area",
+        "net_internal_area",
+        "residential_units",
+        "commercial_units",
+        "agent_details",
+        "document_date",
+        "tenants",
+        "key_tenant",
+        "passing_rent_per_annum",
+        "passing_rent_per_area_unit",
+        "net_initial_yield",
+        "equivalent_yield",
+        "reversionary_yield",
+        "stabilised_yield",
+        "estimated_rental_value",
+        "wault_to_break",
+        "wault_to_expiry",
+        "vacancy_rate",
+        "vacant_area",
+        "vacant_possession",
+        "lease_length_remaining",
+        "tenure_length",
+        "rent_review_mechanism",
+        "rent_review_frequency",
+        "rent_review_next_due",
+        "tenant_credit_rating",
+        "net_operating_income",
+        "ground_rent_per_annum",
+        "operating_costs",
+        "year_built",
+        "last_refurbished",
+        "debt_structure",
+        "interest_rate",
+        "loan_term",
+        "fees",
+        "guarantees",
+        "covenants",
+        "use_of_funds",
+        "source_of_funds",
+        "exit_plan",
+        "borrower_details",
+        "sponsor_principals",
+        "planning_status",
+        "epc_rating",
+        "tenure",
+        "construction_timelines",
+        "insurance_requirements",
+        "capex_plan",
+        "current_asset_description",
+        "building_specification",
+    ];
+
+    #[test]
+    fn pass_b_split_covers_every_old_field_exactly_once() {
+        let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+        for section in [PASS_B_ECONOMICS, PASS_B_INCOME, PASS_B_PARTIES] {
+            for f in bullet_fields(section) {
+                *seen.entry(f).or_default() += 1;
+            }
+        }
+        let dupes: Vec<&String> = seen
+            .iter()
+            .filter(|(_, n)| **n > 1)
+            .map(|(f, _)| f)
+            .collect();
+        assert!(dupes.is_empty(), "fields in multiple passes: {dupes:?}");
+        for field in OLD_PASS_B_FIELDS {
+            assert!(
+                seen.contains_key(*field),
+                "{field} not covered by any pass-B sub-pass"
+            );
+        }
+    }
 }

@@ -14,6 +14,10 @@ pub struct Extractor {
     pub client: ProviderClient,
     pub model: String,
     pub max_tokens: u32,
+    /// `reasoning_effort` sent on every request this extractor makes.
+    /// "none" is the default; pass A's structure extractor opts into a
+    /// higher effort because it lays down the facility graph.
+    pub reasoning_effort: String,
     /// Running token totals across every call this extractor makes.
     pub usage: TokenUsage,
 }
@@ -58,8 +62,16 @@ impl Extractor {
             client,
             model: model.to_string(),
             max_tokens,
+            reasoning_effort: "none".to_string(),
             usage: TokenUsage::default(),
         })
+    }
+
+    /// Set the reasoning effort this extractor sends on every request.
+    #[must_use]
+    pub fn with_effort(mut self, effort: &str) -> Self {
+        self.reasoning_effort = effort.to_string();
+        self
     }
 
     /// Round 0: one whole-corpus call producing the full document.
@@ -115,6 +127,7 @@ impl Extractor {
             &self.model,
             self.max_tokens,
             vec![InputMessage::user_text(user_text)],
+            &self.reasoning_effort,
         );
         let r = self
             .client
@@ -156,6 +169,7 @@ pub(crate) fn json_request(
     model: &str,
     max_tokens: u32,
     messages: Vec<InputMessage>,
+    reasoning_effort: &str,
 ) -> MessageRequest {
     let mut extra_body = BTreeMap::new();
     extra_body.insert(
@@ -175,7 +189,7 @@ pub(crate) fn json_request(
         frequency_penalty: None,
         presence_penalty: None,
         stop: None,
-        reasoning_effort: Some("none".to_string()),
+        reasoning_effort: Some(reasoning_effort.to_string()),
         extra_body,
     }
 }

@@ -35,6 +35,14 @@ pub struct PipelineDiagnostics {
 pub struct RecallDiagnostics {
     /// Pass retries: "<pass>: <first error>" (truncation / bad JSON).
     pub pass_retries: Vec<String>,
+    /// Pass-A self-consistency: how many structure votes were cast.
+    pub pass_a_votes: usize,
+    /// Points the two pass-A votes disagreed on (empty = votes agreed).
+    pub pass_a_disagreements: Vec<String>,
+    /// Whether a disagreeing pass A was adjudicated by a third call.
+    pub pass_a_adjudicated: bool,
+    /// Vote-2 or adjudication failure (truncated); pass A still succeeded.
+    pub pass_a_error: Option<String>,
     /// Evidenced-but-empty field paths after the repair loop.
     pub coverage_gaps_initial: Vec<String>,
     pub escalated: bool,
@@ -86,11 +94,19 @@ pub async fn run_routed(
     let coverage_ex = coverage_owned
         .as_ref()
         .or_else(|| (cov_model == extractor.model).then_some(extractor));
-    let structure_owned = distinct(resolve(
+    // The structure extractor always gets its own instance: pass A runs at a
+    // raised reasoning effort (DEAL_EXTRACT_STRUCTURE_EFFORT, default
+    // "medium") because it lays down the facility graph every later pass
+    // builds on — even when the structure model name matches `model`.
+    let structure_effort =
+        std::env::var("DEAL_EXTRACT_STRUCTURE_EFFORT").unwrap_or_else(|_| "medium".to_string());
+    let structure_owned = Extractor::new(&resolve(
         structure_model,
         "DEAL_EXTRACT_STRUCTURE_MODEL",
         "gpt-5.6-sol",
-    ));
+    ))
+    .ok()
+    .map(|e| e.with_effort(&structure_effort));
     let details_owned = distinct(resolve(
         details_model,
         "DEAL_EXTRACT_DETAILS_MODEL",
@@ -126,13 +142,94 @@ pub async fn run_multi_pass(
     // facility graph and deal skeleton that every later pass builds on.
     let structure_model = structure_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass A model: {}", structure_model.model);
-    let (pass_a, retry) = structure_model
-        .call_json(prompts::PASS_A_STRUCTURE, &corpus.render())
-        .await
-        .map_err(|e| format!("pass A (structure): {e}"))?;
-    if let Some(r) = retry {
-        recall.pass_retries.push(format!("structure: {r}"));
-    }
+
+    // Self-consistency: pass A runs twice concurrently on independent
+    // extractors. When the votes disagree on the facility graph or
+    // classification, a third adjudication call decides the contested points
+    // from the evidence — a single sloppy read can no longer set the deal's
+    // skeleton. DEAL_EXTRACT_PASS_A_VOTES=1 restores single-vote behaviour.
+    let pass_a_votes = std::env::var("DEAL_EXTRACT_PASS_A_VOTES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(2);
+    let pass_a = if pass_a_votes < 2 {
+        recall.pass_a_votes = 1;
+        let (pass_a, retry) = structure_model
+            .call_json(prompts::PASS_A_STRUCTURE, &corpus.render())
+            .await
+            .map_err(|e| format!("pass A (structure): {e}"))?;
+        if let Some(r) = retry {
+            recall.pass_retries.push(format!("structure: {r}"));
+        }
+        pass_a
+    } else {
+        recall.pass_a_votes = 2;
+        let vote2_ex = details_ex.unwrap_or(extractor);
+        eprintln!("[pipeline] pass A vote 2 model: {}", vote2_ex.model);
+        let corpus_text = corpus.render();
+        let (r1, r2) = tokio::join!(
+            structure_model.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+            vote2_ex.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+        );
+        for (label, res) in [("structure", &r1), ("structure vote 2", &r2)] {
+            if let Ok((_, Some(r))) = res {
+                recall.pass_retries.push(format!("{label}: {r}"));
+            }
+        }
+        match (r1, r2) {
+            (Ok((v1, _)), Ok((v2, _))) => {
+                let disagreements = pass_a_disagreements(&v1, &v2);
+                if disagreements.is_empty() {
+                    v1
+                } else {
+                    recall.pass_a_disagreements = disagreements;
+                    eprintln!(
+                        "[pipeline] pass A votes disagree — adjudicating: {}",
+                        recall.pass_a_disagreements.join("; ")
+                    );
+                    let adj_prompt = format!(
+                        "{}\n\n## DISAGREEMENTS\n{}\n\n## EXTRACTION 1\n{}\n\n## EXTRACTION 2\n{}",
+                        prompts::PASS_A_ADJUDICATE,
+                        recall.pass_a_disagreements.join("\n"),
+                        serde_json::to_string(&v1).unwrap_or_default(),
+                        serde_json::to_string(&v2).unwrap_or_default(),
+                    );
+                    match structure_model
+                        .call_json(&adj_prompt, &corpus.render())
+                        .await
+                    {
+                        Ok((adj, retry)) => {
+                            if let Some(r) = retry {
+                                recall.pass_retries.push(format!("adjudication: {r}"));
+                            }
+                            recall.pass_a_adjudicated = true;
+                            adj
+                        }
+                        Err(e) => {
+                            eprintln!("[pipeline] pass A adjudication FAILED: {e}");
+                            recall.pass_a_error = Some(e.chars().take(300).collect());
+                            v1
+                        }
+                    }
+                }
+            }
+            (Ok((v1, _)), Err(e2)) => {
+                eprintln!("[pipeline] pass A vote 2 FAILED: {e2}");
+                recall.pass_a_error = Some(e2.chars().take(300).collect());
+                v1
+            }
+            (Err(e1), Ok((v2, _))) => {
+                eprintln!("[pipeline] pass A vote 1 FAILED: {e1} — using vote 2");
+                recall.pass_a_error = Some(e1.chars().take(300).collect());
+                v2
+            }
+            (Err(e1), Err(e2)) => {
+                return Err(format!(
+                    "pass A (structure): {e1} (vote 2 also failed: {e2})"
+                ));
+            }
+        }
+    };
     let classification = pass_a.get("classification").cloned().unwrap_or(json!(null));
     let doc_annotations = pass_a
         .get("document_annotations")
@@ -169,22 +266,19 @@ pub async fn run_multi_pass(
     eprintln!("[pipeline] pass B — details");
     let focus_summary = format_focus_summary(&focus_facility_id, &facilities);
     let classification_summary = format_classification_summary(&classification);
-    let pass_b_prompt = prompts::PASS_B_DETAILS
-        .replace("{focus_summary}", &focus_summary)
-        .replace("{classification_summary}", &classification_summary)
-        .replace(
-            "{deal_type_guidance}",
-            &prompts::deal_type_guidance(&classification),
-        );
+    let guidance = prompts::deal_type_guidance(&classification);
     let details_extractor = details_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass B model: {}", details_extractor.model);
-    let (pass_b, retry) = details_extractor
-        .call_json(&pass_b_prompt, &corpus.render())
-        .await
-        .map_err(|e| format!("pass B (details): {e}"))?;
-    if let Some(r) = retry {
-        recall.pass_retries.push(format!("details: {r}"));
-    }
+    let (pass_b, b_notes) = run_pass_b(
+        details_extractor,
+        corpus,
+        &focus_summary,
+        &classification_summary,
+        &guidance,
+    )
+    .await
+    .map_err(|e| format!("pass B (details): {e}"))?;
+    recall.pass_retries.extend(b_notes);
     let valuations = pass_b.get("valuations").cloned().unwrap_or(json!([]));
     let phases = pass_b.get("phases").cloned().unwrap_or(json!([]));
     let mut details = pass_b.get("details").cloned().unwrap_or(json!({}));
@@ -268,18 +362,19 @@ pub async fn run_multi_pass(
                 gaps.len(),
                 cov_ex.model
             );
-            let pass_b_prompt = prompts::PASS_B_DETAILS
-                .replace("{focus_summary}", &focus_summary)
-                .replace("{classification_summary}", &classification_summary)
-                .replace(
-                    "{deal_type_guidance}",
-                    &prompts::deal_type_guidance(&classification),
-                );
-            match cov_ex.call_json(&pass_b_prompt, &corpus.render()).await {
-                Ok((esc, retry)) => {
-                    if let Some(r) = retry {
-                        recall.pass_retries.push(format!("escalation: {r}"));
-                    }
+            match run_pass_b(
+                cov_ex,
+                corpus,
+                &focus_summary,
+                &classification_summary,
+                &guidance,
+            )
+            .await
+            {
+                Ok((esc, b_notes)) => {
+                    recall
+                        .pass_retries
+                        .extend(b_notes.into_iter().map(|n| format!("escalation {n}")));
                     {
                         let mut filled = 0usize;
                         for section in ["details", "kpis"] {
@@ -477,6 +572,227 @@ pub async fn run_multi_pass(
             recall,
         },
     })
+}
+
+/// Compare two pass-A structure extractions on the points that decide the
+/// deal's skeleton. Returns human-readable disagreement descriptions; an
+/// empty vec means the votes agree and no adjudication is needed.
+/// Ids, names and array order are ignored.
+pub fn pass_a_disagreements(a: &Value, b: &Value) -> Vec<String> {
+    let mut out = Vec::new();
+
+    let close = |x: f64, y: f64| (x - y).abs() <= 0.005 * x.abs().max(y.abs());
+    let facs = |v: &Value| -> Vec<Value> {
+        v.get("facilities")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+    };
+    fn commitment(f: &Value) -> Option<f64> {
+        f.get("commitment")
+            .and_then(|c| c.get("amount"))
+            .and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse::<f64>().ok()))
+    }
+
+    // (a) focus facility commitment.
+    let focus_amt = |v: &Value| -> Option<f64> {
+        let fid = v.get("focus_facility_id")?.as_str()?;
+        facs(v)
+            .iter()
+            .find(|f| f.get("id").and_then(Value::as_str) == Some(fid))
+            .and_then(commitment)
+    };
+    match (focus_amt(a), focus_amt(b)) {
+        (Some(x), Some(y)) if !close(x, y) => {
+            out.push(format!("focus facility commitment differs: {x} vs {y}"));
+        }
+        (Some(x), None) => out.push(format!("focus facility commitment {x} only in vote 1")),
+        (None, Some(y)) => out.push(format!("focus facility commitment {y} only in vote 2")),
+        _ => {}
+    }
+
+    // (b) facility commitment multiset: every material facility in one vote
+    // must have a within-0.5% counterpart in the other.
+    for (n, mine, theirs) in [(1usize, a, b), (2usize, b, a)] {
+        for f in facs(mine) {
+            let Some(amt) = commitment(&f) else { continue };
+            if amt < 100_000.0 {
+                continue;
+            }
+            let matched = facs(theirs)
+                .iter()
+                .filter_map(commitment)
+                .any(|g| close(amt, g));
+            if !matched {
+                let name = f
+                    .get("name")
+                    .or_else(|| f.get("id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("?");
+                out.push(format!("facility {name} {amt} only in vote {n}"));
+            }
+        }
+    }
+
+    // (c)-(e) classification dimensions.
+    let cls = |v: &Value, path: &[&str]| -> Option<String> {
+        let mut cur = v.get("classification")?;
+        for seg in path {
+            cur = cur.get(*seg)?;
+        }
+        cur.as_str().map(str::to_string)
+    };
+    for (label, path) in [
+        ("capital_position", &["capital_position"][..]),
+        ("loan_type", &["loan_type", "category"][..]),
+        ("project_type", &["project_type", "category"][..]),
+    ] {
+        match (cls(a, path), cls(b, path)) {
+            (Some(x), Some(y)) if x != y => {
+                out.push(format!("classification.{label} differs: {x} vs {y}"));
+            }
+            (Some(x), None) => out.push(format!("classification.{label} {x} only in vote 1")),
+            (None, Some(y)) => out.push(format!("classification.{label} {y} only in vote 2")),
+            _ => {}
+        }
+    }
+    out
+}
+
+/// One pass-B sub-pass: shared header (context + sourced-value rules) plus
+/// the pass-specific section. Returns the parsed JSON.
+fn pass_b_prompt(header_args: &PassBContext, section: &str, keys: &str) -> String {
+    let mut prompt = format!("{}\n\n{}", prompts::PASS_B_HEADER, section);
+    prompt = prompt
+        .replace("{focus_summary}", header_args.focus_summary)
+        .replace(
+            "{classification_summary}",
+            header_args.classification_summary,
+        )
+        .replace("{deal_type_guidance}", header_args.guidance);
+    prompt.push_str(&format!("\n\nReturn ONLY valid JSON: {keys}"));
+    prompt
+}
+
+struct PassBContext<'a> {
+    focus_summary: &'a str,
+    classification_summary: &'a str,
+    guidance: &'a str,
+}
+
+/// True when a `details` field value is empty under the same rules the
+/// coverage pass uses (null / empty array / empty object / blank string,
+/// seeing through the WithSource `{value: …}` envelope).
+fn details_value_empty(v: &Value) -> bool {
+    let doc = json!({ "x": v });
+    coverage::path_is_empty(&doc, "x")
+}
+
+/// Pass B, split into three concurrent focused calls on one extractor:
+/// economics (valuations/phases/economics details/KPIs), income (tenancy
+/// schedule, rents, yields, lease metrics) and parties (narrative +
+/// descriptive fields). The sub-pass results merge into one
+/// {"valuations","phases","details","kpis"} value; a failing sub-pass is
+/// recorded in the notes and the others still merge — only all three failing
+/// fails the pass. Returns the merged value plus retry/failure notes.
+async fn run_pass_b(
+    ex: &Extractor,
+    corpus: &Corpus,
+    focus_summary: &str,
+    classification_summary: &str,
+    guidance: &str,
+) -> Result<(Value, Vec<String>), String> {
+    let ctx = PassBContext {
+        focus_summary,
+        classification_summary,
+        guidance,
+    };
+    let corpus_text = corpus.render();
+    let econ_prompt = pass_b_prompt(
+        &ctx,
+        prompts::PASS_B_ECONOMICS,
+        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...} }",
+    );
+    let income_prompt = pass_b_prompt(&ctx, prompts::PASS_B_INCOME, "{ \"details\": {...} }");
+    let parties_prompt = pass_b_prompt(&ctx, prompts::PASS_B_PARTIES, "{ \"details\": {...} }");
+
+    let (econ, income, parties) = tokio::join!(
+        ex.call_json(&econ_prompt, &corpus_text),
+        ex.call_json(&income_prompt, &corpus_text),
+        ex.call_json(&parties_prompt, &corpus_text),
+    );
+
+    let mut notes: Vec<String> = Vec::new();
+    let mut results: Vec<(&str, Option<Value>)> = Vec::new();
+    for (name, res) in [
+        ("economics", econ),
+        ("income", income),
+        ("parties", parties),
+    ] {
+        match res {
+            Ok((v, retry)) => {
+                if let Some(r) = retry {
+                    notes.push(format!("details/{name}: {r}"));
+                }
+                results.push((name, Some(v)));
+            }
+            Err(e) => {
+                let short: String = e.chars().take(300).collect();
+                eprintln!("[pipeline] pass B/{name} FAILED: {short}");
+                notes.push(format!("details/{name} FAILED: {short}"));
+                results.push((name, None));
+            }
+        }
+    }
+    if results.iter().all(|(_, r)| r.is_none()) {
+        return Err("all three pass-B sub-passes failed".to_string());
+    }
+
+    let merged = merge_pass_b(
+        results[0].1.as_ref(),
+        results[1].1.as_ref(),
+        results[2].1.as_ref(),
+    );
+    Ok((merged, notes))
+}
+
+/// Merge the three pass-B sub-pass results into one
+/// {"valuations","phases","details","kpis"} value. Canonical arrays and KPIs
+/// come from economics; `details` is the union where, for a key several
+/// sub-passes returned, the first non-empty value wins in
+/// economics → income → parties order.
+fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&Value>) -> Value {
+    let passes = [econ, income, parties];
+    let mut merged = json!({
+        "valuations": econ.and_then(|v| v.get("valuations")).cloned().unwrap_or(json!([])),
+        "phases": econ.and_then(|v| v.get("phases")).cloned().unwrap_or(json!([])),
+        "kpis": econ.and_then(|v| v.get("kpis")).cloned().unwrap_or(json!({})),
+    });
+    let mut details = serde_json::Map::new();
+    let mut keys: Vec<String> = Vec::new();
+    for r in passes.iter().flatten() {
+        if let Some(o) = r.get("details").and_then(Value::as_object) {
+            for k in o.keys() {
+                if !keys.contains(k) {
+                    keys.push(k.clone());
+                }
+            }
+        }
+    }
+    for k in keys {
+        for r in passes.iter().flatten() {
+            let Some(v) = r.get("details").and_then(|d| d.get(&k)) else {
+                continue;
+            };
+            if !details_value_empty(v) {
+                details.insert(k.clone(), v.clone());
+                break;
+            }
+            details.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+    }
+    merged["details"] = Value::Object(details);
+    merged
 }
 
 fn format_classification_summary(classification: &Value) -> String {
@@ -871,6 +1187,114 @@ fn detail_money(details: &Value, field: &str) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn pass_a(focus: &str, facilities: Value, classification: Value) -> Value {
+        json!({
+            "classification": classification,
+            "facilities": facilities,
+            "focus_facility_id": focus,
+        })
+    }
+    fn fac(id: &str, amount: &str) -> Value {
+        json!({ "id": id, "name": id, "commitment": { "amount": amount, "currency": "gbp" } })
+    }
+
+    #[test]
+    fn pass_a_agreeing_votes_have_no_disagreements() {
+        let cls = json!({ "capital_position": "debt",
+            "loan_type": {"category": "bridge"}, "project_type": {"category": "refinance"} });
+        let a = pass_a(
+            "f1",
+            json!([fac("f1", "25750000"), fac("f2", "5000000")]),
+            cls.clone(),
+        );
+        // Order and ids may differ; amounts and classification agree.
+        let b = pass_a(
+            "g1",
+            json!([fac("g2", "5000000"), fac("g1", "25750000")]),
+            cls,
+        );
+        assert!(pass_a_disagreements(&a, &b).is_empty());
+    }
+
+    #[test]
+    fn pass_a_focus_amount_difference_flagged() {
+        let cls = json!({ "capital_position": "debt" });
+        let a = pass_a("f1", json!([fac("f1", "25750000")]), cls.clone());
+        let b = pass_a("f1", json!([fac("f1", "30000000")]), cls.clone());
+        let d = pass_a_disagreements(&a, &b);
+        assert!(d.iter().any(|s| s.contains("focus facility commitment")));
+        // Within 0.5% is agreement.
+        let c = pass_a("f1", json!([fac("f1", "25800000")]), cls.clone());
+        assert!(pass_a_disagreements(&a, &c).is_empty());
+    }
+
+    #[test]
+    fn pass_a_facility_only_in_one_vote_flagged() {
+        let cls = json!({ "capital_position": "debt" });
+        let a = pass_a(
+            "f1",
+            json!([fac("f1", "25750000"), fac("extra", "3000000")]),
+            cls.clone(),
+        );
+        let b = pass_a("f1", json!([fac("f1", "25750000")]), cls.clone());
+        let d = pass_a_disagreements(&a, &b);
+        assert_eq!(d.len(), 1);
+        assert!(d[0].contains("extra") && d[0].contains("vote 1"));
+        // Sub-100k facilities don't count.
+        let small = pass_a(
+            "f1",
+            json!([fac("f1", "25750000"), fac("fee", "50000")]),
+            cls,
+        );
+        assert!(pass_a_disagreements(&a, &small)
+            .iter()
+            .all(|s| !s.contains("fee")));
+    }
+
+    #[test]
+    fn pass_a_classification_difference_flagged() {
+        let f = json!([fac("f1", "25750000")]);
+        let a = pass_a("f1", f.clone(), json!({ "capital_position": "debt" }));
+        let b = pass_a("f1", f, json!({ "capital_position": "equity" }));
+        let d = pass_a_disagreements(&a, &b);
+        assert!(d.iter().any(|s| s.contains("capital_position")));
+    }
+
+    #[test]
+    fn pass_b_merge_first_non_empty_wins() {
+        let econ = json!({
+            "valuations": [{"id": "v1"}],
+            "phases": [{"id": "p1"}],
+            "kpis": {"k": 1},
+            "details": {
+                "market_value": {"value": {"amount": "100"}, "source": "e.pdf"},
+                "tenure": {"value": null, "source": "e.pdf"},
+            },
+        });
+        let income = json!({
+            "details": {
+                "tenure": {"value": "freehold", "source": "i.pdf"},
+                "market_value": {"value": {"amount": "999"}, "source": "i.pdf"},
+            },
+        });
+        let parties = json!({
+            "details": {"tenure": {"value": "leasehold", "source": "p.pdf"}},
+        });
+        let m = merge_pass_b(Some(&econ), Some(&income), Some(&parties));
+        assert_eq!(m["valuations"].as_array().unwrap().len(), 1);
+        assert_eq!(m["details"]["market_value"]["value"]["amount"], "100");
+        // economics had tenure empty → income's non-empty wins over parties
+        assert_eq!(m["details"]["tenure"]["value"], "freehold");
+    }
+
+    #[test]
+    fn pass_b_merge_tolerates_failed_subpass() {
+        let econ = json!({"valuations": [], "phases": [], "kpis": {}, "details": {}});
+        let parties = json!({"details": {"address": {"value": {"line1": "x"}, "source": "p.pdf"}}});
+        let m = merge_pass_b(Some(&econ), None, Some(&parties));
+        assert_eq!(m["details"]["address"]["value"]["line1"], "x");
+    }
 
     #[test]
     fn deterministic_loan_amount_from_focus() {
