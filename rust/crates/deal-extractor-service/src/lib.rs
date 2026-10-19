@@ -96,6 +96,10 @@ pub struct Diagnostics {
     pub elapsed_ms: u64,
     pub corpus: CorpusStats,
     pub usage: UsageView,
+    /// Recall machinery results (multi-pass only): pass retries, coverage
+    /// gaps / fills, unaccounted corpus figures, what is still missing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recall: Option<pipeline::RecallDiagnostics>,
 }
 
 #[derive(Debug, Serialize)]
@@ -108,8 +112,16 @@ pub struct UsageView {
 
 fn usage_view(ex: &Extractor) -> UsageView {
     let (llm_calls, input_tokens, output_tokens) = ex.usage.snapshot();
-    eprintln!("[usage] total — model={} calls={llm_calls} in={input_tokens} out={output_tokens}", ex.model);
-    UsageView { model: ex.model.clone(), llm_calls, input_tokens, output_tokens }
+    eprintln!(
+        "[usage] total — model={} calls={llm_calls} in={input_tokens} out={output_tokens}",
+        ex.model
+    );
+    UsageView {
+        model: ex.model.clone(),
+        llm_calls,
+        input_tokens,
+        output_tokens,
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -217,46 +229,30 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
         return Err("no document pages provided".into());
     }
 
-    eprintln!("[extract] deal={} model={} docs={} pages={} chars={} multi_pass={}",
-        req.deal_id.as_deref().unwrap_or("-"), req.model,
-        stats.documents, stats.pages, stats.chars, req.multi_pass);
+    eprintln!(
+        "[extract] deal={} model={} docs={} pages={} chars={} multi_pass={}",
+        req.deal_id.as_deref().unwrap_or("-"),
+        req.model,
+        stats.documents,
+        stats.pages,
+        stats.chars,
+        req.multi_pass
+    );
 
     let extractor = Extractor::new(&req.model)?;
 
     if req.multi_pass {
-        // Coverage gap-fill runs on Sol by default — better at scoped entity
-        // extraction, and the single patch call keeps it cheap.
-        let cov_model = req.coverage_model.clone()
-            .or_else(|| std::env::var("DEAL_EXTRACT_COVERAGE_MODEL").ok())
-            .unwrap_or_else(|| "gpt-5.6-sol".to_string());
-        let coverage_owned;
-        let coverage_ex: Option<&Extractor> = if cov_model == req.model {
-            Some(&extractor) // same model — reuse it for the fill
-        } else {
-            coverage_owned = Extractor::new(&cov_model).ok();
-            coverage_owned.as_ref()
-        };
-        let struct_model = req.structure_model.clone()
-            .or_else(|| std::env::var("DEAL_EXTRACT_STRUCTURE_MODEL").ok())
-            .unwrap_or_else(|| "gpt-5.6-sol".to_string());
-        let structure_owned;
-        let structure_ex: Option<&Extractor> = if struct_model == req.model {
-            None
-        } else {
-            structure_owned = Extractor::new(&struct_model).ok();
-            structure_owned.as_ref()
-        };
-        let det_model = req.details_model.clone()
-            .or_else(|| std::env::var("DEAL_EXTRACT_DETAILS_MODEL").ok())
-            .unwrap_or_else(|| req.model.clone());
-        let details_owned;
-        let details_ex: Option<&Extractor> = if det_model == req.model {
-            None
-        } else {
-            details_owned = Extractor::new(&det_model).ok();
-            details_owned.as_ref()
-        };
-        let result = pipeline::run_multi_pass(&extractor, &corpus, req.max_repair_rounds, coverage_ex, structure_ex, details_ex).await?;
+        // Coverage gap-fill and pass A run on Sol by default; pass B on
+        // `model`. Routing lives in the library so the CLI/tests match.
+        let result = pipeline::run_routed(
+            &extractor,
+            &corpus,
+            req.max_repair_rounds,
+            req.structure_model.clone(),
+            req.details_model.clone(),
+            req.coverage_model.clone(),
+        )
+        .await?;
         let diag = result.diagnostics;
         Ok(ExtractResponse {
             canonical_deal: result.document.get("canonical_deal").cloned(),
@@ -270,6 +266,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
                 usage: usage_view(&extractor),
+                recall: Some(diag.recall),
             },
         })
     } else {
@@ -284,8 +281,12 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
         eprintln!("[extract] round 0 done — {initial_errors} validation errors");
         let (doc, issues, rounds) =
             repair::repair_loop(&extractor, &corpus, candidate, req.max_repair_rounds).await;
-        eprintln!("[extract] repair done — {} rounds, {} issues remaining, {:.1}s",
-            rounds, issues.len(), start.elapsed().as_secs_f64());
+        eprintln!(
+            "[extract] repair done — {} rounds, {} issues remaining, {:.1}s",
+            rounds,
+            issues.len(),
+            start.elapsed().as_secs_f64()
+        );
 
         Ok(ExtractResponse {
             canonical_deal: doc.get("canonical_deal").cloned(),
@@ -299,6 +300,7 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
                 usage: usage_view(&extractor),
+                recall: None,
             },
         })
     }

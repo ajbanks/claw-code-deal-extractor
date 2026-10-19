@@ -29,17 +29,24 @@ pub struct TokenUsage {
 impl TokenUsage {
     pub fn record(&self, label: &str, u: &api::Usage) {
         use std::sync::atomic::Ordering::Relaxed;
-        let input = u64::from(u.input_tokens) + u64::from(u.cache_read_input_tokens) + u64::from(u.cache_creation_input_tokens);
+        let input = u64::from(u.input_tokens)
+            + u64::from(u.cache_read_input_tokens)
+            + u64::from(u.cache_creation_input_tokens);
         self.calls.fetch_add(1, Relaxed);
         self.input_tokens.fetch_add(input, Relaxed);
-        self.output_tokens.fetch_add(u64::from(u.output_tokens), Relaxed);
+        self.output_tokens
+            .fetch_add(u64::from(u.output_tokens), Relaxed);
         eprintln!("[usage] {label} — in={input} out={}", u.output_tokens);
     }
 
     #[must_use]
     pub fn snapshot(&self) -> (u64, u64, u64) {
         use std::sync::atomic::Ordering::Relaxed;
-        (self.calls.load(Relaxed), self.input_tokens.load(Relaxed), self.output_tokens.load(Relaxed))
+        (
+            self.calls.load(Relaxed),
+            self.input_tokens.load(Relaxed),
+            self.output_tokens.load(Relaxed),
+        )
     }
 }
 
@@ -69,13 +76,38 @@ impl Extractor {
     /// Send one message with no document context — used by the coverage
     /// patch call where the evidence travels inside the prompt itself.
     pub(crate) async fn call_text(&self, prompt: &str) -> Result<String, String> {
-        self.send(format!("{prompt}\n\nReturn ONLY a JSON object.")).await
+        self.send(format!("{prompt}\n\nReturn ONLY a JSON object."))
+            .await
     }
 
     /// Send one message and return the first text block. Shared by repair.
     pub(crate) async fn call(&self, prompt: &str, corpus: &str) -> Result<String, String> {
         let user_text = format!("{prompt}\n\n--- DOCUMENTS ---\n{corpus}");
         self.send(user_text).await
+    }
+
+    /// `call` + `parse_json`, retrying once when the response was truncated
+    /// or not valid JSON. Returns the parsed value and the first failure (if
+    /// the retry was needed) so callers can surface it in diagnostics.
+    pub(crate) async fn call_json(
+        &self,
+        prompt: &str,
+        corpus: &str,
+    ) -> Result<(Value, Option<String>), String> {
+        let first = match self.call(prompt, corpus).await {
+            Ok(text) => parse_json(&text),
+            Err(e) => Err(e),
+        };
+        let first_err = match first {
+            Ok(v) => return Ok((v, None)),
+            Err(e) if is_retryable(&e) => e,
+            Err(e) => return Err(e),
+        };
+        let short: String = first_err.chars().take(200).collect();
+        eprintln!("[extract] retrying after: {short}");
+        let retry_prompt = format!("{prompt}\n\n{RETRY_NOTE}");
+        let text = self.call(&retry_prompt, corpus).await?;
+        Ok((parse_json(&text)?, Some(short)))
     }
 
     async fn send(&self, user_text: String) -> Result<String, String> {
@@ -90,8 +122,33 @@ impl Extractor {
             .await
             .map_err(|e| format!("API error: {e:?}"))?;
         self.usage.record("call", &r.usage);
+        check_truncated(&r, self.max_tokens)?;
         response_text(&r).ok_or_else(|| "no text in response".into())
     }
+}
+
+pub(crate) const TRUNCATED: &str = "truncated";
+
+const RETRY_NOTE: &str = "IMPORTANT: your previous answer was cut off or was not valid JSON. \
+Return compact, minified JSON. Keep `notes` and `evidence_text` to at most 15 words (or null). \
+Do not drop any field or array entry.";
+
+fn is_retryable(err: &str) -> bool {
+    err.starts_with(TRUNCATED)
+        || err.starts_with("JSON parse error")
+        || err == "no text in response"
+}
+
+/// A response that stopped on the output-token cap is incomplete JSON —
+/// fail loudly instead of letting a parse error (or a partial patch) through.
+pub(crate) fn check_truncated(r: &api::MessageResponse, max_tokens: u32) -> Result<(), String> {
+    if matches!(r.stop_reason.as_deref(), Some("length" | "max_tokens")) {
+        return Err(format!(
+            "{TRUNCATED}: response hit the output cap ({max_tokens} tokens, {} produced)",
+            r.usage.output_tokens
+        ));
+    }
+    Ok(())
 }
 
 /// Build a `MessageRequest` asking for a JSON object response.

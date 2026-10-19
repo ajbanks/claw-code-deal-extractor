@@ -58,7 +58,8 @@ fn lenient_opt_string<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Money {#[serde(default, deserialize_with = "lenient_f64")]
+pub struct Money {
+    #[serde(default, deserialize_with = "lenient_f64")]
     pub amount: f64,
     #[serde(
         default,
@@ -453,8 +454,11 @@ mod tests {
                     id: "f1".into(),
                     name: Some("Bridge".into()),
                     loan_type: Some("bridge".into()),
-                    commitment: Some(Money {amount: 25_750_000.0,
-                        currency: Some("GBP".into()), ..Default::default() }),
+                    commitment: Some(Money {
+                        amount: 25_750_000.0,
+                        currency: Some("GBP".into()),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }],
                 focus_facility_id: Some("f1".into()),

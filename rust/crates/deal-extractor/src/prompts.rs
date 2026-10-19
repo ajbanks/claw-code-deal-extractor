@@ -111,6 +111,25 @@ RULES:
 
 Return ONLY the JSON patch object."#;
 
+/// Recall fill: gaps the extraction left — evidenced-but-empty fields and
+/// corpus figures that appear nowhere in the output. Patch may only ADD.
+pub const RECALL_FILL_PROMPT: &str = r#"An extraction of this deal is below, followed by GAPS: fields that are empty although the documents appear to answer them, and figures stated in the documents that appear nowhere in the extraction. You have read access to the documents through `read_page`, `search_documents` and `list_documents` — read the cited page before deciding.
+
+For each gap:
+- If it is a fact about THIS deal (loan/facility, value, GDV, price, cost, rent, yield, fee, term, area, unit schedule, party), add it at the correct contract path.
+- If it is NOT a deal fact (a comparable, a sensitivity/illustration scenario, a market statistic, a monthly cash-flow line, a figure already captured under a different rounding or as part of a total), skip it.
+- Never overwrite a populated field — only empty fields or new array entries (append at index = current array length) are accepted.
+
+SHAPE RULES:
+- `details.<field>` → a WithSource object: {"value": <value>, "source": "<document name>", "source_type": "extracted", "evidence_text": "<short quote>", "notes": null, "scope": "deal"|"project"|null}
+- `kpis.<field>` → the same WithSource shape.
+- `canonical_deal.<array>[<i>]` → a raw entry matching the shape of existing entries (e.g. valuations: {id, value_type, amount: {amount, currency}, phase_id, valuation_basis, evidence: [{document, page, quote}]}).
+- Money values are {amount, currency}; canonical_deal amounts are exact decimal strings in absolute units ("25750000"), never millions shorthand.
+
+Return `{"fixes": {"<path>": <value>, ...}}` with ONLY the paths you are adding. Return `{"fixes": {}}` if every gap is irrelevant.
+
+Return ONLY the JSON patch object."#;
+
 // ─── Two-pass prompts ────────────────────────────────────────────────────────
 
 pub const PASS_A_STRUCTURE: &str = r#"Extract the deal structure from the documents below: classification, facility graph, focus facility, and document annotations.
@@ -297,7 +316,9 @@ const G_GENERIC: &str = "- Extract every stated valuation, cost, income and stru
 /// a bridge pack shouldn't see specialist-resi or Islamic-finance prose.
 /// Falls back to the generic line when classification gives no signal.
 pub fn deal_type_guidance(classification: &Value) -> String {
-    let text = serde_json::to_string(classification).unwrap_or_default().to_lowercase();
+    let text = serde_json::to_string(classification)
+        .unwrap_or_default()
+        .to_lowercase();
     let cat = |key: &str| {
         classification
             .get(key)
@@ -307,32 +328,109 @@ pub fn deal_type_guidance(classification: &Value) -> String {
     };
     let has = |re_terms: &[&str]| re_terms.iter().any(|t| text.contains(t));
 
-    let capital = classification.get("capital_position").and_then(Value::as_str).unwrap_or("");
+    let capital = classification
+        .get("capital_position")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let project = cat("project_type");
     let loan = cat("loan_type");
     let operating = cat("operating_model");
 
     let mut blocks: Vec<&'static str> = Vec::new();
-    let mut push = |b: &'static str| { if !blocks.contains(&b) { blocks.push(b) } };
+    let mut push = |b: &'static str| {
+        if !blocks.contains(&b) {
+            blocks.push(b)
+        }
+    };
 
     // Keyword hits on the serialised classification (descriptions, signals)
     // catch the archetypes that have no enum category of their own.
-    if has(&["leaseback", "income strip", "income_strip", "forward fund", "forward_fund", "forward commitment", "promotion agreement", "ground rent"]) { push(G_STRUCTURED); }
-    if has(&["option agreement", "promotion agreement", "planning gain", "hope value", "overage", "strategic land"]) { push(G_PLANNING); }
-    if has(&["musharaka", "ijara", "islamic", "sharia"]) { push(G_ISLAMIC); }
-    if has(&["registered provider", "social housing", "euv", "euv-sh"]) { push(G_RP); }
-    if has(&["hmo", "mufb", "pbsa", "student accommodation", "student housing"]) { push(G_SPECIALIST_RESI); }
-    if has(&["covenant breach", "maturity extension", "amendment", "workout", "receivership", "cure"]) { push(G_WORKOUT); }
-    if has(&["second charge", "second_charge", "additional debt"]) { push(G_SECOND_CHARGE); }
-    if has(&["portfolio", "cross-collateral", "cross collateral"]) { push(G_PORTFOLIO); }
+    if has(&[
+        "leaseback",
+        "income strip",
+        "income_strip",
+        "forward fund",
+        "forward_fund",
+        "forward commitment",
+        "promotion agreement",
+        "ground rent",
+    ]) {
+        push(G_STRUCTURED);
+    }
+    if has(&[
+        "option agreement",
+        "promotion agreement",
+        "planning gain",
+        "hope value",
+        "overage",
+        "strategic land",
+    ]) {
+        push(G_PLANNING);
+    }
+    if has(&["musharaka", "ijara", "islamic", "sharia"]) {
+        push(G_ISLAMIC);
+    }
+    if has(&["registered provider", "social housing", "euv", "euv-sh"]) {
+        push(G_RP);
+    }
+    if has(&[
+        "hmo",
+        "mufb",
+        "pbsa",
+        "student accommodation",
+        "student housing",
+    ]) {
+        push(G_SPECIALIST_RESI);
+    }
+    if has(&[
+        "covenant breach",
+        "maturity extension",
+        "amendment",
+        "workout",
+        "receivership",
+        "cure",
+    ]) {
+        push(G_WORKOUT);
+    }
+    if has(&["second charge", "second_charge", "additional debt"]) {
+        push(G_SECOND_CHARGE);
+    }
+    if has(&["portfolio", "cross-collateral", "cross collateral"]) {
+        push(G_PORTFOLIO);
+    }
 
     // Category-driven matches.
-    if capital == "equity" || has(&["equity raise", "subscribe", "share capital"]) { push(G_EQUITY); }
-    if project == "development" || operating == "development" || loan == "development" || has(&["gdv", "construction", "build programme"]) { push(G_DEVELOPMENT); }
-    if loan == "bridge" || project == "refinance" || has(&["bridge", "refinanc", "disposal"]) { push(G_REFI_BRIDGE); }
-    if loan == "investment_term" || operating == "income_property" || project == "acquisition" { push(G_ACQ_INCOME); }
-    if operating == "trading" || has(&["ebitda", "care home", "hotel", "nursery", "pub", "holiday park"]) { push(G_TRADING); }
+    if capital == "equity" || has(&["equity raise", "subscribe", "share capital"]) {
+        push(G_EQUITY);
+    }
+    if project == "development"
+        || operating == "development"
+        || loan == "development"
+        || has(&["gdv", "construction", "build programme"])
+    {
+        push(G_DEVELOPMENT);
+    }
+    if loan == "bridge" || project == "refinance" || has(&["bridge", "refinanc", "disposal"]) {
+        push(G_REFI_BRIDGE);
+    }
+    if loan == "investment_term" || operating == "income_property" || project == "acquisition" {
+        push(G_ACQ_INCOME);
+    }
+    if operating == "trading"
+        || has(&[
+            "ebitda",
+            "care home",
+            "hotel",
+            "nursery",
+            "pub",
+            "holiday park",
+        ])
+    {
+        push(G_TRADING);
+    }
 
-    if blocks.is_empty() { blocks.push(G_GENERIC); }
+    if blocks.is_empty() {
+        blocks.push(G_GENERIC);
+    }
     blocks.join("\n")
 }

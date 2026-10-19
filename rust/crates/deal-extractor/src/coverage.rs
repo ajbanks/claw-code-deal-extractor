@@ -54,7 +54,9 @@ fn field_is_empty(doc: &Value, path: &str) -> bool {
     }
     // Unwrap WithSource envelopes to inspect the payload.
     if let Some(inner) = cur.get("value").filter(|_| {
-        cur.get("source").is_some() || cur.get("source_type").is_some() || cur.get("evidence_text").is_some()
+        cur.get("source").is_some()
+            || cur.get("source_type").is_some()
+            || cur.get("evidence_text").is_some()
     }) {
         cur = inner;
     }
@@ -88,7 +90,12 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
                 if !doc_names.contains(&hit.doc_name) {
                     doc_names.push(hit.doc_name.clone());
                 }
-                hits.push(format!("{} ({}): {}", hit.doc_name, hit.page_label, hit.snippet.trim()));
+                hits.push(format!(
+                    "{} ({}): {}",
+                    hit.doc_name,
+                    hit.page_label,
+                    hit.snippet.trim()
+                ));
             }
             if !doc_names.is_empty() && hits.len() >= 4 {
                 break;
@@ -161,39 +168,67 @@ pub async fn fill_missing(
     ex: &crate::extract::Extractor,
     doc: &mut Value,
     issues: &[Issue],
-) -> Result<Vec<String>, String> {
+) -> Result<(Vec<String>, Vec<String>), String> {
     if issues.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), Vec::new()));
     }
     let prompt = format!(
         "{PATCH_PROMPT}{}\n\nDOCUMENT (for shape reference):\n{}",
-        issues.iter().map(|i| i.message.as_str()).collect::<Vec<_>>().join("\n\n"),
+        issues
+            .iter()
+            .map(|i| i.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n"),
         serde_json::to_string(doc).map_err(|e| e.to_string())?,
     );
     let text = ex.call_text(&prompt).await?;
     let patch: Value = crate::extract::parse_json(&text)?;
     let obj = patch.as_object().ok_or("coverage patch is not an object")?;
 
-    let baseline_errors: std::collections::HashSet<String> = crate::validate::validate(doc)
-        .iter().map(|i| i.path.clone()).collect();
     // Default evidence source per path — the document where the keyword hit.
     let source_for = |path: &str| -> Option<String> {
         issues.iter().find(|i| i.path == path).and_then(|i| {
-            i.message.lines().find(|l| l.contains(": ") && l.contains("("))
+            i.message
+                .lines()
+                .find(|l| l.contains(": ") && l.contains("("))
                 .map(|l| l.split(" (").next().unwrap_or("").trim().to_string())
                 .filter(|n| !n.is_empty())
         })
     };
+    Ok(merge_patch_guarded(doc, obj, source_for, false))
+}
+
+/// Merge a `{path: value}` patch one path at a time, rolling back any path
+/// that introduces validation errors. With `only_empty`, paths whose current
+/// value is populated are rejected — fills may add, never overwrite.
+/// Returns (merged, rejected) paths.
+pub(crate) fn merge_patch_guarded(
+    doc: &mut Value,
+    obj: &serde_json::Map<String, Value>,
+    source_for: impl Fn(&str) -> Option<String>,
+    only_empty: bool,
+) -> (Vec<String>, Vec<String>) {
+    let baseline_errors: std::collections::HashSet<String> = crate::validate::validate(doc)
+        .iter()
+        .map(|i| i.path.clone())
+        .collect();
     let mut merged = Vec::new();
     let mut rejected = Vec::new();
     for (path, value) in obj {
+        if value.is_null() || (only_empty && !path_is_empty(doc, path)) {
+            rejected.push(path.clone());
+            continue;
+        }
         let snapshot = doc.clone();
         // details.* values are WithSource — a missing source would break
         // provenance, so default it to the evidence document.
         let mut v = value.clone();
         if path.starts_with("details.") {
             if let Some(o) = v.as_object_mut() {
-                let src_empty = o.get("source").and_then(|s| s.as_str()).map_or(true, |s| s.trim().is_empty());
+                let src_empty = o
+                    .get("source")
+                    .and_then(|s| s.as_str())
+                    .map_or(true, |s| s.trim().is_empty());
                 if src_empty {
                     if let Some(name) = source_for(path) {
                         o.insert("source".to_string(), Value::String(name));
@@ -203,8 +238,14 @@ pub async fn fill_missing(
         }
         set_path(doc, path, v);
         let new_issues = crate::validate::validate(doc);
-        let bad = new_issues.iter().any(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path));
-        let worse = new_issues.iter().filter(|i| !baseline_errors.contains(&i.path)).count() > 6;
+        let bad = new_issues
+            .iter()
+            .any(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path));
+        let worse = new_issues
+            .iter()
+            .filter(|i| !baseline_errors.contains(&i.path))
+            .count()
+            > 6;
         if bad || worse {
             *doc = snapshot;
             rejected.push(path.clone());
@@ -213,9 +254,47 @@ pub async fn fill_missing(
         }
     }
     if !rejected.is_empty() {
-        eprintln!("[coverage] rejected patch paths (validation): {}", rejected.join(", "));
+        eprintln!("[coverage] rejected patch paths: {}", rejected.join(", "));
     }
-    Ok(merged)
+    (merged, rejected)
+}
+
+/// Like `field_is_empty`, but follows `[i]` array indices; an index past the
+/// end of an array counts as empty (it is an append).
+pub(crate) fn path_is_empty(doc: &Value, path: &str) -> bool {
+    let mut cur = doc;
+    for seg in path.split('.') {
+        let (key, idx) = match seg.split_once('[') {
+            Some((k, i)) => (k, i.trim_end_matches(']').parse::<usize>().ok()),
+            None => (seg, None),
+        };
+        if !key.is_empty() {
+            match cur.get(key) {
+                Some(v) => cur = v,
+                None => return true,
+            }
+        }
+        if let Some(i) = idx {
+            match cur.get(i) {
+                Some(v) => cur = v,
+                None => return true,
+            }
+        }
+    }
+    if let Some(inner) = cur.get("value").filter(|_| {
+        cur.get("source").is_some()
+            || cur.get("source_type").is_some()
+            || cur.get("evidence_text").is_some()
+    }) {
+        cur = inner;
+    }
+    match cur {
+        Value::Null => true,
+        Value::Array(a) => a.is_empty(),
+        Value::Object(o) => o.is_empty(),
+        Value::String(s) => s.trim().is_empty(),
+        _ => false,
+    }
 }
 
 /// Set `a.b.c = value`, creating intermediate objects as needed.
@@ -241,8 +320,15 @@ fn set_path_at(node: &mut Value, segs: &[&str], value: Value) {
         if !node.is_object() {
             *node = Value::Object(serde_json::Map::new());
         }
-        node.as_object_mut()
-            .map(|o| o.entry(key.to_string()).or_insert_with(|| if idx.is_some() { Value::Array(Vec::new()) } else { Value::Object(serde_json::Map::new()) }))
+        node.as_object_mut().map(|o| {
+            o.entry(key.to_string()).or_insert_with(|| {
+                if idx.is_some() {
+                    Value::Array(Vec::new())
+                } else {
+                    Value::Object(serde_json::Map::new())
+                }
+            })
+        })
     };
     let Some(child) = child else { return };
     match idx {

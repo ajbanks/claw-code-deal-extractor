@@ -125,6 +125,55 @@ pub(crate) async fn repair_round(
         candidate_text,
     );
 
+    let fixes = run_tool_loop(ex, corpus, user_text, "repair").await?;
+    if fixes.is_empty() {
+        return Err("repair returned an empty patch".to_string());
+    }
+    let mut next = candidate.clone();
+    for (path, value) in &fixes {
+        crate::coverage::set_path(&mut next, path, value.clone());
+    }
+    eprintln!("[repair] applied {} patch entries", fixes.len());
+    Ok(next)
+}
+
+/// Recall fill: the issues name evidenced-but-empty fields and corpus
+/// figures missing from the output. The model reads the pages with tools and
+/// returns a patch; only paths that are currently empty (or array appends)
+/// and keep the document valid are merged. Returns (merged, rejected).
+pub(crate) async fn tool_fill(
+    ex: &Extractor,
+    corpus: &Corpus,
+    doc: &mut Value,
+    issues: &[Issue],
+) -> Result<(Vec<String>, Vec<String>), String> {
+    let user_text = format!(
+        "{}\n\n## GAPS\n{}\n\n## CURRENT EXTRACTION\n{}\n",
+        prompts::RECALL_FILL_PROMPT,
+        issues
+            .iter()
+            .map(|i| format!("- [{}] {} — {}", i.code, i.path, i.message))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        serde_json::to_string(doc).unwrap_or_default(),
+    );
+    let fixes = run_tool_loop(ex, corpus, user_text, "recall").await?;
+    Ok(crate::coverage::merge_patch_guarded(
+        doc,
+        &fixes,
+        |_| None,
+        true,
+    ))
+}
+
+/// Drive a read-only tool loop until the model answers with a
+/// `{"fixes": {path: value}}` patch; returns the patch map.
+async fn run_tool_loop(
+    ex: &Extractor,
+    corpus: &Corpus,
+    user_text: String,
+    label: &str,
+) -> Result<serde_json::Map<String, Value>, String> {
     let mut messages = vec![InputMessage::user_text(user_text)];
     let tools = repair_tools();
 
@@ -156,7 +205,8 @@ pub(crate) async fn repair_round(
             .send_message(&req)
             .await
             .map_err(|e| format!("API error: {e:?}"))?;
-        ex.usage.record("repair", &r.usage);
+        ex.usage.record(label, &r.usage);
+        extract::check_truncated(&r, ex.max_tokens)?;
 
         // Collect tool uses.
         let tool_uses: Vec<(String, String, Value)> = r
@@ -173,20 +223,14 @@ pub(crate) async fn repair_round(
         if tool_uses.is_empty() || r.stop_reason.as_deref() != Some("tool_use") {
             // Final answer — a {"fixes": {path: value}} patch, applied to the
             // candidate. Patch mode means the model cannot drop data.
-            let text = extract::response_text(&r)
-                .ok_or_else(|| "no text in repair response".to_string())?;
+            let text =
+                extract::response_text(&r).ok_or_else(|| format!("no text in {label} response"))?;
             let raw = extract::parse_json(&text)?;
-            let fixes = raw.get("fixes").and_then(|f| f.as_object()).cloned()
-                .unwrap_or_else(|| raw.as_object().cloned().unwrap_or_default());
-            if fixes.is_empty() {
-                return Err("repair returned an empty patch".to_string());
-            }
-            let mut next = candidate.clone();
-            for (path, value) in &fixes {
-                crate::coverage::set_path(&mut next, path, value.clone());
-            }
-            eprintln!("[repair] applied {} patch entries", fixes.len());
-            return Ok(next);
+            return Ok(raw
+                .get("fixes")
+                .and_then(|f| f.as_object())
+                .cloned()
+                .unwrap_or_else(|| raw.as_object().cloned().unwrap_or_default()));
         }
 
         // Echo the assistant turn, then feed tool results.
@@ -227,7 +271,9 @@ pub(crate) async fn repair_round(
         });
     }
 
-    Err(format!("repair round exceeded {MAX_TOOL_TURNS} tool turns"))
+    Err(format!(
+        "{label} round exceeded {MAX_TOOL_TURNS} tool turns"
+    ))
 }
 
 /// The repair loop: validate → if issues, repair with tools → re-validate.
@@ -256,7 +302,9 @@ pub async fn repair_loop(
                 crate::conform::conform_document(&mut next);
                 let next_issues = validate::validate(&next);
                 let next_errors = validate::error_count(&next_issues);
-                eprintln!("[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})");
+                eprintln!(
+                    "[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})"
+                );
                 if next_errors >= best_errors {
                     break;
                 }
@@ -277,7 +325,13 @@ pub async fn repair_loop(
 /// Canonical arrays a full-document repair may never shrink — retained for
 /// the legacy full-doc path; patch-mode repair cannot drop data.
 #[allow(dead_code)]
-const PRESERVED_ARRAYS: &[&str] = &["facilities", "valuations", "phases", "capital_events", "capital_snapshots"];
+const PRESERVED_ARRAYS: &[&str] = &[
+    "facilities",
+    "valuations",
+    "phases",
+    "capital_events",
+    "capital_snapshots",
+];
 
 /// Restore canonical arrays the repair shrank, a dropped focus id, and
 /// details keys that vanished. Returns the restored paths.
@@ -335,16 +389,26 @@ mod restore_tests {
             "details": {}
         });
         let r = restore_dropped_structure(&prev, &mut next);
-        assert_eq!(next["canonical_deal"]["facilities"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            next["canonical_deal"]["facilities"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
         assert_eq!(next["canonical_deal"]["focus_facility_id"], "a");
-        assert_eq!(next["canonical_deal"]["phases"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            next["canonical_deal"]["phases"].as_array().unwrap().len(),
+            1
+        );
         assert!(next["details"].get("loan_amount").is_some());
         assert_eq!(r.len(), 3);
     }
 
     #[test]
     fn keeps_edits_that_do_not_shrink() {
-        let prev = json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "1"}]}, "details": {}});
+        let prev =
+            json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "1"}]}, "details": {}});
         let mut next = json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "2"}]}, "details": {"x": 1}});
         assert!(restore_dropped_structure(&prev, &mut next).is_empty());
         assert_eq!(next["canonical_deal"]["facilities"][0]["amount"], "2");

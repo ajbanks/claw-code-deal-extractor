@@ -19,8 +19,7 @@ fn run_live(deal: &str) -> Option<serde_json::Value> {
         return None;
     }
 
-    let model =
-        std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.4".to_string());
+    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.4".to_string());
     let max_rounds: usize = std::env::var("MAX_REPAIR_ROUNDS")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -45,10 +44,20 @@ fn run_live(deal: &str) -> Option<serde_json::Value> {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let extractor = deal_extractor::extract::Extractor::new(&model).ok()?;
-        let candidate = extractor.extract(&corpus).await.ok()?;
-        let (doc_json, _issues, rounds) =
-            deal_extractor::repair::repair_loop(&extractor, &corpus, candidate, max_rounds).await;
-        eprintln!("[{deal}] extraction complete, {rounds} repair rounds");
+        // Production pipeline (multi-pass + coverage + recall + verify), same
+        // model routing as the service.
+        let result = deal_extractor::pipeline::run_routed(
+            &extractor, &corpus, max_rounds, None, None, None,
+        )
+        .await
+        .map_err(|e| eprintln!("[{deal}] extraction failed: {e}"))
+        .ok()?;
+        let rc = &result.diagnostics.recall;
+        eprintln!(
+            "[{deal}] extraction complete, {} repair rounds; still unaccounted: {:?}; still empty: {:?}",
+            result.diagnostics.repair_rounds, rc.unaccounted_remaining, rc.coverage_gaps_remaining
+        );
+        let doc_json = result.document;
 
         std::fs::create_dir_all(CACHED_DIR).ok();
         let out_path = Path::new(CACHED_DIR).join(format!("{deal}.json"));
@@ -94,7 +103,11 @@ fn assert_focus_is_bridge(doc: &DealDocument) {
         .as_ref()
         .map(|m| {
             let a = m.amount;
-            if a < 1000.0 { a * 1_000_000.0 } else { a }
+            if a < 1000.0 {
+                a * 1_000_000.0
+            } else {
+                a
+            }
         })
         .unwrap_or(0.0);
     assert!(
@@ -158,7 +171,11 @@ fn ih_full_gold_standard() {
         "IH must pass at least {}/{total} checks, failed {} ({})",
         total - 3,
         failed.len(),
-        failed.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", "),
+        failed
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 }
 
@@ -176,7 +193,11 @@ fn edenbridge_scoring() {
         "Edenbridge must pass at least {}/{}, failed: {}",
         results.len() - 1,
         results.len(),
-        failed.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", "),
+        failed
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 }
 
@@ -192,7 +213,11 @@ fn oakley_square_scoring() {
     assert!(
         failed.is_empty(),
         "Oakley Square must pass all checks, failed: {}",
-        failed.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", "),
+        failed
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 }
 
@@ -210,7 +235,11 @@ fn octagon_retail_scoring() {
         "Octagon Retail must pass at least {}/{}, failed: {}",
         results.len() - 1,
         results.len(),
-        failed.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", "),
+        failed
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 }
 

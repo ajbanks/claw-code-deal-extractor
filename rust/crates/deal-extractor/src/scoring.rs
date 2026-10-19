@@ -650,8 +650,12 @@ pub fn score_ih(doc: &DealDocument) -> Vec<CheckResult> {
     results.push({
         if let Some(cd) = cd {
             if let Some(dev) = cd.facilities.iter().find(|f| {
-                f.name.as_deref().map(|n| n.to_lowercase().contains("development")).unwrap_or(false)
-                    || (f.loan_type.as_deref() == Some("development") && f.term_months.unwrap_or(0) > 12)
+                f.name
+                    .as_deref()
+                    .map(|n| n.to_lowercase().contains("development"))
+                    .unwrap_or(false)
+                    || (f.loan_type.as_deref() == Some("development")
+                        && f.term_months.unwrap_or(0) > 12)
             }) {
                 if let Some(term) = dev.term_months {
                     if term >= 18 {
@@ -673,8 +677,13 @@ pub fn score_ih(doc: &DealDocument) -> Vec<CheckResult> {
     // 7d. Repaid Shojin senior ~£20.36M (TS: "repaid Shojin senior debt exists")
     results.push({
         if let Some(cd) = cd {
-            let repaid_senior: Vec<&Facility> = cd.facilities.iter()
-                .filter(|f| f.status.as_deref() == Some("repaid") && f.role.as_deref() == Some("senior_debt"))
+            let repaid_senior: Vec<&Facility> = cd
+                .facilities
+                .iter()
+                .filter(|f| {
+                    f.status.as_deref() == Some("repaid")
+                        && f.role.as_deref() == Some("senior_debt")
+                })
                 .collect();
             if let Some(f) = repaid_senior.first() {
                 if let Some(amt) = facility_amount(f) {
@@ -697,8 +706,13 @@ pub fn score_ih(doc: &DealDocument) -> Vec<CheckResult> {
     // 7e. Repaid Shojin mezzanine ~£3.23M (TS: "repaid Shojin mezzanine debt exists")
     results.push({
         if let Some(cd) = cd {
-            let repaid_mezz: Vec<&Facility> = cd.facilities.iter()
-                .filter(|f| f.status.as_deref() == Some("repaid") && f.role.as_deref() == Some("mezzanine_debt"))
+            let repaid_mezz: Vec<&Facility> = cd
+                .facilities
+                .iter()
+                .filter(|f| {
+                    f.status.as_deref() == Some("repaid")
+                        && f.role.as_deref() == Some("mezzanine_debt")
+                })
                 .collect();
             if let Some(f) = repaid_mezz.first() {
                 if let Some(amt) = facility_amount(f) {
@@ -756,11 +770,15 @@ pub fn score_ih(doc: &DealDocument) -> Vec<CheckResult> {
     // 7h. Phase 1 GDV ~£80.545M (TS: "Phase 1 GDV is ~£80.545M")
     results.push({
         if let Some(cd) = cd {
-            let gdvs: Vec<f64> = cd.valuations.iter()
+            let gdvs: Vec<f64> = cd
+                .valuations
+                .iter()
                 .filter(|v| v.value_type.as_deref() == Some("gross_development_value"))
                 .map(|v| normalise_amount(v.amount.amount))
                 .collect();
-            let phase1 = gdvs.iter().find(|a| **a > 70_000_000.0 && **a < 90_000_000.0);
+            let phase1 = gdvs
+                .iter()
+                .find(|a| **a > 70_000_000.0 && **a < 90_000_000.0);
             if let Some(&amt) = phase1 {
                 if approx(amt, 80_545_000.0, 0.10) {
                     CheckResult::pass("phase1_gdv_80.5M")
@@ -978,7 +996,11 @@ pub fn score_equity_brochure(doc: &DealDocument, name: &str) -> Vec<CheckResult>
         &format!("{name}: capital_position_equity"),
     ));
     r.push({
-        let la = doc.details.as_ref().and_then(|d| d.loan_amount.as_ref()).and_then(sourced_amount);
+        let la = doc
+            .details
+            .as_ref()
+            .and_then(|d| d.loan_amount.as_ref())
+            .and_then(sourced_amount);
         if la.is_none() {
             CheckResult::pass(&format!("{name}: loan_amount_null"))
         } else {

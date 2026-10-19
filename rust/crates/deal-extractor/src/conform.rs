@@ -71,7 +71,10 @@ fn with_source_wrapper(value: Value) -> Value {
     let _ = WITH_SOURCE_DEFAULTS;
     let mut o = Map::new();
     o.insert("source".to_string(), Value::String(String::new()));
-    o.insert("source_type".to_string(), Value::String("extracted".to_string()));
+    o.insert(
+        "source_type".to_string(),
+        Value::String("extracted".to_string()),
+    );
     o.insert("notes".to_string(), Value::Null);
     o.insert("scope".to_string(), Value::Null);
     o.insert("evidence_text".to_string(), Value::Null);
@@ -81,7 +84,10 @@ fn with_source_wrapper(value: Value) -> Value {
 
 /// Strip currency symbols / thousands separators / whitespace and parse.
 fn parse_amount(s: &str) -> Option<f64> {
-    let cleaned: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '.' || *c == '-').collect();
+    let cleaned: String = s
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == '.' || *c == '-')
+        .collect();
     cleaned.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
@@ -173,10 +179,16 @@ fn conform_object(inst: &mut Value, schema: &Value, fixes: &mut usize) {
     let required: Vec<String> = schema
         .get("required")
         .and_then(Value::as_array)
-        .map(|r| r.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|r| {
+            r.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let Some(obj) = inst.as_object_mut() else { return };
+    let Some(obj) = inst.as_object_mut() else {
+        return;
+    };
 
     // Fill missing required keys.
     for key in &required {
@@ -218,7 +230,14 @@ mod tests {
         });
         conform_document(&mut doc);
         let t = &doc["details"]["exit_plan"];
-        for k in ["source", "source_type", "notes", "scope", "evidence_text", "value"] {
+        for k in [
+            "source",
+            "source_type",
+            "notes",
+            "scope",
+            "evidence_text",
+            "value",
+        ] {
             assert!(t.get(k).is_some(), "missing {k}");
         }
     }
@@ -242,6 +261,9 @@ mod tests {
             "details": {}, "kpis": {}, "classification": {}
         });
         conform_document(&mut doc);
-        assert_eq!(doc["canonical_deal"]["facilities"][0]["commitment"]["amount"], "25750000");
+        assert_eq!(
+            doc["canonical_deal"]["facilities"][0]["commitment"]["amount"],
+            "25750000"
+        );
     }
 }

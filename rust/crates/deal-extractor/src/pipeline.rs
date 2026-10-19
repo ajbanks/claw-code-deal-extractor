@@ -26,6 +26,85 @@ pub struct PipelineDiagnostics {
     pub repair_rounds: usize,
     pub issues_initial: usize,
     pub issues_remaining: Vec<validate::Issue>,
+    pub recall: RecallDiagnostics,
+}
+
+/// What the recall machinery saw and did — returned to the caller so missed
+/// fields are visible in traces instead of only on the service's stderr.
+#[derive(Debug, Default, Clone, serde::Serialize)]
+pub struct RecallDiagnostics {
+    /// Pass retries: "<pass>: <first error>" (truncation / bad JSON).
+    pub pass_retries: Vec<String>,
+    /// Evidenced-but-empty field paths after the repair loop.
+    pub coverage_gaps_initial: Vec<String>,
+    pub escalated: bool,
+    pub escalation_filled: usize,
+    pub escalation_error: Option<String>,
+    pub coverage_filled: Vec<String>,
+    pub coverage_rejected: Vec<String>,
+    pub coverage_error: Option<String>,
+    /// Corpus figures (labelled money / percentages) found nowhere in the
+    /// output, before the tool fill: "<doc> p<page>: <label> <figure>".
+    pub unaccounted_figures: Vec<String>,
+    pub tool_fill_merged: Vec<String>,
+    pub tool_fill_rejected: Vec<String>,
+    pub tool_fill_error: Option<String>,
+    /// Evidenced-but-empty paths still empty at the end.
+    pub coverage_gaps_remaining: Vec<String>,
+    /// Corpus figures still unaccounted for at the end.
+    pub unaccounted_remaining: Vec<String>,
+    pub verify_checked: usize,
+    pub verify_fixes: usize,
+}
+
+/// Model routing shared by the service, the CLI and the scoring tests, so
+/// every caller exercises the production pipeline. Each model resolves from
+/// the explicit override, then `DEAL_EXTRACT_{STRUCTURE,DETAILS,COVERAGE}_MODEL`,
+/// then the default (Sol for structure + coverage, `extractor.model` for details).
+pub async fn run_routed(
+    extractor: &Extractor,
+    corpus: &Corpus,
+    max_repair_rounds: usize,
+    structure_model: Option<String>,
+    details_model: Option<String>,
+    coverage_model: Option<String>,
+) -> Result<PipelineResult, String> {
+    let resolve = |explicit: Option<String>, env: &str, default: &str| {
+        explicit
+            .or_else(|| std::env::var(env).ok())
+            .unwrap_or_else(|| default.to_string())
+    };
+    let distinct = |m: String| -> Option<Extractor> {
+        (m != extractor.model)
+            .then(|| Extractor::new(&m).ok())
+            .flatten()
+    };
+    let cov_model = resolve(coverage_model, "DEAL_EXTRACT_COVERAGE_MODEL", "gpt-5.6-sol");
+    let coverage_owned = distinct(cov_model.clone());
+    // Coverage on the same model reuses the main extractor; structure and
+    // details on the same model fall back to it inside run_multi_pass.
+    let coverage_ex = coverage_owned
+        .as_ref()
+        .or_else(|| (cov_model == extractor.model).then_some(extractor));
+    let structure_owned = distinct(resolve(
+        structure_model,
+        "DEAL_EXTRACT_STRUCTURE_MODEL",
+        "gpt-5.6-sol",
+    ));
+    let details_owned = distinct(resolve(
+        details_model,
+        "DEAL_EXTRACT_DETAILS_MODEL",
+        &extractor.model,
+    ));
+    run_multi_pass(
+        extractor,
+        corpus,
+        max_repair_rounds,
+        coverage_ex,
+        structure_owned.as_ref(),
+        details_owned.as_ref(),
+    )
+    .await
 }
 
 pub async fn run_multi_pass(
@@ -38,6 +117,7 @@ pub async fn run_multi_pass(
 ) -> Result<PipelineResult, String> {
     let pipeline_start = std::time::Instant::now();
     let mut pass_times: Vec<(&'static str, u64)> = Vec::new();
+    let mut recall = RecallDiagnostics::default();
 
     // ── Pass A: Structure (classification + facilities + focus) ──────────
     let t = std::time::Instant::now();
@@ -46,21 +126,43 @@ pub async fn run_multi_pass(
     // facility graph and deal skeleton that every later pass builds on.
     let structure_model = structure_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass A model: {}", structure_model.model);
-    let pass_a_text = structure_model.call(prompts::PASS_A_STRUCTURE, &corpus.render()).await?;
-    let pass_a: Value = crate::extract::parse_json(&pass_a_text)?;
+    let (pass_a, retry) = structure_model
+        .call_json(prompts::PASS_A_STRUCTURE, &corpus.render())
+        .await
+        .map_err(|e| format!("pass A (structure): {e}"))?;
+    if let Some(r) = retry {
+        recall.pass_retries.push(format!("structure: {r}"));
+    }
     let classification = pass_a.get("classification").cloned().unwrap_or(json!(null));
-    let doc_annotations = pass_a.get("document_annotations").cloned().unwrap_or(json!([]));
+    let doc_annotations = pass_a
+        .get("document_annotations")
+        .cloned()
+        .unwrap_or(json!([]));
     let facilities = pass_a.get("facilities").cloned().unwrap_or(json!([]));
     let capital_events = pass_a.get("capital_events").cloned().unwrap_or(json!([]));
-    let capital_snapshots = pass_a.get("capital_snapshots").cloned().unwrap_or(json!([]));
-    let focus_facility_id = pass_a.get("focus_facility_id").cloned().unwrap_or(json!(null));
-    let focus_resolution_status = pass_a.get("focus_resolution_status").cloned().unwrap_or(json!("unresolved"));
-    let candidate_facility_ids = pass_a.get("candidate_facility_ids").cloned().unwrap_or(json!([]));
+    let capital_snapshots = pass_a
+        .get("capital_snapshots")
+        .cloned()
+        .unwrap_or(json!([]));
+    let focus_facility_id = pass_a
+        .get("focus_facility_id")
+        .cloned()
+        .unwrap_or(json!(null));
+    let focus_resolution_status = pass_a
+        .get("focus_resolution_status")
+        .cloned()
+        .unwrap_or(json!("unresolved"));
+    let candidate_facility_ids = pass_a
+        .get("candidate_facility_ids")
+        .cloned()
+        .unwrap_or(json!([]));
     pass_times.push(("structure", t.elapsed().as_millis() as u64));
-    eprintln!("[pipeline] pass A done — {} facilities, focus={}, {:.1}s",
+    eprintln!(
+        "[pipeline] pass A done — {} facilities, focus={}, {:.1}s",
         facilities.as_array().map_or(0, |a| a.len()),
         focus_facility_id.as_str().unwrap_or("none"),
-        t.elapsed().as_secs_f64());
+        t.elapsed().as_secs_f64()
+    );
 
     // ── Pass B: Details (valuations + phases + details + KPIs) ───────────
     let t = std::time::Instant::now();
@@ -70,20 +172,30 @@ pub async fn run_multi_pass(
     let pass_b_prompt = prompts::PASS_B_DETAILS
         .replace("{focus_summary}", &focus_summary)
         .replace("{classification_summary}", &classification_summary)
-        .replace("{deal_type_guidance}", &prompts::deal_type_guidance(&classification));
+        .replace(
+            "{deal_type_guidance}",
+            &prompts::deal_type_guidance(&classification),
+        );
     let details_extractor = details_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass B model: {}", details_extractor.model);
-    let pass_b_text = details_extractor.call(&pass_b_prompt, &corpus.render()).await?;
-    let pass_b: Value = crate::extract::parse_json(&pass_b_text)?;
+    let (pass_b, retry) = details_extractor
+        .call_json(&pass_b_prompt, &corpus.render())
+        .await
+        .map_err(|e| format!("pass B (details): {e}"))?;
+    if let Some(r) = retry {
+        recall.pass_retries.push(format!("details: {r}"));
+    }
     let valuations = pass_b.get("valuations").cloned().unwrap_or(json!([]));
     let phases = pass_b.get("phases").cloned().unwrap_or(json!([]));
     let mut details = pass_b.get("details").cloned().unwrap_or(json!({}));
     let mut kpis = pass_b.get("kpis").cloned().unwrap_or(json!({}));
     pass_times.push(("details", t.elapsed().as_millis() as u64));
-    eprintln!("[pipeline] pass B done — {} valuations, {} phases, {:.1}s",
+    eprintln!(
+        "[pipeline] pass B done — {} valuations, {} phases, {:.1}s",
         valuations.as_array().map_or(0, |a| a.len()),
         phases.as_array().map_or(0, |a| a.len()),
-        t.elapsed().as_secs_f64());
+        t.elapsed().as_secs_f64()
+    );
 
     // ── Deterministic post-processing ───────────────────────────────────
     apply_deterministic_fields(
@@ -140,27 +252,56 @@ pub async fn run_multi_pass(
     // When pass B produced a sparse document (many evidenced-but-empty fields),
     // re-run the details pass on Sol and merge — but ONLY into fields still
     // empty, never overwriting populated values.
+    recall.coverage_gaps_initial = coverage::coverage_issues(&final_doc, corpus)
+        .into_iter()
+        .map(|i| i.path)
+        .collect();
     if let Some(cov_ex) = coverage_ex {
-        let gaps = coverage::coverage_issues(&final_doc, corpus);
-        let details_model = details_ex.map(|d| d.model.as_str()).unwrap_or(extractor.model.as_str());
+        let gaps = &recall.coverage_gaps_initial;
+        let details_model = details_ex
+            .map(|d| d.model.as_str())
+            .unwrap_or(extractor.model.as_str());
         if gaps.len() >= 4 && cov_ex.model != details_model {
-            eprintln!("[pipeline] thin document — {} evidenced gaps, escalating pass B to {}",
-                gaps.len(), cov_ex.model);
+            recall.escalated = true;
+            eprintln!(
+                "[pipeline] thin document — {} evidenced gaps, escalating pass B to {}",
+                gaps.len(),
+                cov_ex.model
+            );
             let pass_b_prompt = prompts::PASS_B_DETAILS
                 .replace("{focus_summary}", &focus_summary)
                 .replace("{classification_summary}", &classification_summary)
-                .replace("{deal_type_guidance}", &prompts::deal_type_guidance(&classification));
-            match cov_ex.call(&pass_b_prompt, &corpus.render()).await {
-                Ok(text) => match crate::extract::parse_json(&text) {
-                    Ok(esc) => {
+                .replace(
+                    "{deal_type_guidance}",
+                    &prompts::deal_type_guidance(&classification),
+                );
+            match cov_ex.call_json(&pass_b_prompt, &corpus.render()).await {
+                Ok((esc, retry)) => {
+                    if let Some(r) = retry {
+                        recall.pass_retries.push(format!("escalation: {r}"));
+                    }
+                    {
                         let mut filled = 0usize;
                         for section in ["details", "kpis"] {
-                            let (Some(base), Some(extra)) = (final_doc.get_mut(section), esc.get(section)) else { continue };
-                            let (Some(base_o), Some(extra_o)) = (base.as_object_mut(), extra.as_object()) else { continue };
+                            let (Some(base), Some(extra)) =
+                                (final_doc.get_mut(section), esc.get(section))
+                            else {
+                                continue;
+                            };
+                            let (Some(base_o), Some(extra_o)) =
+                                (base.as_object_mut(), extra.as_object())
+                            else {
+                                continue;
+                            };
                             for (k, v) in extra_o {
                                 let empty = base_o.get(k).map_or(true, |e| {
                                     e.is_null()
-                                        || e.as_object().map(|o| o.is_empty() || o.get("value").map_or(false, |v| v.is_null())).unwrap_or(false)
+                                        || e.as_object()
+                                            .map(|o| {
+                                                o.is_empty()
+                                                    || o.get("value").map_or(false, |v| v.is_null())
+                                            })
+                                            .unwrap_or(false)
                                         || e.as_array().map(|a| a.is_empty()).unwrap_or(false)
                                 });
                                 if empty {
@@ -170,11 +311,29 @@ pub async fn run_multi_pass(
                             }
                         }
                         // Canonical arrays the escalation produced that Luna lacked.
-                        if let (Some(cd), Some(ecd)) = (final_doc.get_mut("canonical_deal").and_then(|v| v.as_object_mut()), esc.get("canonical_deal").and_then(|v| v.as_object())) {
-                            for k in ["valuations", "phases", "planning_applications", "facility_parties", "construction_budgets"] {
-                                let empty = cd.get(k).and_then(|v| v.as_array()).map_or(true, |a| a.is_empty());
+                        if let (Some(cd), Some(ecd)) = (
+                            final_doc
+                                .get_mut("canonical_deal")
+                                .and_then(|v| v.as_object_mut()),
+                            esc.get("canonical_deal").and_then(|v| v.as_object()),
+                        ) {
+                            for k in [
+                                "valuations",
+                                "phases",
+                                "planning_applications",
+                                "facility_parties",
+                                "construction_budgets",
+                            ] {
+                                let empty = cd
+                                    .get(k)
+                                    .and_then(|v| v.as_array())
+                                    .map_or(true, |a| a.is_empty());
                                 if empty {
-                                    if let Some(arr) = ecd.get(k).and_then(|v| v.as_array()).filter(|a| !a.is_empty()) {
+                                    if let Some(arr) = ecd
+                                        .get(k)
+                                        .and_then(|v| v.as_array())
+                                        .filter(|a| !a.is_empty())
+                                    {
                                         cd.insert(k.to_string(), Value::Array(arr.clone()));
                                         filled += 1;
                                     }
@@ -182,11 +341,14 @@ pub async fn run_multi_pass(
                             }
                         }
                         conform::conform_document(&mut final_doc);
+                        recall.escalation_filled = filled;
                         eprintln!("[pipeline] escalation merged {filled} fields");
                     }
-                    Err(e) => eprintln!("[pipeline] escalation parse failed: {e}"),
-                },
-                Err(e) => eprintln!("[pipeline] escalation call failed: {e}"),
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] escalation failed: {e}");
+                    recall.escalation_error = Some(e.chars().take(300).collect());
+                }
             }
         }
     }
@@ -198,13 +360,69 @@ pub async fn run_multi_pass(
     if let Some(cov_ex) = coverage_ex {
         let missing = coverage::coverage_issues(&final_doc, corpus);
         if !missing.is_empty() {
-            eprintln!("[coverage] {} missing fields with evidence — Sol patch call ({}): {}",
-                missing.len(), cov_ex.model,
-                missing.iter().map(|i| i.path.clone()).collect::<Vec<_>>().join(", "));
+            eprintln!(
+                "[coverage] {} missing fields with evidence — Sol patch call ({}): {}",
+                missing.len(),
+                cov_ex.model,
+                missing
+                    .iter()
+                    .map(|i| i.path.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
             let t = std::time::Instant::now();
             match coverage::fill_missing(cov_ex, &mut final_doc, &missing).await {
-                Ok(paths) => eprintln!("[coverage] filled {} paths in {:.1}s", paths.len(), t.elapsed().as_secs_f64()),
-                Err(e) => eprintln!("[coverage] fill FAILED: {e}"),
+                Ok((merged, rejected)) => {
+                    eprintln!(
+                        "[coverage] filled {} paths in {:.1}s",
+                        merged.len(),
+                        t.elapsed().as_secs_f64()
+                    );
+                    recall.coverage_filled = merged;
+                    recall.coverage_rejected = rejected;
+                }
+                Err(e) => {
+                    eprintln!("[coverage] fill FAILED: {e}");
+                    recall.coverage_error = Some(e.chars().take(300).collect());
+                }
+            }
+        }
+    }
+
+    // ── Recall check + tool fill ──
+    // Reverse of verify: every labelled money/percent figure in the corpus
+    // must be accounted for somewhere in the output. Unaccounted figures and
+    // still-empty evidenced fields go to one tool-equipped fill round that
+    // can read the actual pages, and may only write empty paths.
+    let unaccounted = crate::recall::unaccounted_figures(&final_doc, corpus);
+    recall.unaccounted_figures = unaccounted.iter().map(|f| f.summary()).collect();
+    let mut fill_issues = coverage::coverage_issues(&final_doc, corpus);
+    fill_issues.extend(
+        unaccounted
+            .iter()
+            .map(crate::recall::UnaccountedFigure::issue),
+    );
+    if !fill_issues.is_empty() {
+        let fill_model = coverage_ex.or(details_ex).unwrap_or(extractor);
+        eprintln!(
+            "[recall] tool fill ({}) — {} unaccounted figures, {} empty fields",
+            fill_model.model,
+            unaccounted.len(),
+            fill_issues.len() - unaccounted.len()
+        );
+        match repair::tool_fill(fill_model, corpus, &mut final_doc, &fill_issues).await {
+            Ok((merged, rejected)) => {
+                eprintln!(
+                    "[recall] merged {} paths, rejected {}",
+                    merged.len(),
+                    rejected.len()
+                );
+                recall.tool_fill_merged = merged;
+                recall.tool_fill_rejected = rejected;
+            }
+            Err(e) => {
+                eprintln!("[recall] tool fill FAILED: {e}");
+                recall.tool_fill_error = Some(e.chars().take(300).collect());
             }
         }
     }
@@ -214,14 +432,40 @@ pub async fn run_multi_pass(
     // wrong-cell errors (e.g. cap rate read as 0.04 vs a stated 0.045) that
     // conform can't see because they're shape-correct.
     let verify_model = details_ex.or(coverage_ex).unwrap_or(extractor);
-    let (checked, fixes_applied) = crate::verify::verify_extracted_numbers(&mut final_doc, corpus, verify_model).await;
+    let (checked, fixes_applied) =
+        crate::verify::verify_extracted_numbers(&mut final_doc, corpus, verify_model).await;
+    recall.verify_checked = checked;
+    recall.verify_fixes = fixes_applied;
     if fixes_applied > 0 {
-        eprintln!("[pipeline] verify — {} fields checked, {} corrections applied", checked, fixes_applied);
+        eprintln!(
+            "[pipeline] verify — {} fields checked, {} corrections applied",
+            checked, fixes_applied
+        );
+    }
+
+    recall.coverage_gaps_remaining = coverage::coverage_issues(&final_doc, corpus)
+        .into_iter()
+        .map(|i| i.path)
+        .collect();
+    recall.unaccounted_remaining = crate::recall::unaccounted_figures(&final_doc, corpus)
+        .iter()
+        .map(crate::recall::UnaccountedFigure::summary)
+        .collect();
+    if !recall.coverage_gaps_remaining.is_empty() || !recall.unaccounted_remaining.is_empty() {
+        eprintln!(
+            "[recall] still missing — {} evidenced fields, {} corpus figures",
+            recall.coverage_gaps_remaining.len(),
+            recall.unaccounted_remaining.len()
+        );
     }
 
     let remaining_issues = validate::validate(&final_doc);
-    eprintln!("[pipeline] complete — {} repair rounds, {} issues, {:.1}s total",
-        repair_rounds, remaining_issues.len(), pipeline_start.elapsed().as_secs_f64());
+    eprintln!(
+        "[pipeline] complete — {} repair rounds, {} issues, {:.1}s total",
+        repair_rounds,
+        remaining_issues.len(),
+        pipeline_start.elapsed().as_secs_f64()
+    );
 
     Ok(PipelineResult {
         document: final_doc,
@@ -230,19 +474,26 @@ pub async fn run_multi_pass(
             repair_rounds,
             issues_initial: initial_errors,
             issues_remaining: remaining_issues,
+            recall,
         },
     })
 }
 
 fn format_classification_summary(classification: &Value) -> String {
-    let cp = classification.get("capital_position").and_then(|v| v.as_str()).unwrap_or("unknown");
-    let lt = classification.get("loan_type")
+    let cp = classification
+        .get("capital_position")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let lt = classification
+        .get("loan_type")
         .and_then(|v| v.get("category").and_then(|c| c.as_str()))
         .unwrap_or("unknown");
-    let lr = classification.get("loan_rank")
+    let lr = classification
+        .get("loan_rank")
         .and_then(|v| v.get("category").and_then(|c| c.as_str()))
         .unwrap_or("unknown");
-    let pt = classification.get("project_type")
+    let pt = classification
+        .get("project_type")
         .and_then(|v| v.get("category").and_then(|c| c.as_str()))
         .unwrap_or("unknown");
     format!("{cp} / {lt} / {lr} / {pt}")
@@ -250,14 +501,26 @@ fn format_classification_summary(classification: &Value) -> String {
 
 fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
     let fid = focus_id.as_str().unwrap_or("none");
-    if fid == "none" { return "No focus facility resolved".into(); }
-    let facility = facilities.as_array()
-        .and_then(|a| a.iter().find(|f| f.get("id").and_then(|v| v.as_str()) == Some(fid)));
+    if fid == "none" {
+        return "No focus facility resolved".into();
+    }
+    let facility = facilities.as_array().and_then(|a| {
+        a.iter()
+            .find(|f| f.get("id").and_then(|v| v.as_str()) == Some(fid))
+    });
     match facility {
         Some(f) => {
             let name = f.get("name").and_then(|v| v.as_str()).unwrap_or(fid);
-            let amt = f.get("commitment").and_then(|c| c.get("amount")).and_then(|v| v.as_str()).unwrap_or("?");
-            let ccy = f.get("commitment").and_then(|c| c.get("currency")).and_then(|v| v.as_str()).unwrap_or("GBP");
+            let amt = f
+                .get("commitment")
+                .and_then(|c| c.get("amount"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let ccy = f
+                .get("commitment")
+                .and_then(|c| c.get("currency"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("GBP");
             let role = f.get("role").and_then(|v| v.as_str()).unwrap_or("?");
             format!("{name} ({role}) — {ccy} {amt}")
         }
@@ -265,10 +528,12 @@ fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
     }
 }
 
-
 fn amount_of(money: &Value) -> Option<f64> {
-    money.get("amount")
-        .and_then(|v| v.as_str().and_then(|s| s.parse::<f64>().ok()).or_else(|| v.as_f64()))
+    money.get("amount").and_then(|v| {
+        v.as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .or_else(|| v.as_f64())
+    })
 }
 
 fn sourced_money(amount: f64, currency: &str, source: &str) -> Value {
@@ -304,28 +569,41 @@ fn apply_deterministic_fields(
     let facs = facilities.as_array().cloned().unwrap_or_default();
     let focus_fid = focus_id.as_str().unwrap_or("");
 
-    let mut focus = facs.iter().find(|f| f.get("id").and_then(|v| v.as_str()) == Some(focus_fid));
+    let mut focus = facs
+        .iter()
+        .find(|f| f.get("id").and_then(|v| v.as_str()) == Some(focus_fid));
 
     if let Some(fc) = focus {
         let focus_amt = fc.get("commitment").and_then(amount_of).unwrap_or(0.0);
         let focus_role = fc.get("role").and_then(|v| v.as_str()).unwrap_or("");
-        let same_role_facilities: Vec<&Value> = facs.iter()
-            .filter(|f| f.get("role").and_then(|v| v.as_str()) == Some(focus_role)
-                || f.get("role").and_then(|v| v.as_str()) == Some("junior_debt") && focus_role == "mezzanine_debt"
-                || f.get("role").and_then(|v| v.as_str()) == Some("mezzanine_debt") && focus_role == "junior_debt")
+        let same_role_facilities: Vec<&Value> = facs
+            .iter()
+            .filter(|f| {
+                f.get("role").and_then(|v| v.as_str()) == Some(focus_role)
+                    || f.get("role").and_then(|v| v.as_str()) == Some("junior_debt")
+                        && focus_role == "mezzanine_debt"
+                    || f.get("role").and_then(|v| v.as_str()) == Some("mezzanine_debt")
+                        && focus_role == "junior_debt"
+            })
             .collect();
         for c in &same_role_facilities {
             let cid = c.get("id").and_then(|v| v.as_str()).unwrap_or("");
-            if cid == focus_fid { continue; }
+            if cid == focus_fid {
+                continue;
+            }
             let c_amt = c.get("commitment").and_then(amount_of).unwrap_or(0.0);
             if c_amt > focus_amt * 1.1 && c_amt < focus_amt * 5.0 {
-                let other_facs: Vec<f64> = same_role_facilities.iter()
+                let other_facs: Vec<f64> = same_role_facilities
+                    .iter()
                     .filter(|x| x.get("id").and_then(|v| v.as_str()) != Some(cid))
                     .map(|x| x.get("commitment").and_then(amount_of).unwrap_or(0.0))
                     .filter(|a| *a > 0.0)
                     .collect();
                 let other_sum: f64 = other_facs.iter().sum();
-                if other_facs.len() >= 2 && other_sum > 0.0 && (c_amt - other_sum).abs() / c_amt < 0.05 {
+                if other_facs.len() >= 2
+                    && other_sum > 0.0
+                    && (c_amt - other_sum).abs() / c_amt < 0.05
+                {
                     focus = Some(c);
                     break;
                 }
@@ -340,15 +618,24 @@ fn apply_deterministic_fields(
         .and_then(|f| f.get("facility_group_id"))
         .and_then(|gid| gid.as_str())
         .and_then(|gid| {
-            let sum: f64 = facs.iter()
+            let sum: f64 = facs
+                .iter()
                 .filter(|f| f.get("facility_group_id").and_then(|v| v.as_str()) == Some(gid))
                 .filter_map(|f| f.get("commitment").and_then(amount_of))
                 .sum();
-            if sum > 0.0 { Some(sum) } else { None }
+            if sum > 0.0 {
+                Some(sum)
+            } else {
+                None
+            }
         })
         .or_else(|| focus.and_then(|f| f.get("commitment")).and_then(amount_of));
     let focus_currency = focus
-        .and_then(|f| f.get("commitment").and_then(|c| c.get("currency")).and_then(|v| v.as_str()))
+        .and_then(|f| {
+            f.get("commitment")
+                .and_then(|c| c.get("currency"))
+                .and_then(|v| v.as_str())
+        })
         .unwrap_or("gbp");
 
     if let Some(amt) = focus_commitment {
@@ -363,9 +650,9 @@ fn apply_deterministic_fields(
         .and_then(|f| f.get("scope_level"))
         .and_then(|v| v.as_str())
         == Some("project");
-    let has_deal_scope_facility = facs.iter().any(|f| {
-        f.get("scope_level").and_then(|v| v.as_str()) == Some("deal")
-    });
+    let has_deal_scope_facility = facs
+        .iter()
+        .any(|f| f.get("scope_level").and_then(|v| v.as_str()) == Some("deal"));
 
     let mut senior_total = 0.0;
     let mut mezz_total = 0.0;
@@ -374,13 +661,20 @@ fn apply_deterministic_fields(
     let mut debt_currency = "gbp".to_string();
 
     for f in &facs {
-        let instrument = f.get("instrument_type").and_then(|v| v.as_str()).unwrap_or("");
+        let instrument = f
+            .get("instrument_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let role = f.get("role").and_then(|v| v.as_str()).unwrap_or("");
         let disposition = f.get("disposition").and_then(|v| v.as_str()).unwrap_or("");
         let scope = f.get("scope_level").and_then(|v| v.as_str());
 
-        if disposition == "proposed" { continue; }
-        if disposition == "repaid" { continue; }
+        if disposition == "proposed" {
+            continue;
+        }
+        if disposition == "repaid" {
+            continue;
+        }
         // Exclude project-scope facilities only when the deal itself is a
         // tranche within a project (i.e. there are deal-scope facilities and
         // the focus is not project-scope). When the deal is the project —
@@ -390,9 +684,15 @@ fn apply_deterministic_fields(
         }
 
         let commitment = f.get("commitment").and_then(amount_of).unwrap_or(0.0);
-        if commitment < 100_000.0 { continue; }
+        if commitment < 100_000.0 {
+            continue;
+        }
 
-        if let Some(c) = f.get("commitment").and_then(|c| c.get("currency")).and_then(|v| v.as_str()) {
+        if let Some(c) = f
+            .get("commitment")
+            .and_then(|c| c.get("currency"))
+            .and_then(|v| v.as_str())
+        {
             debt_currency = c.to_string();
         }
 
@@ -431,21 +731,27 @@ fn apply_deterministic_fields(
 
     let loan_amount = focus_commitment.filter(|a| *a >= 100_000.0);
 
-    let market_value = valuations.as_array()
-        .and_then(|vs| vs.iter()
-            .find(|v| v.get("value_type").and_then(|t| t.as_str()) == Some("market_value"))
-            .and_then(|v| v.get("amount").and_then(amount_of)))
+    let market_value = valuations
+        .as_array()
+        .and_then(|vs| {
+            vs.iter()
+                .find(|v| v.get("value_type").and_then(|t| t.as_str()) == Some("market_value"))
+                .and_then(|v| v.get("amount").and_then(amount_of))
+        })
         .or_else(|| detail_money(details, "market_value"))
         .or_else(|| detail_money(details, "day_1_value"))
         .or_else(|| detail_money(details, "stabilised_value"))
         .or_else(|| detail_money(details, "purchase_price"));
 
-    let gdv = valuations.as_array()
-        .and_then(|vs| vs.iter()
-            .filter(|v| v.get("value_type").and_then(|t| t.as_str()) == Some("gross_development_value"))
+    let gdv = valuations.as_array().and_then(|vs| {
+        vs.iter()
+            .filter(|v| {
+                v.get("value_type").and_then(|t| t.as_str()) == Some("gross_development_value")
+            })
             .filter(|v| v.get("phase_id").is_none() || v.get("phase_id") == Some(&json!(null)))
             .map(|v| v.get("amount").and_then(amount_of).unwrap_or(0.0))
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)));
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+    });
 
     if let (Some(la), Some(mv)) = (loan_amount, market_value) {
         if mv > 0.0 {
@@ -490,11 +796,14 @@ fn apply_deterministic_fields(
             }
         }
 
-        let value_basis = market_value.or(detail_money(details, "day_1_value")).or(gdv);
+        let value_basis = market_value
+            .or(detail_money(details, "day_1_value"))
+            .or(gdv);
         if let Some(vb) = value_basis {
             if vb > 0.0 {
                 let eq_value = equity_total / vb * 100.0;
-                kpis["borrower_equity_on_value"] = sourced_percent((eq_value * 100.0).round() / 100.0);
+                kpis["borrower_equity_on_value"] =
+                    sourced_percent((eq_value * 100.0).round() / 100.0);
             }
         }
     }
@@ -507,7 +816,10 @@ fn apply_deterministic_fields(
     if !focus_has_interest {
         if let Some(ir) = details.get("interest_rate") {
             let notes = ir.get("notes").and_then(|v| v.as_str()).unwrap_or("");
-            let evidence = ir.get("evidence_text").and_then(|v| v.as_str()).unwrap_or("");
+            let evidence = ir
+                .get("evidence_text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let combined = format!("{} {}", notes, evidence).to_lowercase();
             let is_valuation_rate = combined.contains("finance rate")
                 || combined.contains("residual appraisal")
@@ -520,7 +832,8 @@ fn apply_deterministic_fields(
         }
     }
 
-    let gia = details.get("gross_internal_area")
+    let gia = details
+        .get("gross_internal_area")
         .and_then(|v| v.get("value"))
         .and_then(|v| v.get("value"))
         .and_then(|v| v.as_f64());
@@ -543,11 +856,14 @@ fn apply_deterministic_fields(
 }
 
 fn detail_money(details: &Value, field: &str) -> Option<f64> {
-    details.get(field)
+    details
+        .get(field)
         .and_then(|v| v.get("value"))
         .and_then(|v| {
-            v.get("amount")
-                .and_then(|a| a.as_f64().or_else(|| a.as_str().and_then(|s| s.parse::<f64>().ok())))
+            v.get("amount").and_then(|a| {
+                a.as_f64()
+                    .or_else(|| a.as_str().and_then(|s| s.parse::<f64>().ok()))
+            })
         })
         .filter(|a| *a >= 1.0)
 }
@@ -575,7 +891,14 @@ mod tests {
         let mut details = json!({});
         let mut kpis = json!({});
 
-        apply_deterministic_fields(&mut details, &mut kpis, &facilities, &focus_id, &valuations, &classification);
+        apply_deterministic_fields(
+            &mut details,
+            &mut kpis,
+            &facilities,
+            &focus_id,
+            &valuations,
+            &classification,
+        );
 
         let la = details["loan_amount"]["value"]["amount"].as_str().unwrap();
         assert_eq!(la, "25750000");
@@ -586,7 +909,9 @@ mod tests {
         let sd = details["senior_debt"]["value"]["amount"].as_str().unwrap();
         assert_eq!(sd, "25750000");
 
-        let md = details["mezzanine_debt"]["value"]["amount"].as_str().unwrap();
+        let md = details["mezzanine_debt"]["value"]["amount"]
+            .as_str()
+            .unwrap();
         assert_eq!(md, "5000000");
 
         let ltv = kpis["loan_to_value"]["value"].as_f64().unwrap();
@@ -610,7 +935,14 @@ mod tests {
         let mut details = json!({});
         let mut kpis = json!({});
 
-        apply_deterministic_fields(&mut details, &mut kpis, &facilities, &focus_id, &json!([]), &json!({}));
+        apply_deterministic_fields(
+            &mut details,
+            &mut kpis,
+            &facilities,
+            &focus_id,
+            &json!([]),
+            &json!({}),
+        );
 
         let gd = details["gross_debt"]["value"]["amount"].as_str().unwrap();
         assert_eq!(gd, "25750000");

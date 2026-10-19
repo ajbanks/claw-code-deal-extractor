@@ -4,6 +4,7 @@ use std::time::Instant;
 use deal_extractor::corpus::Corpus;
 use deal_extractor::documents;
 use deal_extractor::extract::Extractor;
+use deal_extractor::pipeline;
 use deal_extractor::repair;
 use deal_extractor::schema::DealDocument;
 use deal_extractor::scoring;
@@ -49,6 +50,7 @@ fn print_usage() {
          --docs-dir DIR           Override docs dir (used with --deal)\n\
          --score FILE             Score a previously-extracted JSON file (no LLM calls)\n\
          --max-repair-rounds N    Max validate→repair rounds (default: 3)\n\
+         --single-pass            Legacy one-call extraction instead of the production multi-pass pipeline\n\
          --list                   List available deals and exit"
     );
 }
@@ -77,6 +79,7 @@ fn main() {
     let mut score_file: Option<String> = None;
     let mut max_repair_rounds: usize = 3;
     let mut list_only = false;
+    let mut single_pass = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -107,6 +110,10 @@ fn main() {
             }
             "--list" => {
                 list_only = true;
+                i += 1;
+            }
+            "--single-pass" => {
+                single_pass = true;
                 i += 1;
             }
             "--help" | "-h" => {
@@ -213,12 +220,48 @@ fn main() {
                 continue;
             }
 
-            match extractor.extract(&corpus).await {
-                Ok(candidate) => {
-                    // validate → repair loop (agent owns correctness)
-                    let (doc_json, issues, rounds) =
-                        repair::repair_loop(&extractor, &corpus, candidate, max_repair_rounds)
-                            .await;
+            // Default: the production multi-pass pipeline (same routing as the
+            // service). --single-pass keeps the legacy one-call extraction.
+            let run = if single_pass {
+                match extractor.extract(&corpus).await {
+                    Ok(candidate) => {
+                        Ok(
+                            repair::repair_loop(&extractor, &corpus, candidate, max_repair_rounds)
+                                .await,
+                        )
+                    }
+                    Err(e) => Err(e),
+                }
+            } else {
+                pipeline::run_routed(&extractor, &corpus, max_repair_rounds, None, None, None)
+                    .await
+                    .map(|r| {
+                        let rc = &r.diagnostics.recall;
+                        println!(
+                            "    recall: retries={:?} gaps {}→{} unaccounted {}→{} filled={} tool_merged={}",
+                            rc.pass_retries,
+                            rc.coverage_gaps_initial.len(),
+                            rc.coverage_gaps_remaining.len(),
+                            rc.unaccounted_figures.len(),
+                            rc.unaccounted_remaining.len(),
+                            rc.coverage_filled.len(),
+                            rc.tool_fill_merged.len(),
+                        );
+                        for f in &rc.unaccounted_remaining {
+                            println!("      still unaccounted: {f}");
+                        }
+                        for g in &rc.coverage_gaps_remaining {
+                            println!("      still empty: {g}");
+                        }
+                        (
+                            r.document,
+                            r.diagnostics.issues_remaining,
+                            r.diagnostics.repair_rounds,
+                        )
+                    })
+            };
+            match run {
+                Ok((doc_json, issues, rounds)) => {
 
                     let out_file = out_dir.join(format!(
                         "{}.json",
