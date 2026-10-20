@@ -511,6 +511,40 @@ pub async fn run_multi_pass(
             .iter()
             .map(crate::recall::UnaccountedFigure::issue),
     );
+    // A debt deal with no live requested/proposed facility is a structural
+    // miss — both pass-A votes can drop the ask and the figure-level recall
+    // check can't see it when the amount collides with a cost line (Luton:
+    // £35.81m facility == £35.81m TDC). Hand it to the tool fill: the model
+    // can only append a facility the corpus actually evidences.
+    {
+        let is_debt = final_doc
+            .pointer("/classification/capital_position")
+            .and_then(Value::as_str)
+            .is_some_and(|c| c == "debt");
+        let facs = final_doc
+            .pointer("/canonical_deal/facilities")
+            .and_then(Value::as_array);
+        let has_ask = facs.is_some_and(|fs| {
+            fs.iter().any(|f| {
+                matches!(
+                    f.get("disposition").and_then(Value::as_str),
+                    Some("requested" | "proposed")
+                ) && !matches!(
+                    f.get("status").and_then(Value::as_str),
+                    Some("repaid" | "cancelled" | "superseded")
+                )
+            })
+        });
+        if is_debt && !has_ask {
+            let next_idx = facs.map_or(0, |fs| fs.len());
+            fill_issues.push(validate::Issue {
+                code: "no_requested_facility",
+                path: "canonical_deal.facilities".into(),
+                message: format!("Debt deal extracted with no facility marked disposition \"requested\"/\"proposed\" and no focus facility. Search the corpus for the loan request (facility amount, term, purpose); if the documents evidence one, return it under path \"canonical_deal.facilities[{next_idx}]\" as a facility object (id, name, instrument_type \"debt_facility\", role, commitment {{ amount, currency }}, term_months, disposition \"requested\", status \"candidate\", evidence) and set \"canonical_deal.focus_facility_id\" to its id. Do NOT fabricate — extension/variation deals legitimately have no new-money ask."),
+                severity: validate::Severity::Error,
+            });
+        }
+    }
     if !fill_issues.is_empty() {
         let fill_model = coverage_ex.or(details_ex).unwrap_or(extractor);
         eprintln!(
