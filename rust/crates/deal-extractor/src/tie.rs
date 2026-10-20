@@ -77,7 +77,7 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
                     format!("NOI {noi:.0} equals gross rent {rent:.0}; opex {oamt:.0} not deducted")
                 } else {
                     format!(
-                        "NOI {noi:.0} differs from rent {rent:.0} − opex {oamt:.0} = {implied:.0}"
+                        "NOI {noi:.0} differs from rent {rent:.0} − opex {oamt:.0} = {implied:.0} — check scope: fields may mix residential-only and whole-scheme figures"
                     )
                 };
                 out.push(Tie {
@@ -128,7 +128,7 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
             out.push(Tie {
                 id: "cap_vs_noi_value",
                 status: if ok { "pass" } else { "fail" },
-                detail: format!("stated cap {stated:.2}% vs implied {implied:.2}% (NOI {noi:.0} ÷ GDV {gdv:.0} net of {pc:.0}% costs)"),
+                detail: format!("stated cap {stated:.2}% vs implied {implied:.2}% (NOI {noi:.0} ÷ GDV {gdv:.0} net of {:.1}% costs)", pc * 100.0),
                 fields: vec!["details.stabilised_yield".into(), "details.net_operating_income".into(), "details.gross_development_value".into()],
             });
         }
