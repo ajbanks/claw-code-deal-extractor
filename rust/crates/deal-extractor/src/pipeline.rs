@@ -809,13 +809,61 @@ fn evidenced_retry_facilities(doc: &Value, corpus: &Corpus) -> Vec<Value> {
         .unwrap_or_default()
         .into_iter()
         .filter(|f| match facility_commitment(f) {
-            Some(amt) => corpus_has_amount(corpus, amt),
+            Some(amt) => corpus_has_amount(corpus, amt) && facility_evidence_is_funding(f),
             None => matches!(
                 f.get("disposition").and_then(Value::as_str),
                 Some("existing") | Some("repaid")
             ),
         })
         .collect()
+}
+
+/// Does the facility's own evidence quote describe a financing commitment?
+/// A requested/proposed debt facility must quote funding language — a bare
+/// cost/budget line ("Land Refinance Cost 5078772", "Total Construction cost
+/// 29006250") is a use-of-funds figure, not a loan, even though the amount is
+/// literally in the corpus (Luton: pass A promoted cost lines into requested
+/// facilities and the implied £35.81m ask never materialised).
+/// Equity/existing/repaid facilities carry no commitment claim — always true.
+fn facility_evidence_is_funding(f: &Value) -> bool {
+    let requested = matches!(
+        f.get("disposition").and_then(Value::as_str),
+        Some("requested") | Some("proposed")
+    );
+    let equity = matches!(
+        f.get("instrument_type").and_then(Value::as_str),
+        Some("ordinary_equity") | Some("preferred_equity")
+    );
+    if !requested || equity {
+        return true;
+    }
+    const FUNDING: &[&str] = &[
+        "loan", "facilit", "debt", "drawdown", "drawn", "borrow", "lender",
+        "mortgage", "mezz", "tranche", "advance", "senior", "funding",
+    ];
+    const SOFT: &[&str] = &["refinanc"];
+    const COST: &[&str] = &[
+        "cost", "contract", "contingency", "fee", "price", "budget", "expense",
+    ];
+    let quotes: Vec<String> = f
+        .get("evidence")
+        .and_then(Value::as_array)
+        .map(|evs| {
+            evs.iter()
+                .filter_map(|e| {
+                    e.get("quote")
+                        .and_then(Value::as_str)
+                        .map(str::to_lowercase)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    !quotes.is_empty()
+        && quotes.iter().any(|q| {
+            FUNDING.iter().any(|k| q.contains(k))
+                || (SOFT.iter().any(|k| q.contains(k))
+                    && !COST.iter().any(|k| q.contains(k)))
+        })
 }
 
 /// Adjudication (or a single agreeing vote) can lack a facility some vote
@@ -861,7 +909,7 @@ fn restore_dropped_facilities(
             {
                 continue;
             }
-            if corpus_has_amount(corpus, amt) {
+            if corpus_has_amount(corpus, amt) && facility_evidence_is_funding(&f) {
                 let name = f
                     .get("name")
                     .or_else(|| f.get("id"))

@@ -180,6 +180,7 @@ RULES:
 3. Do NOT sum facilities — each is its own entry. Components of one loan (land leg + construction leg, phase slices of one commitment) stay separate entries but MUST share a facility_group_id; point focus_facility_id at the main component (usually the construction/senior leg).
 4. Equity is NOT debt — use instrument_type ordinary_equity/preferred_equity.
 5. In an equity deal, the reader invests EQUITY — the sponsor's borrowings (senior mortgage, development facility) are context; give them scope_level "project" and do NOT mark them "requested". The focus should be the equity raise itself (preferred_equity/ordinary_equity instrument) — if no equity facility is stated, leave focus_facility_id null rather than pointing at a mortgage the investor isn't taking.
+6. A facility is a financing commitment, not a budget line. Only emit a debt facility when the documents state or model a loan/facility/drawdown — evidence quotes must carry funding language ("development facility", "senior loan", "the Borrower requests"). Labelled cost lines ("Land Refinance Cost", "Construction Contract Cost", "Contingency", "Total Cost to be incurred") are use-of-funds, not commitments — they belong in details cost fields, NEVER in facilities. If the pack states no facility, emit none: downstream derives the implied ask from the cost total.
 
 ## FOCUS FACILITY
 The focus is the NEW money being requested — not repaid/existing/proposed debt.
@@ -221,7 +222,7 @@ NOTE: These fields are computed deterministically — leave their value as null:
 "#;
 
 /// Pass B sub-pass 1: valuations, phases, economics details, and KPIs.
-pub const TIE_FIX_PROMPT: &str = r#"These extracted figures do not reconcile with each other. For each failed check, read the documents and return corrected values ONLY for the listed fields where the extraction misread the source (wrong cell, gross vs net, phase vs full scheme). If the source itself states them inconsistently, change nothing. Return {"fixes": {"details.<field>": <WithSource value>}}."#;
+pub const TIE_FIX_PROMPT: &str = r#"These extracted figures do not reconcile with each other. For each failed check, read the documents and return corrected values ONLY for the listed fields where the extraction misread the source (wrong cell, gross vs net, phase vs full scheme). If the source itself states them inconsistently, change nothing. Scope mismatches ARE misreads: when a field mixes a single segment with the whole scheme (residential-only NOI vs rent including commercial/parking), correct it to the whole-scheme figure. Return {"fixes": {"details.<field>": <WithSource value>}}."#;
 
 pub const PASS_B_ECONOMICS: &str = r#"## SCOPE TAGGING
 Every money field must carry `scope`: `deal` = the facility being underwritten; `project` = the whole scheme. details-level GDV, total_development_cost, total_investment_cost and construction_costs must be FULL-SCHEME figures. Phase-specific GDVs belong in canonical valuations with `phase_id`. If only a phase figure exists, still emit it but start `notes` with "Phase <n>:". A valuer's residual land value is `value_type: residual_value`; a 90-day value is `value_type: ninety_day_sale_value` with `sale_period_days: 90`; a 180-day value is `value_type: market_value` with `sale_period_days: 180`.
@@ -286,6 +287,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - vacancy_rate, vacant_area, vacant_possession — stated vacancy metrics
 - lease_length_remaining, tenure_length, rent_review_mechanism, rent_review_frequency, rent_review_next_due, tenant_credit_rating — asset-level lease/tenure facts
 - net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
+- Income totals are WHOLE-SCHEME: estimated_rental_value and net_operating_income cover every rental stream the schedule shows (residential + commercial + parking/ancillary). When the schedule states a count and a rate but no printed total, derive it (e.g. 208 spaces × £175/month × 12 = £436,800/yr) and note the derivation in notes. A stated opex % applies to the same whole-scheme gross.
 - epc_rating, tenure
 - year_built, last_refurbished"#;
 
