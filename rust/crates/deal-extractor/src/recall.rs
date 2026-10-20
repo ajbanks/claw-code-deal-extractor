@@ -391,15 +391,57 @@ pub(crate) fn corpus_has_amount(corpus: &Corpus, value: f64) -> bool {
     false
 }
 
+/// Output numbers excluding figures merely quoted inside prose strings —
+/// a stated cap rate sitting inside some field's `evidence_text` ("Cap Rate
+/// 0.045") must NOT count as extracted when the actual `value` holds an
+/// implied figure instead. Used for percent-figure matching only.
+fn output_value_numbers(doc: &Value) -> Vec<f64> {
+    fn walk(v: &Value, out: &mut Vec<f64>) {
+        match v {
+            Value::Number(n) => {
+                if let Some(f) = n.as_f64() {
+                    out.push(f);
+                }
+            }
+            Value::String(s) => {
+                if let Ok(f) = s.trim().parse::<f64>() {
+                    out.push(f);
+                }
+            }
+            Value::Array(a) => a.iter().for_each(|x| walk(x, out)),
+            Value::Object(o) => o.values().for_each(|x| walk(x, out)),
+            Value::Bool(_) | Value::Null => {}
+        }
+    }
+    let mut raw = Vec::new();
+    walk(doc, &mut raw);
+    let mut out: Vec<f64> = raw
+        .iter()
+        .flat_map(|&f| [f, f * 100.0, f / 100.0])
+        .filter(|f| f.is_finite())
+        .collect();
+    out.sort_by(f64::total_cmp);
+    out
+}
+
 /// Labelled corpus figures that nothing in the output accounts for, deduped
 /// by value, ranked (keyword strength, explicit money, repetition across the
 /// pack) and capped at `MAX_FIGURES`.
+///
+/// Percent figures use the strict value-only match: money figures keep the
+/// loose match because a commitment legitimately surfaces inside another
+/// field's evidence quote.
 #[must_use]
 pub fn unaccounted_figures(doc: &Value, corpus: &Corpus) -> Vec<UnaccountedFigure> {
     let have = output_numbers(doc);
+    let have_strict = output_value_numbers(doc);
     let mut found: Vec<UnaccountedFigure> = Vec::new();
     for f in labelled_figures(corpus) {
-        if accounted(&have, f.value, f.tol) {
+        let matched = match f.kind {
+            FigureKind::Percent => accounted(&have_strict, f.value, f.tol),
+            FigureKind::Money => accounted(&have, f.value, f.tol),
+        };
+        if matched {
             continue;
         }
         if let Some(prev) = found
@@ -547,6 +589,26 @@ mod tests {
         assert_eq!(got[0].value, 4.5);
         // Accounted whether the output stores 0.045 or 4.5.
         let doc = json!({ "details": { "stabilised_yield": { "value": 0.045 } } });
+        assert!(unaccounted_figures(&doc, &c).is_empty());
+    }
+
+    #[test]
+    fn percent_in_evidence_text_does_not_count_as_extracted() {
+        // The Luton failure: a field's evidence_text quotes the stated
+        // "Cap Rate 0.045" while its own value holds an implied figure —
+        // the stated percent is still missing from the extraction.
+        let c = corpus(&[("m.xlsx", "Returns", "Cap Rate\t0.045")]);
+        let doc = json!({
+            "details": { "stabilised_yield": {
+                "value": 0.0416,
+                "evidence_text": "Cap Rate 0.045; Commercial Cap Rate 0.07"
+            } }
+        });
+        let got = unaccounted_figures(&doc, &c);
+        assert_eq!(got.len(), 1, "{:?}", values(&got));
+        assert_eq!(got[0].value, 4.5);
+        // But a field that actually carries the percent as a value counts.
+        let doc = json!({ "details": { "stabilised_yield": { "value": "0.045" } } });
         assert!(unaccounted_figures(&doc, &c).is_empty());
     }
 
