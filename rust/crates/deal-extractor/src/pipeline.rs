@@ -278,6 +278,29 @@ pub async fn run_multi_pass(
         // chosen result is restored iff its commitment is corpus-evidenced.
         let vote_refs: Vec<&Value> = votes.iter().collect();
         restore_dropped_facilities(&mut chosen, &vote_refs, corpus, &mut recall);
+        // Focus adopt: the adjudicator can clear focus_facility_id even when
+        // a vote pointed at a facility that (possibly via the union) is in
+        // the chosen set — adopt the first vote focus that resolves.
+        let chosen_ids: Vec<&str> = chosen
+            .get("facilities")
+            .and_then(Value::as_array)
+            .map(|fs| fs.iter().filter_map(|f| f.get("id").and_then(Value::as_str)).collect())
+            .unwrap_or_default();
+        let chosen_focus = chosen
+            .get("focus_facility_id")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty());
+        if chosen_focus.is_none() || !chosen_ids.contains(&chosen_focus.unwrap()) {
+            if let Some(fid) = votes.iter().filter_map(|v| {
+                v.get("focus_facility_id")
+                    .and_then(Value::as_str)
+                    .filter(|id| chosen_ids.contains(id))
+            }).next() {
+                if let Some(obj) = chosen.as_object_mut() {
+                    obj.insert("focus_facility_id".to_string(), json!(fid));
+                }
+            }
+        }
         // Empty retry: a debt deal with zero facilities is almost always a
         // missed extraction (Luton: one of three runs produced no facility).
         let no_facilities = chosen
