@@ -171,12 +171,13 @@ For each:
 - term_months, interest_terms: { base_rate, margin, all_in_rate, interest_type }
 - status (candidate|active|repaid|cancelled|superseded), disposition (requested|existing|repaid|proposed)
 - lender_name, facility_party_ids: [], tranche_ids: []
+- facility_group_id: shared slug when this facility is one component of a single loan (e.g. a development facility drawn as a land-refinance leg plus a construction leg — emit both legs as separate facilities with the SAME facility_group_id so they resolve as one loan). null for standalone facilities.
 - evidence: [{ document, page, quote }]
 
 RULES:
 1. Include repaid facilities (status "repaid", disposition "repaid") with a matching capital_event.
 2. Include proposed/future facilities (disposition "proposed", scope_level "project") — ALWAYS with their commitment when the pack states or models it; a proposed facility without an amount hides half the ask.
-3. Do NOT sum facilities — each is its own entry.
+3. Do NOT sum facilities — each is its own entry. Components of one loan (land leg + construction leg, phase slices of one commitment) stay separate entries but MUST share a facility_group_id; point focus_facility_id at the main component (usually the construction/senior leg).
 4. Equity is NOT debt — use instrument_type ordinary_equity/preferred_equity.
 5. In an equity deal, the reader invests EQUITY — the sponsor's borrowings (senior mortgage, development facility) are context; give them scope_level "project" and do NOT mark them "requested". The focus should be the equity raise itself (preferred_equity/ordinary_equity instrument) — if no equity facility is stated, leave focus_facility_id null rather than pointing at a mortgage the investor isn't taking.
 
