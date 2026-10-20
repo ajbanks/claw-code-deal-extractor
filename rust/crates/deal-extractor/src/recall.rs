@@ -100,7 +100,7 @@ const EXCLUDE: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FigureKind {
+pub(crate) enum FigureKind {
     Money,
     Percent,
 }
@@ -154,16 +154,16 @@ impl UnaccountedFigure {
 
 /// A figure parsed from text: value, kind, the tolerance its stated
 /// precision implies, and the byte span of the match.
-struct Parsed {
-    value: f64,
-    kind: FigureKind,
-    tol: f64,
-    start: usize,
-    end: usize,
-    explicit_money: bool,
+pub(crate) struct Parsed {
+    pub(crate) value: f64,
+    pub(crate) kind: FigureKind,
+    pub(crate) tol: f64,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) explicit_money: bool,
 }
 
-fn parse_figures(text: &str) -> Vec<Parsed> {
+pub(crate) fn parse_figures(text: &str) -> Vec<Parsed> {
     let mut out = Vec::new();
     for c in MONEY_RE.captures_iter(text) {
         let whole = c.get(0).expect("match");

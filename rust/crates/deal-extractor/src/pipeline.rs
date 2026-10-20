@@ -48,6 +48,9 @@ pub struct RecallDiagnostics {
     pub adjudication_restored: Vec<String>,
     /// Vote-2 or adjudication failure (truncated); pass A still succeeded.
     pub pass_a_error: Option<String>,
+    /// Outcome of the "debt deal but zero facilities" pass-A retry, e.g.
+    /// "added 2 facilities" / "no evidenced facilities".
+    pub pass_a_empty_retry: Option<String>,
     /// Evidenced-but-empty field paths after the repair loop.
     pub coverage_gaps_initial: Vec<String>,
     pub escalated: bool,
@@ -68,6 +71,10 @@ pub struct RecallDiagnostics {
     pub unaccounted_remaining: Vec<String>,
     pub verify_checked: usize,
     pub verify_fixes: usize,
+    /// Fields flagged by verify (missing from corpus or contradicting their
+    /// own evidence text) — the inputs to the LLM fix call.
+    #[serde(default)]
+    pub verify_flagged: Vec<String>,
     /// Tie checks that failed before the fix call: "id: detail".
     pub ties_initial: Vec<String>,
     /// details.* paths merged by the tie-fix call.
@@ -156,15 +163,18 @@ pub async fn run_multi_pass(
     let structure_model = structure_ex.unwrap_or(extractor);
     eprintln!("[pipeline] pass A model: {}", structure_model.model);
 
-    // Self-consistency: pass A runs twice concurrently on independent
-    // extractors. When the votes disagree on the facility graph or
-    // classification, a third adjudication call decides the contested points
-    // from the evidence — a single sloppy read can no longer set the deal's
-    // skeleton. DEAL_EXTRACT_PASS_A_VOTES=1 restores single-vote behaviour.
+    // Self-consistency: pass A runs N votes concurrently (default 3; N>3 is
+    // clamped to 3 — the crate has no `futures` dep, so the concurrency uses
+    // fixed tokio::join! arms) on independent extractors. When the votes
+    // disagree on the facility graph or classification, an adjudication call
+    // decides the contested points from the evidence — a single sloppy read
+    // can no longer set the deal's skeleton. DEAL_EXTRACT_PASS_A_VOTES=1
+    // restores single-vote behaviour.
     let pass_a_votes = std::env::var("DEAL_EXTRACT_PASS_A_VOTES")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(2);
+        .unwrap_or(3)
+        .min(3);
     let pass_a = if pass_a_votes < 2 {
         recall.pass_a_votes = 1;
         let (pass_a, retry) = structure_model
@@ -176,73 +186,153 @@ pub async fn run_multi_pass(
         }
         pass_a
     } else {
-        recall.pass_a_votes = 2;
         let vote2_ex = details_ex.unwrap_or(extractor);
         eprintln!("[pipeline] pass A vote 2 model: {}", vote2_ex.model);
         let corpus_text = corpus.render();
-        let (r1, r2) = tokio::join!(
-            structure_model.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
-            vote2_ex.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
-        );
-        for (label, res) in [("structure", &r1), ("structure vote 2", &r2)] {
-            if let Ok((_, Some(r))) = res {
-                recall.pass_retries.push(format!("{label}: {r}"));
-            }
-        }
-        match (r1, r2) {
-            (Ok((v1, _)), Ok((v2, _))) => {
-                let disagreements = pass_a_disagreements(&v1, &v2);
-                if disagreements.is_empty() {
-                    v1
-                } else {
-                    recall.pass_a_disagreements = disagreements;
-                    eprintln!(
-                        "[pipeline] pass A votes disagree — adjudicating: {}",
-                        recall.pass_a_disagreements.join("; ")
-                    );
-                    let adj_prompt = format!(
-                        "{}\n\n## DISAGREEMENTS\n{}\n\n## EXTRACTION 1\n{}\n\n## EXTRACTION 2\n{}",
-                        prompts::PASS_A_ADJUDICATE,
-                        recall.pass_a_disagreements.join("\n"),
-                        serde_json::to_string(&v1).unwrap_or_default(),
-                        serde_json::to_string(&v2).unwrap_or_default(),
-                    );
-                    match structure_model
-                        .call_json(&adj_prompt, &corpus.render())
-                        .await
-                    {
-                        Ok((mut adj, retry)) => {
-                            if let Some(r) = retry {
-                                recall.pass_retries.push(format!("adjudication: {r}"));
-                            }
-                            recall.pass_a_adjudicated = true;
-                            restore_dropped_facilities(&mut adj, &[&v1, &v2], corpus, &mut recall);
-                            adj
-                        }
-                        Err(e) => {
-                            eprintln!("[pipeline] pass A adjudication FAILED: {e}");
-                            recall.pass_a_error = Some(e.chars().take(300).collect());
-                            v1
-                        }
+        let raw: Vec<Result<(Value, Option<String>), String>> = if pass_a_votes >= 3 {
+            let (r1, r2, r3) = tokio::join!(
+                structure_model.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+                vote2_ex.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+                structure_model.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+            );
+            vec![r1, r2, r3]
+        } else {
+            let (r1, r2) = tokio::join!(
+                structure_model.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+                vote2_ex.call_json(prompts::PASS_A_STRUCTURE, &corpus_text),
+            );
+            vec![r1, r2]
+        };
+        recall.pass_a_votes = raw.len();
+        let mut votes: Vec<Value> = Vec::new();
+        let mut first_err: Option<String> = None;
+        for (i, res) in raw.into_iter().enumerate() {
+            match res {
+                Ok((v, retry)) => {
+                    if let Some(r) = retry {
+                        recall
+                            .pass_retries
+                            .push(format!("structure vote {}: {r}", i + 1));
                     }
+                    votes.push(v);
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] pass A vote {} FAILED: {e}", i + 1);
+                    if first_err.is_none() {
+                        first_err = Some(e.clone());
+                    }
+                    recall.pass_a_error = Some(e.chars().take(300).collect());
                 }
             }
-            (Ok((v1, _)), Err(e2)) => {
-                eprintln!("[pipeline] pass A vote 2 FAILED: {e2}");
-                recall.pass_a_error = Some(e2.chars().take(300).collect());
-                v1
-            }
-            (Err(e1), Ok((v2, _))) => {
-                eprintln!("[pipeline] pass A vote 1 FAILED: {e1} — using vote 2");
-                recall.pass_a_error = Some(e1.chars().take(300).collect());
-                v2
-            }
-            (Err(e1), Err(e2)) => {
-                return Err(format!(
-                    "pass A (structure): {e1} (vote 2 also failed: {e2})"
-                ));
+        }
+        if votes.is_empty() {
+            return Err(format!(
+                "pass A (structure): {} (all {pass_a_votes} votes failed)",
+                first_err.unwrap_or_else(|| "unknown error".to_string())
+            ));
+        }
+        let mut disagreements = Vec::new();
+        for (k, other) in votes.iter().enumerate().skip(1) {
+            for d in pass_a_disagreements(&votes[0], other) {
+                disagreements.push(d.replace("vote 2", &format!("vote {}", k + 1)));
             }
         }
+        disagreements.sort();
+        disagreements.dedup();
+        let mut chosen = if disagreements.is_empty() {
+            votes[0].clone()
+        } else {
+            recall.pass_a_disagreements = disagreements;
+            eprintln!(
+                "[pipeline] pass A votes disagree — adjudicating: {}",
+                recall.pass_a_disagreements.join("; ")
+            );
+            let mut adj_prompt = format!(
+                "{}\n\n## DISAGREEMENTS\n{}",
+                prompts::PASS_A_ADJUDICATE,
+                recall.pass_a_disagreements.join("\n"),
+            );
+            for (i, v) in votes.iter().enumerate() {
+                adj_prompt.push_str(&format!(
+                    "\n\n## EXTRACTION {}\n{}",
+                    i + 1,
+                    serde_json::to_string(v).unwrap_or_default()
+                ));
+            }
+            match structure_model.call_json(&adj_prompt, &corpus_text).await {
+                Ok((adj, retry)) => {
+                    if let Some(r) = retry {
+                        recall.pass_retries.push(format!("adjudication: {r}"));
+                    }
+                    recall.pass_a_adjudicated = true;
+                    adj
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] pass A adjudication FAILED: {e}");
+                    recall.pass_a_error = Some(e.chars().take(300).collect());
+                    votes[0].clone()
+                }
+            }
+        };
+        // Union guard: a facility present in any vote but absent from the
+        // chosen result is restored iff its commitment is corpus-evidenced.
+        let vote_refs: Vec<&Value> = votes.iter().collect();
+        restore_dropped_facilities(&mut chosen, &vote_refs, corpus, &mut recall);
+        // Empty retry: a debt deal with zero facilities is almost always a
+        // missed extraction (Luton: one of three runs produced no facility).
+        let no_facilities = chosen
+            .get("facilities")
+            .and_then(Value::as_array)
+            .is_none_or(Vec::is_empty);
+        let debt_deal = std::iter::once(&chosen).chain(votes.iter()).any(|v| {
+            v.get("classification")
+                .and_then(|c| c.get("capital_position"))
+                .and_then(Value::as_str)
+                == Some("debt")
+        });
+        if no_facilities && debt_deal {
+            eprintln!("[pipeline] pass A returned no facilities on a debt deal — retrying");
+            let retry_prompt = format!(
+                "{}\n\nPREVIOUS ATTEMPTS RETURNED NO FACILITIES. This is a debt deal: list every existing and requested/proposed facility; each commitment must be an amount quoted in the documents.",
+                prompts::PASS_A_STRUCTURE
+            );
+            match structure_model.call_json(&retry_prompt, &corpus_text).await {
+                Ok((retry_doc, retry_note)) => {
+                    if let Some(r) = retry_note {
+                        recall
+                            .pass_retries
+                            .push(format!("structure empty retry: {r}"));
+                    }
+                    let accepted = evidenced_retry_facilities(&retry_doc, corpus);
+                    if accepted.is_empty() {
+                        recall.pass_a_empty_retry = Some("no evidenced facilities".into());
+                    } else {
+                        let accepted_ids: Vec<&str> = accepted
+                            .iter()
+                            .filter_map(|f| f.get("id").and_then(Value::as_str))
+                            .collect();
+                        let n = accepted.len();
+                        if let Some(obj) = chosen.as_object_mut() {
+                            obj.insert("facilities".to_string(), json!(accepted));
+                            if let Some(fid) =
+                                retry_doc.get("focus_facility_id").and_then(Value::as_str)
+                            {
+                                if accepted_ids.contains(&fid) {
+                                    obj.insert("focus_facility_id".to_string(), json!(fid));
+                                }
+                            }
+                        }
+                        recall.pass_a_empty_retry = Some(format!("added {n} facilities"));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] pass A empty retry FAILED: {e}");
+                    recall.pass_a_error = Some(e.chars().take(300).collect());
+                    recall.pass_a_empty_retry = Some("retry call failed".into());
+                }
+            }
+        }
+        chosen
     };
     let classification = pass_a.get("classification").cloned().unwrap_or(json!(null));
     let doc_annotations = pass_a
@@ -630,10 +720,11 @@ pub async fn run_multi_pass(
     // wrong-cell errors (e.g. cap rate read as 0.04 vs a stated 0.045) that
     // conform can't see because they're shape-correct.
     let verify_model = details_ex.or(coverage_ex).unwrap_or(extractor);
-    let (checked, fixes_applied) =
+    let (checked, fixes_applied, flagged) =
         crate::verify::verify_extracted_numbers(&mut final_doc, corpus, verify_model).await;
     recall.verify_checked = checked;
     recall.verify_fixes = fixes_applied;
+    recall.verify_flagged = flagged;
     if fixes_applied > 0 {
         eprintln!(
             "[pipeline] verify — {} fields checked, {} corrections applied",
@@ -677,11 +768,38 @@ pub async fn run_multi_pass(
     })
 }
 
-/// Adjudication resolves a "facility only in vote N" disagreement by either
-/// keeping or dropping it — but when it drops an evidenced facility the deal
-/// can be left with no debt facility at all (Luton: the £35.81m dev facility
-/// vanished, focus resolved to nothing). A dropped facility whose commitment
-/// is literally stated in the corpus is evidence-backed, not a vote
+fn facility_commitment(f: &Value) -> Option<f64> {
+    f.get("commitment")
+        .and_then(|c| c.get("amount"))
+        .and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse::<f64>().ok()))
+}
+
+/// Facilities from a "no facilities" pass-A retry we accept: either the
+/// commitment amount is quoted in the corpus, or the facility carries no
+/// amount but is marked existing/repaid (an already-in-place facility the
+/// model summarised without a figure). Everything else is dropped — the
+/// retry exists to recover evidenced omissions, not to admit new guesses.
+fn evidenced_retry_facilities(doc: &Value, corpus: &Corpus) -> Vec<Value> {
+    doc.get("facilities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|f| match facility_commitment(f) {
+            Some(amt) => corpus_has_amount(corpus, amt),
+            None => matches!(
+                f.get("disposition").and_then(Value::as_str),
+                Some("existing") | Some("repaid")
+            ),
+        })
+        .collect()
+}
+
+/// Adjudication (or a single agreeing vote) can lack a facility some vote
+/// found — but when an evidenced facility is dropped the deal can be left
+/// with no debt facility at all (Luton: the £35.81m dev facility vanished,
+/// focus resolved to nothing). A dropped facility whose commitment is
+/// literally stated in the corpus is evidence-backed, not a vote
 /// hallucination — restore it and let downstream validation weigh it.
 fn restore_dropped_facilities(
     adj: &mut Value,
@@ -689,11 +807,6 @@ fn restore_dropped_facilities(
     corpus: &Corpus,
     recall: &mut RecallDiagnostics,
 ) {
-    fn commitment(f: &Value) -> Option<f64> {
-        f.get("commitment")
-            .and_then(|c| c.get("amount"))
-            .and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse::<f64>().ok()))
-    }
     let facs_of = |v: &Value| -> Vec<Value> {
         v.get("facilities")
             .and_then(Value::as_array)
@@ -706,11 +819,13 @@ fn restore_dropped_facilities(
         .iter()
         .filter_map(|f| f.get("id").and_then(Value::as_str))
         .collect();
-    let kept_amts: Vec<f64> = kept.iter().filter_map(commitment).collect();
+    let kept_amts: Vec<f64> = kept.iter().filter_map(facility_commitment).collect();
     let mut restored = Vec::new();
     for vote in votes {
         for f in facs_of(vote) {
-            let Some(amt) = commitment(&f) else { continue };
+            let Some(amt) = facility_commitment(&f) else {
+                continue;
+            };
             if amt < 100_000.0 {
                 continue;
             }
@@ -719,7 +834,7 @@ fn restore_dropped_facilities(
                 || kept_amts.iter().any(|&g| close(amt, g))
                 || restored
                     .iter()
-                    .any(|r: &Value| commitment(r).is_some_and(|g| close(amt, g)))
+                    .any(|r: &Value| facility_commitment(r).is_some_and(|g| close(amt, g)))
             {
                 continue;
             }
@@ -1420,6 +1535,83 @@ mod tests {
         restore_dropped_facilities(&mut adj, &[&v1, &v2], &corpus, &mut recall);
         assert_eq!(adj["facilities"].as_array().unwrap().len(), 1);
         assert!(recall.adjudication_restored.is_empty());
+    }
+
+    #[test]
+    fn union_restores_facility_only_in_third_vote() {
+        // Votes 1 and 2 agree and are chosen without adjudication; vote 3
+        // alone found the evidenced £35.81m dev facility → union restores it.
+        let mut chosen = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v1c = chosen.clone();
+        let v2 = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v3 = pass_a(
+            "dev",
+            json!([fac("land", "5078772.32"), fac("dev", "35810099.96")]),
+            json!(null),
+        );
+        let corpus = corpus_with("Total facility £35.81m against costs of £35,810,099.96");
+        let mut recall = RecallDiagnostics::default();
+        restore_dropped_facilities(&mut chosen, &[&v1c, &v2, &v3], &corpus, &mut recall);
+        let ids: Vec<&str> = chosen["facilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["id"].as_str())
+            .collect();
+        assert!(ids.contains(&"dev"), "{ids:?}");
+        assert_eq!(recall.adjudication_restored.len(), 1);
+    }
+
+    #[test]
+    fn union_drop_stands_for_unevidenced_third_vote_facility() {
+        let mut chosen = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v1c = chosen.clone();
+        let v2 = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v3 = pass_a(
+            "dev",
+            json!([fac("land", "5078772.32"), fac("dev", "99999999")]),
+            json!(null),
+        );
+        let corpus = corpus_with("Total costs £35,810,099.96");
+        let mut recall = RecallDiagnostics::default();
+        restore_dropped_facilities(&mut chosen, &[&v1c, &v2, &v3], &corpus, &mut recall);
+        assert_eq!(chosen["facilities"].as_array().unwrap().len(), 1);
+        assert!(recall.adjudication_restored.is_empty());
+    }
+
+    #[test]
+    fn union_does_not_duplicate_present_facility() {
+        // Same facility under a different id in vote 2 — amount matches within
+        // tolerance, so it must not be appended a second time.
+        let mut chosen = pass_a("dev", json!([fac("dev", "35810099.96")]), json!(null));
+        let v2 = pass_a(
+            "facility_1",
+            json!([fac("facility_1", "35810099.96")]),
+            json!(null),
+        );
+        let corpus = corpus_with("Total facility £35.81m");
+        let mut recall = RecallDiagnostics::default();
+        restore_dropped_facilities(&mut chosen, &[&v2], &corpus, &mut recall);
+        assert_eq!(chosen["facilities"].as_array().unwrap().len(), 1);
+        assert!(recall.adjudication_restored.is_empty());
+    }
+
+    #[test]
+    fn empty_retry_filter_keeps_evidenced_and_null_existing() {
+        let retry = json!({
+            "facilities": [
+                fac("dev", "35810099.96"),
+                { "id": "old", "name": "old", "commitment": { "amount": null },
+                  "disposition": "existing" },
+                { "id": "mezz", "name": "mezz",
+                  "commitment": { "amount": "99999999" } },
+                { "id": "ghost", "name": "ghost", "disposition": "requested" }
+            ]
+        });
+        let corpus = corpus_with("Total facility £35.81m against costs of £35,810,099.96");
+        let kept = evidenced_retry_facilities(&retry, &corpus);
+        let ids: Vec<&str> = kept.iter().filter_map(|f| f["id"].as_str()).collect();
+        assert_eq!(ids, ["dev", "old"]);
     }
 
     #[test]

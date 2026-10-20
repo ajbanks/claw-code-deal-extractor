@@ -9,6 +9,7 @@
 
 use crate::corpus::Corpus;
 use crate::extract::Extractor;
+use crate::recall;
 use serde_json::Value;
 
 /// Fields worth ground-checking: money amounts and percentages on details.
@@ -157,28 +158,110 @@ fn collect_checkable(document: &Value) -> Vec<(String, f64, &'static str)> {
     out
 }
 
-/// Run the verification pass. Returns (document, issues_checked, fixes_applied).
+/// Check 2: a field whose `value` disagrees with a figure quoted inside its
+/// own `evidence_text`. This catches "right evidence, wrong value" — e.g.
+/// stabilised_yield extracted as the implied 0.0416 while the evidence text
+/// quotes the sheet's stated `Cap Rate 0.045`.
+///
+/// Only same-kind comparisons, and only when the evidence quotes at least
+/// one comparable figure: money {amount} fields vs explicit money figures;
+/// percent fields vs percent figures and sub-1 fractions (×100, matching
+/// both representations since values may be stored as 4.5 or 0.045).
+fn evidence_mismatches(document: &Value) -> Vec<String> {
+    let mut out = vec![];
+    let Some(details) = document.get("details").and_then(Value::as_object) else {
+        return out;
+    };
+    for (key, field) in details {
+        if SKIP_PREFIXES.iter().any(|p| key.starts_with(p)) {
+            continue;
+        }
+        let Some(obj) = field.as_object() else {
+            continue;
+        };
+        let Some(val) = obj.get("value") else {
+            continue;
+        };
+        let Some(ev) = obj.get("evidence_text").and_then(Value::as_str) else {
+            continue;
+        };
+        let figures = recall::parse_figures(ev);
+        if let Some(amount) = val.get("amount").and_then(Value::as_f64) {
+            if amount.abs() < 1.0 {
+                continue;
+            }
+            let cands: Vec<_> = figures
+                .iter()
+                .filter(|p| p.kind == recall::FigureKind::Money && p.explicit_money)
+                .collect();
+            if !cands.is_empty()
+                && !cands
+                    .iter()
+                    .any(|p| (p.value - amount).abs() <= p.tol.max(amount.abs() * 0.002))
+            {
+                let raws: Vec<_> = cands.iter().map(|p| &ev[p.start..p.end]).collect();
+                out.push(format!(
+                    "details.{key}.value = {amount:?} but its evidence text states {raws:?}"
+                ));
+            }
+        } else if let Some(pct) = val.as_f64() {
+            if pct <= 0.0 || pct >= 15.0 {
+                continue;
+            }
+            // Candidates in every representation: 4.5 (pct) and 0.045 (fraction).
+            let cands: Vec<f64> = figures
+                .iter()
+                .filter(|p| {
+                    p.kind == recall::FigureKind::Percent
+                        || (p.kind == recall::FigureKind::Money && p.value > 0.0 && p.value < 1.0)
+                })
+                .flat_map(|p| [p.value, p.value * 100.0, p.value / 100.0])
+                .collect();
+            if !cands.is_empty()
+                && !cands
+                    .iter()
+                    .any(|c| (c - pct).abs() <= (pct * 0.002).max(0.001))
+            {
+                let raws: Vec<_> = figures
+                    .iter()
+                    .filter(|p| {
+                        p.kind == recall::FigureKind::Percent
+                            || (p.kind == recall::FigureKind::Money
+                                && p.value > 0.0
+                                && p.value < 1.0)
+                    })
+                    .map(|p| &ev[p.start..p.end])
+                    .collect();
+                out.push(format!(
+                    "details.{key}.value = {pct:?} but its evidence text states {raws:?}"
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// Run the verification pass. Returns (issues_checked, fixes_applied, flagged).
 pub async fn verify_extracted_numbers(
     document: &mut Value,
     corpus: &Corpus,
     cheap_model: &Extractor,
-) -> (usize, usize) {
+) -> (usize, usize, Vec<String>) {
     let corpus_text = corpus.render();
     let checkable = collect_checkable(document);
-    if checkable.is_empty() {
-        return (0, 0);
-    }
 
-    // Cheap pass 1: which figures are missing from the corpus text?
-    let mut mismatches: Vec<String> = vec![];
+    // Cheap pass 1: which figures are missing from the corpus text? Plus:
+    // does any field's value contradict a figure in its own evidence text?
+    let mut mismatches = evidence_mismatches(document);
     for (path, amount, kind) in &checkable {
         if !contains_figure(&corpus_text, *amount) {
             mismatches.push(format!("{} = {:?} ({})", path, amount, kind));
         }
     }
     if mismatches.is_empty() {
-        return (checkable.len(), 0);
+        return (checkable.len(), 0, vec![]);
     }
+    let flagged = mismatches.clone();
 
     // Cheap pass 2: one LLM call to re-check the flagged fields.
     let prompt = format!(
@@ -191,11 +274,11 @@ pub async fn verify_extracted_numbers(
 
     let text = match cheap_model.call(&prompt, &corpus.render()).await {
         Ok(t) => t,
-        Err(_) => return (checkable.len(), 0),
+        Err(_) => return (checkable.len(), 0, flagged),
     };
     let fixes = match crate::extract::parse_json(&text) {
         Ok(v) => v,
-        Err(_) => return (checkable.len(), 0),
+        Err(_) => return (checkable.len(), 0, flagged),
     };
 
     let mut applied = 0usize;
@@ -206,7 +289,7 @@ pub async fn verify_extracted_numbers(
             }
         }
     }
-    (checkable.len(), applied)
+    (checkable.len(), applied, flagged)
 }
 
 /// Apply one correction patch at `path`, coercing the value to the target
@@ -345,6 +428,78 @@ mod tests {
                 "missing variant {want}: {v:?}"
             );
         }
+    }
+
+    // ── evidence_mismatches: value vs own evidence text ───────────────
+
+    #[test]
+    fn flags_percent_value_contradicting_evidence() {
+        let doc = json!({
+            "details": {
+                "stabilised_yield": {
+                    "value": 0.0416,
+                    "evidence_text": "Cap Rate 0.045; Commercial Cap Rate 0.07"
+                }
+            }
+        });
+        let m = evidence_mismatches(&doc);
+        assert_eq!(m.len(), 1, "{m:?}");
+        assert!(m[0].contains("stabilised_yield"));
+    }
+
+    #[test]
+    fn no_flag_when_percent_value_matches_evidence() {
+        let doc = json!({
+            "details": {
+                "stabilised_yield": {
+                    "value": 0.045,
+                    "evidence_text": "Cap Rate 0.045; Commercial Cap Rate 0.07"
+                },
+                "margin": {
+                    "value": 6.5,
+                    "evidence_text": "margin of 6.5%"
+                }
+            }
+        });
+        assert!(evidence_mismatches(&doc).is_empty());
+    }
+
+    #[test]
+    fn flags_money_value_contradicting_evidence() {
+        let doc = json!({
+            "details": {
+                "gdv": {
+                    "value": { "amount": 115_000_000.0 },
+                    "evidence_text": "GDV of £125,000,000"
+                }
+            }
+        });
+        let m = evidence_mismatches(&doc);
+        assert_eq!(m.len(), 1, "{m:?}");
+        let doc = json!({
+            "details": {
+                "gdv": {
+                    "value": { "amount": 115_000_000.0 },
+                    "evidence_text": "GDV of £115.2m across the site"
+                }
+            }
+        });
+        let m = evidence_mismatches(&doc);
+        // £115.2m vs 115,000,000 is within the 0.2% tolerance → not flagged.
+        assert!(m.is_empty(), "{m:?}");
+    }
+
+    #[test]
+    fn no_flag_when_evidence_has_no_comparable_figure() {
+        let doc = json!({
+            "details": {
+                "gdv": {
+                    "value": { "amount": 115_000_000.0 },
+                    "evidence_text": "59903985.80 stated on the model"
+                }
+            }
+        });
+        assert!(evidence_mismatches(&doc).is_empty());
     }
 
     // ── contains_figure: boundary-aware matching ─────────────────────
