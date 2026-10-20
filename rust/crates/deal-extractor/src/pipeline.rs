@@ -11,6 +11,7 @@ use crate::corpus::Corpus;
 use crate::coverage;
 use crate::extract::Extractor;
 use crate::prompts;
+use crate::recall::corpus_has_amount;
 use crate::repair;
 use crate::tie;
 use crate::validate;
@@ -42,6 +43,9 @@ pub struct RecallDiagnostics {
     pub pass_a_disagreements: Vec<String>,
     /// Whether a disagreeing pass A was adjudicated by a third call.
     pub pass_a_adjudicated: bool,
+    /// Facilities the adjudicator dropped that were restored because their
+    /// commitment is stated in the corpus: "<name> <amount>".
+    pub adjudication_restored: Vec<String>,
     /// Vote-2 or adjudication failure (truncated); pass A still succeeded.
     pub pass_a_error: Option<String>,
     /// Evidenced-but-empty field paths after the repair loop.
@@ -207,11 +211,12 @@ pub async fn run_multi_pass(
                         .call_json(&adj_prompt, &corpus.render())
                         .await
                     {
-                        Ok((adj, retry)) => {
+                        Ok((mut adj, retry)) => {
                             if let Some(r) = retry {
                                 recall.pass_retries.push(format!("adjudication: {r}"));
                             }
                             recall.pass_a_adjudicated = true;
+                            restore_dropped_facilities(&mut adj, &[&v1, &v2], corpus, &mut recall);
                             adj
                         }
                         Err(e) => {
@@ -636,6 +641,76 @@ pub async fn run_multi_pass(
             recall,
         },
     })
+}
+
+/// Adjudication resolves a "facility only in vote N" disagreement by either
+/// keeping or dropping it — but when it drops an evidenced facility the deal
+/// can be left with no debt facility at all (Luton: the £35.81m dev facility
+/// vanished, focus resolved to nothing). A dropped facility whose commitment
+/// is literally stated in the corpus is evidence-backed, not a vote
+/// hallucination — restore it and let downstream validation weigh it.
+fn restore_dropped_facilities(
+    adj: &mut Value,
+    votes: &[&Value],
+    corpus: &Corpus,
+    recall: &mut RecallDiagnostics,
+) {
+    fn commitment(f: &Value) -> Option<f64> {
+        f.get("commitment")
+            .and_then(|c| c.get("amount"))
+            .and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse::<f64>().ok()))
+    }
+    let facs_of = |v: &Value| -> Vec<Value> {
+        v.get("facilities")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+    };
+    let close = |x: f64, y: f64| (x - y).abs() <= 0.005 * x.abs().max(y.abs());
+    let kept = facs_of(adj);
+    let kept_ids: Vec<&str> = kept
+        .iter()
+        .filter_map(|f| f.get("id").and_then(Value::as_str))
+        .collect();
+    let kept_amts: Vec<f64> = kept.iter().filter_map(commitment).collect();
+    let mut restored = Vec::new();
+    for vote in votes {
+        for f in facs_of(vote) {
+            let Some(amt) = commitment(&f) else { continue };
+            if amt < 100_000.0 {
+                continue;
+            }
+            let id = f.get("id").and_then(Value::as_str);
+            if id.is_some_and(|i| kept_ids.contains(&i))
+                || kept_amts.iter().any(|&g| close(amt, g))
+                || restored
+                    .iter()
+                    .any(|r: &Value| commitment(r).is_some_and(|g| close(amt, g)))
+            {
+                continue;
+            }
+            if corpus_has_amount(corpus, amt) {
+                let name = f
+                    .get("name")
+                    .or_else(|| f.get("id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("?");
+                recall.adjudication_restored.push(format!("{name} {amt}"));
+                restored.push(f);
+            }
+        }
+    }
+    if restored.is_empty() {
+        return;
+    }
+    let arr = adj
+        .as_object_mut()
+        .expect("pass A json")
+        .entry("facilities")
+        .or_insert_with(|| json!([]));
+    if let Some(list) = arr.as_array_mut() {
+        list.extend(restored);
+    }
 }
 
 /// Compare two pass-A structure extractions on the points that decide the
@@ -1261,6 +1336,56 @@ mod tests {
     }
     fn fac(id: &str, amount: &str) -> Value {
         json!({ "id": id, "name": id, "commitment": { "amount": amount, "currency": "gbp" } })
+    }
+
+    fn corpus_with(text: &str) -> Corpus {
+        Corpus::from_pages(vec![crate::documents::DocPage {
+            doc_name: "pack.pdf".into(),
+            page_label: "1".into(),
+            text: text.into(),
+        }])
+    }
+
+    #[test]
+    fn adjudication_restores_evidenced_dropped_facility() {
+        // Vote 2 found the £35.81m dev facility; the adjudicator dropped it.
+        // Its commitment is stated in the pack → restore.
+        let mut adj = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v1 = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v2 = pass_a(
+            "dev",
+            json!([fac("land", "5078772.32"), fac("dev", "35810099.96")]),
+            json!(null),
+        );
+        let corpus = corpus_with("Total facility £35.81m against costs of £35,810,099.96");
+        let mut recall = RecallDiagnostics::default();
+        restore_dropped_facilities(&mut adj, &[&v1, &v2], &corpus, &mut recall);
+        let ids: Vec<&str> = adj["facilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["id"].as_str())
+            .collect();
+        assert!(ids.contains(&"dev"), "{ids:?}");
+        assert_eq!(recall.adjudication_restored.len(), 1);
+    }
+
+    #[test]
+    fn adjudication_drop_stands_for_unevidenced_facility() {
+        // A facility whose commitment appears nowhere in the corpus is a vote
+        // hallucination — the adjudicator's drop stands.
+        let mut adj = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v1 = pass_a("land", json!([fac("land", "5078772.32")]), json!(null));
+        let v2 = pass_a(
+            "dev",
+            json!([fac("land", "5078772.32"), fac("dev", "99999999")]),
+            json!(null),
+        );
+        let corpus = corpus_with("Total costs £35,810,099.96");
+        let mut recall = RecallDiagnostics::default();
+        restore_dropped_facilities(&mut adj, &[&v1, &v2], &corpus, &mut recall);
+        assert_eq!(adj["facilities"].as_array().unwrap().len(), 1);
+        assert!(recall.adjudication_restored.is_empty());
     }
 
     #[test]

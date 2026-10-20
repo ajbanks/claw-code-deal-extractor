@@ -206,9 +206,7 @@ fn workbook_to_pages<RS: std::io::Read + std::io::Seek>(
                     Data::DurationIso(s) => s.clone(),
                     Data::Int(n) => n.to_string(),
                     Data::Float(n) => {
-                        if n.fract() == 0.0 {
-                            format!("{n}")
-                        } else if n.abs() < 1.0 {
+                        if n.fract() == 0.0 || n.abs() < 1.0 {
                             format!("{n}")
                         } else {
                             format!("{n:.2}")

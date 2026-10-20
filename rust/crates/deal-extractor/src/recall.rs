@@ -359,6 +359,25 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
     out
 }
 
+/// Does the corpus literally state this money amount (in any of its written
+/// forms — "35,810,099.96", "£35.81m")? Used to decide whether a disputed
+/// extraction element is evidence-backed or a vote hallucination.
+#[must_use]
+pub(crate) fn corpus_has_amount(corpus: &Corpus, value: f64) -> bool {
+    for page in &corpus.pages {
+        for line in page.text.lines() {
+            for p in parse_figures(line) {
+                if p.kind == FigureKind::Money
+                    && (p.value - value).abs() <= p.tol.max(value * REL_TOL)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Labelled corpus figures that nothing in the output accounts for, deduped
 /// by value, ranked (keyword strength, explicit money, repetition across the
 /// pack) and capped at `MAX_FIGURES`.
