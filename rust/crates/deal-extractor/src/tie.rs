@@ -143,10 +143,18 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
         } else if let Some(fin) = fin {
             let gap = tic - tdc;
             let ok = (gap - fin).abs() <= fin * 0.02;
-            (
-                ok,
-                format!("TIC − TDC {gap:.0} vs stated finance costs {fin:.0}"),
-            )
+            let detail = if !ok && gap > fin {
+                // IH: Soller "TOTAL COSTS" 80.99m = TDC 65.80m + disposal
+                // fees 2.07m + finance 13.12m — the residual is an ungeared
+                // cost line dropped from TDC, not bad finance data.
+                format!(
+                    "TIC − TDC {gap:.0} exceeds stated finance costs {fin:.0} by {residual:.0} — TDC likely omits ungeared cost lines (disposal/selling fees, other costs)",
+                    residual = gap - fin,
+                )
+            } else {
+                format!("TIC − TDC {gap:.0} vs stated finance costs {fin:.0}")
+            };
+            (ok, detail)
         } else {
             (true, format!("TDC {tdc:.0} ≤ TIC {tic:.0}"))
         };
@@ -289,6 +297,35 @@ mod tests {
                 .status,
             "fail"
         );
+    }
+
+    #[test]
+    fn tdc_gap_residual_names_ungeared_lines() {
+        // IH shape: gap exceeds stated finance by an omitted disposal line.
+        let d = doc(json!({
+            "total_development_cost": ws(json!({"amount": 65795730})),
+            "total_investment_cost": ws(json!({"amount": 80991075})),
+            "finance_costs": ws(json!({"amount": 13121745})),
+        }));
+        let t = tie_checks(&d)
+            .into_iter()
+            .find(|t| t.id == "tdc_le_tic")
+            .unwrap();
+        assert_eq!(t.status, "fail");
+        assert!(t.detail.contains("ungeared cost lines"));
+        assert!(t.detail.contains("2073600"));
+        // Gap fully explained by finance → ordinary fail text, no residual hint.
+        let d2 = doc(json!({
+            "total_development_cost": ws(json!({"amount": 6000000})),
+            "total_investment_cost": ws(json!({"amount": 5000000})),
+            "finance_costs": ws(json!({"amount": 100000})),
+        }));
+        let t2 = tie_checks(&d2)
+            .into_iter()
+            .find(|t| t.id == "tdc_le_tic")
+            .unwrap();
+        assert_eq!(t2.status, "fail");
+        assert!(t2.detail.contains("is below TDC"));
     }
 
     #[test]
