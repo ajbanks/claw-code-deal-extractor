@@ -43,6 +43,7 @@ fn pct(doc: &Value, path: &str) -> Option<f64> {
     let raw = if v.is_object() {
         v.get("percentage")
             .or_else(|| v.get("value"))
+            .or_else(|| v.get("yield"))
             .or_else(|| v.get("residential_and_parking_percentage"))
             .or_else(|| v.get("amount"))?
     } else {
