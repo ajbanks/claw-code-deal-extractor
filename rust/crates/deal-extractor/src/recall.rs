@@ -298,7 +298,20 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
                 };
                 let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
                 let after = &line[p.end..ceil_boundary(line, (p.end + 40).min(line.len()))];
-                let context = format!("{label} {after}").to_lowercase();
+                // Sheet rows put the row label several cells from the value —
+                // "Cap Rate" may sit before intervening alpha cells. Match
+                // keywords against every alpha cell on the row, not just the
+                // nearest one.
+                let context = if line.contains('\t') {
+                    let cells = line
+                        .split('\t')
+                        .filter(|s| s.chars().any(char::is_alphabetic))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    format!("{cells} {after}").to_lowercase()
+                } else {
+                    format!("{label} {after}").to_lowercase()
+                };
                 if EXCLUDE.iter().any(|x| context.contains(x)) {
                     continue;
                 }
@@ -535,6 +548,20 @@ mod tests {
         // Accounted whether the output stores 0.045 or 4.5.
         let doc = json!({ "details": { "stabilised_yield": { "value": 0.045 } } });
         assert!(unaccounted_figures(&doc, &c).is_empty());
+    }
+
+    #[test]
+    fn sheet_fraction_matches_row_label_not_nearest_cell() {
+        // Luton CF sheet shape: "Cap Rate" is the row label but intervening
+        // alpha cells ("Education Contribution", "x") sit before the value.
+        let c = corpus(&[(
+            "cf.xlsx",
+            "Luton P2 Block C",
+            "Cap Rate\t\tEducation Contribution\tx\t\t\t\t0.045",
+        )]);
+        let got = unaccounted_figures(&json!({}), &c);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].value, 4.5);
     }
 
     #[test]
