@@ -302,17 +302,30 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
                 if EXCLUDE.iter().any(|x| context.contains(x)) {
                     continue;
                 }
-                let (keywords, ok) = match p.kind {
+                // A bare decimal in (0,1) on a sheet row next to a yield/rate
+                // label is a percent stored as a fraction (0.045 = 4.5%).
+                let sheet_fraction = p.kind == FigureKind::Money
+                    && !p.explicit_money
+                    && p.value > 0.0
+                    && p.value < 1.0
+                    && line.contains('\t')
+                    && PCT_KEYWORDS.iter().any(|(k, _)| context.contains(k));
+                let (value, tol, kind) = if sheet_fraction {
+                    (p.value * 100.0, p.tol * 100.0, FigureKind::Percent)
+                } else {
+                    (p.value, p.tol, p.kind)
+                };
+                let (keywords, ok) = match kind {
                     FigureKind::Money => (
                         MONEY_KEYWORDS,
                         // Bare numbers (no £/m/commas) only count on sheet
                         // rows — in prose they are refs, phone numbers etc.
-                        p.value >= MIN_MONEY
+                        value >= MIN_MONEY
                             && (p.explicit_money
                                 || line.contains('\t')
                                 || page.page_label.parse::<u32>().is_err()),
                     ),
-                    FigureKind::Percent => (PCT_KEYWORDS, p.value > 0.0 && p.value <= 100.0),
+                    FigureKind::Percent => (PCT_KEYWORDS, value > 0.0 && value <= 100.0),
                 };
                 if !ok {
                     continue;
@@ -332,13 +345,13 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
                     doc_name: page.doc_name.clone(),
                     page_label: page.page_label.clone(),
                     raw,
-                    value: p.value,
-                    kind: p.kind,
+                    value,
+                    kind,
                     label: label.chars().take(80).collect(),
                     line: line_disp,
                     occurrences: 1,
                     score: kw_score + u8::from(p.explicit_money),
-                    tol: p.tol,
+                    tol,
                 });
             }
         }
@@ -489,6 +502,25 @@ mod tests {
     fn plain_numbers_need_a_sheet_page_or_explicit_money() {
         // A bare 7-digit number in a PDF (no £, no commas) is too ambiguous.
         let c = corpus(&[("im.pdf", "1", "Loan reference 4500000")]);
+        assert!(unaccounted_figures(&json!({}), &c).is_empty());
+    }
+
+    #[test]
+    fn sheet_fraction_counts_as_percent() {
+        // Yield stored as a decimal in a spreadsheet cell ("0.045" = 4.5%).
+        let c = corpus(&[("m.xlsx", "Returns", "Stabilised yield\t0.045")]);
+        let got = unaccounted_figures(&json!({}), &c);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].kind, FigureKind::Percent);
+        assert_eq!(got[0].value, 4.5);
+        // Accounted whether the output stores 0.045 or 4.5.
+        let doc = json!({ "details": { "stabilised_yield": { "value": 0.045 } } });
+        assert!(unaccounted_figures(&doc, &c).is_empty());
+    }
+
+    #[test]
+    fn sheet_fraction_needs_a_pct_label() {
+        let c = corpus(&[("m.xlsx", "Sheet1", "Rainfall factor\t0.045")]);
         assert!(unaccounted_figures(&json!({}), &c).is_empty());
     }
 
