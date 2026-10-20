@@ -56,6 +56,12 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 ## CAPITAL SNAPSHOTS
 A project-level snapshot listing each facility's role: { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
+## PARTIES
+Every named entity with a stake in the deal: { id, name, entity_type, roles, evidence }.
+- roles from: borrower | lender | sponsor | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | other.
+- When the borrower is an SPV, also emit the sponsor/development group behind it — structure charts, "on behalf of", shareholder/parent mentions, promoter credits all count. The SPV alone is not the sponsor; the operating group it sits under is.
+- A contractor, selling agent, broker or valuer gets its own role — never sponsor/developer, even when its brochure dominates the pack (a contractor CV enclosed for capability does not make the contractor the sponsor).
+
 ## VALUATIONS
 For each: { id, value_type (market_value|gross_development_value|residual_value|purchase_price|ninety_day_sale_value|day_1_value|unclassified), amount: {amount,currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence }.
 - Market value ≠ GDV. Market value is the current asset value; GDV is post-construction gross development value.
@@ -245,7 +251,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - deal_type: "debt" or "equity"
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
-- total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency)
+- total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency + disposal/selling costs). Disposal fees (sales agent/legal on exit) ARE part of TDC even when the model's own subtotal excludes them — a line labelled "LTC (excl. Finance Costs)" can omit a separate DISPOSAL FEES section; cross-check TDC ≈ TOTAL COSTS − finance costs and prefer the model's TOTAL COSTS minus its FINANCE FEES section when they disagree.
 - total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. TIC is always ≥ TDC; if the document labels a figure "total geared costs" or "total costs including finance", it belongs here
 - community_infrastructure_levy: { amount, currency } — CIL liability if stated (e.g. "CIL £426,678"); never fold CIL into planning_status text
 - sellable_area: { value: <number>, unit: "sqft" } — net sellable/saleable area (NSA) if the source states one; only when GIA/NIA are not stated
@@ -299,8 +305,8 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - address: { line1, paon, property_name, street_name, city, postcode, country, region, saon, full_address }
 - agent_details: { name, email, phone } — the selling/marketing agent or named contact in the pack's contact block (e.g. "Morgan Williams", contact footers). Always extract when stated.
 - document_date: the pack/publication date the document states (e.g. "April 2024" particulars, a dated report, an "as at" date). Preserve the stated precision — month-year when no day is given.
-- borrower_details: { name, type, track_record, email, phone }
-- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role.
+- borrower_details: { name, type, track_record, email, phone, corporate_structure } — `corporate_structure` names the sponsor/parent GROUP behind a borrower SPV whenever the pack identifies one (structure chart, shareholder list, "X Ltd, a Strawberry Star company"). An SPV borrower alone leaves the sponsor invisible downstream — always populate it when a parent group is named.
+- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder of the SPONSOR / borrower group from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role. A principal must belong to the sponsor/borrower entity — staff of the contractor, selling agent, broker or another third party named in the pack are NOT sponsor principals. `company` must be the sponsor's own group company (e.g. the entity named as sponsor/developer/parent of the borrower SPV), never the contractor's company.
 - planning_status
 - construction_timelines: { start_date, completion_date, duration_months }
 - insurance_requirements, capex_plan
