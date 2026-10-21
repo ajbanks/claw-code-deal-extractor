@@ -146,7 +146,7 @@ pub(crate) async fn tool_fill(
     corpus: &Corpus,
     doc: &mut Value,
     issues: &[Issue],
-) -> Result<(Vec<String>, Vec<String>), String> {
+) -> Result<(Vec<String>, Vec<String>, Vec<String>), String> {
     let user_text = format!(
         "{}\n\n## GAPS\n{}\n\n## CURRENT EXTRACTION\n{}\n",
         prompts::RECALL_FILL_PROMPT,

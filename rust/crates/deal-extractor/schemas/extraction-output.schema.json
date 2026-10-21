@@ -5255,7 +5255,13 @@
                     "valuer",
                     "servicer",
                     "adviser",
-                    "other"
+                    "other",
+                    "investment_manager",
+                    "parent",
+                    "contractor",
+                    "selling_agent",
+                    "broker",
+                    "architect"
                   ]
                 }
               },
@@ -5445,6 +5451,12 @@
                     "quote"
                   ]
                 }
+              },
+              "jurisdiction": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -8014,7 +8026,7 @@
                   ]
                 },
                 "postcode": {
-                  "description": "Postcode explicitly stated in the source for the SUBJECT property. Prefer the postcode in the property's own address block (cover page, title, marketing particulars). When documents disagree, use the postcode that appears with the full postal address of the subject — never a postcode from a lender, valuer's office or different building. Do not infer from town or address fragments.",
+                  "description": "Postcode explicitly stated in the source for the SUBJECT property. Prefer the postcode in the property's own address block (cover page, title, marketing particulars). When documents disagree, use the postcode that appears with the full postal address of the subject \u2014 never a postcode from a lender, valuer's office or different building. Do not infer from town or address fragments.",
                   "type": [
                     "string",
                     "null"
@@ -8333,7 +8345,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8354,7 +8366,7 @@
                     ]
                   },
                   "expected_rent_pcm": {
-                    "description": "Expected rent for one unit of this specific residential unit type only, per calendar month. Extract the schedule's stated rent/ERV for the type — never a blended average across unit types. Null when no per-type rent is stated.",
+                    "description": "Expected rent for one unit of this specific residential unit type only, per calendar month. Extract the schedule's stated rent/ERV for the type \u2014 never a blended average across unit types. Null when no per-type rent is stated.",
                     "type": [
                       "object",
                       "null"
@@ -8362,7 +8374,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8513,7 +8525,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8600,7 +8612,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8656,7 +8668,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8759,7 +8771,7 @@
                     ]
                   },
                   "unit_break_penalty": {
-                    "description": "Break penalty for this specific unit — a stated payment due to exercise the break (e.g. '£135,234.48 break penalty'). Only when the source states an amount.",
+                    "description": "Break penalty for this specific unit \u2014 a stated payment due to exercise the break (e.g. '\u00a3135,234.48 break penalty'). Only when the source states an amount.",
                     "type": [
                       "object",
                       "null"
@@ -8767,7 +8779,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -8795,14 +8807,14 @@
                     ]
                   },
                   "unit_extension_approach": {
-                    "description": "Stated extension / renewal position for this unit's tenant — e.g. 'the tenant has approached for a 5-year extension'. Verbatim schedule wording only; do not infer.",
+                    "description": "Stated extension / renewal position for this unit's tenant \u2014 e.g. 'the tenant has approached for a 5-year extension'. Verbatim schedule wording only; do not infer.",
                     "type": [
                       "string",
                       "null"
                     ]
                   },
                   "unit_lease_notes": {
-                    "description": "Other lease terms stated for this specific unit — rent-free periods, exclusivity, stepping, tax/rent-share clauses. Only terms printed against this unit or tenant.",
+                    "description": "Other lease terms stated for this specific unit \u2014 rent-free periods, exclusivity, stepping, tax/rent-share clauses. Only terms printed against this unit or tenant.",
                     "type": [
                       "string",
                       "null"
@@ -9267,7 +9279,7 @@
               ]
             },
             "value": {
-              "description": "Build cost per area metric explicitly stated in the source, such as £/sq ft or £/sqm. Do not divide construction cost or total cost by area to create this field.",
+              "description": "Build cost per area metric explicitly stated in the source, such as \u00a3/sq ft or \u00a3/sqm. Do not divide construction cost or total cost by area to create this field.",
               "type": [
                 "object",
                 "null"
@@ -9865,7 +9877,7 @@
                   "properties": {
                     "amount": {
                       "minimum": 0,
-                      "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                      "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                       "type": [
                         "number",
                         "null"
@@ -9900,7 +9912,7 @@
                         "properties": {
                           "amount": {
                             "minimum": 0,
-                            "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                            "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                             "type": [
                               "number",
                               "null"
@@ -10217,7 +10229,7 @@
                     "null"
                   ],
                   "items": {
-                    "description": "A single signal phrase or data pattern evidencing the operating_model, with a page/sheet reference where possible, e.g. 'FRI lease mentioned p.2', 'WAULT 25 years p.2', 'RevPAR £143 p.7', 'GOP margin 45% p.9'.",
+                    "description": "A single signal phrase or data pattern evidencing the operating_model, with a page/sheet reference where possible, e.g. 'FRI lease mentioned p.2', 'WAULT 25 years p.2', 'RevPAR \u00a3143 p.7', 'GOP margin 45% p.9'.",
                     "type": "string"
                   }
                 },
@@ -10225,7 +10237,7 @@
                   "type": "object",
                   "properties": {
                     "category": {
-                      "description": "Asset state — physical completeness of the financed collateral: standing_asset (complete/operational, acquired as-is), land (bare/cleared site, no meaningful structures), brownfield (existing structures to be demolished/redeveloped; financed collateral not yet built). Classify against the COLLATERAL being financed, not the wider site. Do NOT let planning status or business plan drive this axis. Category value for backend logic.",
+                      "description": "Asset state \u2014 physical completeness of the financed collateral: standing_asset (complete/operational, acquired as-is), land (bare/cleared site, no meaningful structures), brownfield (existing structures to be demolished/redeveloped; financed collateral not yet built). Classify against the COLLATERAL being financed, not the wider site. Do NOT let planning status or business plan drive this axis. Category value for backend logic.",
                       "type": "string",
                       "enum": [
                         "standing_asset",
@@ -10285,7 +10297,7 @@
                   ],
                   "properties": {
                     "category": {
-                      "description": "Deal size: small (<£5m), mid (£5m-£100m), large (>£100m). Optional. Category value for backend logic.",
+                      "description": "Deal size: small (<\u00a35m), mid (\u00a35m-\u00a3100m), large (>\u00a3100m). Optional. Category value for backend logic.",
                       "type": "string",
                       "enum": [
                         "small",
@@ -11086,7 +11098,7 @@
               ]
             },
             "value": {
-              "description": "Contractual interest rate for the FOCUS facility only — the actual coupon or all-in rate on the loan being underwritten. This must be the contractual loan rate (e.g. bridge margin + reference rate = all-in rate), NOT the valuer's finance/discount rate used in their residual appraisal. If the document only provides a valuer's finance rate (e.g. '8% finance rate used in the appraisal'), do NOT extract it here — use valuation_finance_rate instead. Include any base-rate reference if part of the metric. Do not combine components or convert periodic rates into annual rates.",
+              "description": "Contractual interest rate for the FOCUS facility only \u2014 the actual coupon or all-in rate on the loan being underwritten. This must be the contractual loan rate (e.g. bridge margin + reference rate = all-in rate), NOT the valuer's finance/discount rate used in their residual appraisal. If the document only provides a valuer's finance rate (e.g. '8% finance rate used in the appraisal'), do NOT extract it here \u2014 use valuation_finance_rate instead. Include any base-rate reference if part of the metric. Do not combine components or convert periodic rates into annual rates.",
               "type": [
                 "object",
                 "null"
@@ -11354,7 +11366,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -11428,7 +11440,7 @@
               ]
             },
             "value": {
-              "description": "Stated total interest / finance costs over the loan term (e.g. \"Finance costs £749,659\"). Stated amount only — never compute rate × term here.",
+              "description": "Stated total interest / finance costs over the loan term (e.g. \"Finance costs \u00a3749,659\"). Stated amount only \u2014 never compute rate \u00d7 term here.",
               "type": [
                 "object",
                 "null"
@@ -11436,7 +11448,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -11510,7 +11522,7 @@
               ]
             },
             "value": {
-              "description": "The all-in loan figure including rolled interest (e.g. \"loan including interest £5,699,659\", \"gross loan incl. rolled interest\"). Quoted amount only.",
+              "description": "The all-in loan figure including rolled interest (e.g. \"loan including interest \u00a35,699,659\", \"gross loan incl. rolled interest\"). Quoted amount only.",
               "type": [
                 "object",
                 "null"
@@ -11518,7 +11530,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -11600,7 +11612,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -11674,7 +11686,7 @@
               ]
             },
             "value": {
-              "description": "Completed value explicitly labelled as GDV, Gross Development Value, end value, or another clearly equivalent completed-value metric. MUST be explicitly labelled as GDV — NEVER use market value, residual value, 90-day sale value, or purchase price here. If the source provides a Phase 1 GDV, extract that and set scope to deal. If the source provides an overall model GDV for the full scheme, use project_gdv instead. For a bridge selling a consented site, use RLV (Residual Land Value), not the GDV of a future development the borrower will NOT build. If the document only provides the overall project GDV and no deal-specific exit value, return null.",
+              "description": "Completed value explicitly labelled as GDV, Gross Development Value, end value, or another clearly equivalent completed-value metric. MUST be explicitly labelled as GDV \u2014 NEVER use market value, residual value, 90-day sale value, or purchase price here. If the source provides a Phase 1 GDV, extract that and set scope to deal. If the source provides an overall model GDV for the full scheme, use project_gdv instead. For a bridge selling a consented site, use RLV (Residual Land Value), not the GDV of a future development the borrower will NOT build. If the document only provides the overall project GDV and no deal-specific exit value, return null.",
               "type": [
                 "object",
                 "null"
@@ -11682,7 +11694,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12004,7 +12016,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12086,7 +12098,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12168,7 +12180,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12250,7 +12262,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12332,7 +12344,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12422,7 +12434,7 @@
               ]
             },
             "value": {
-              "description": "Value explicitly labelled as Day 1 value, current value, as-is value, or another clearly equivalent starting value of the asset. This is the valuer's headline market value of the collateral AS-IS at the time of the deal — NOT the 90-day forced-sale value, NOT the purchase price/acquisition cost, and NOT the GDV. If the source provides a market value, use market_value instead. If the source provides a 90-day sale value, use ninety_day_sale_value instead. Only use this field when the source explicitly labels the value as 'Day 1', 'current value', or 'as-is value'.",
+              "description": "Value explicitly labelled as Day 1 value, current value, as-is value, or another clearly equivalent starting value of the asset. This is the valuer's headline market value of the collateral AS-IS at the time of the deal \u2014 NOT the 90-day forced-sale value, NOT the purchase price/acquisition cost, and NOT the GDV. If the source provides a market value, use market_value instead. If the source provides a 90-day sale value, use ninety_day_sale_value instead. Only use this field when the source explicitly labels the value as 'Day 1', 'current value', or 'as-is value'.",
               "type": [
                 "object",
                 "null"
@@ -12430,7 +12442,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12512,7 +12524,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12586,7 +12598,7 @@
               ]
             },
             "value": {
-              "description": "Yield explicitly labelled as stabilised yield, exit yield, or cap rate (capitalisation rate) for the asset's steady-state/income exit. Use the appraisal's stated figure exactly — do not calculate from rent and value, do not average multiple cap rates, and do not mix a type-specific cap (e.g. commercial vs residential vs parking) with the blended/headline cap. When the source states distinct cap rates per unit type (e.g. 'Commercial Cap Rate 7%', 'Residential Cap Rate 4.5%'), use the rate that applies to the deal's primary asset class and note the others in the notes field.",
+              "description": "Yield explicitly labelled as stabilised yield, exit yield, or cap rate (capitalisation rate) for the asset's steady-state/income exit. Use the appraisal's stated figure exactly \u2014 do not calculate from rent and value, do not average multiple cap rates, and do not mix a type-specific cap (e.g. commercial vs residential vs parking) with the blended/headline cap. When the source states distinct cap rates per unit type (e.g. 'Commercial Cap Rate 7%', 'Residential Cap Rate 4.5%'), use the rate that applies to the deal's primary asset class and note the others in the notes field.",
               "type": [
                 "object",
                 "null"
@@ -12674,7 +12686,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -12748,7 +12760,7 @@
               ]
             },
             "value": {
-              "description": "Exit or repayment strategy for the FOCUS FACILITY being underwritten — i.e. how this specific loan will be repaid (e.g. refinance into a development loan, sale of the consented site, rental income). Do NOT confuse with the overall project exit strategy (e.g. sale of completed units at GDV). If the document only describes project-level exit, return null.",
+              "description": "Exit or repayment strategy for the FOCUS FACILITY being underwritten \u2014 i.e. how this specific loan will be repaid (e.g. refinance into a development loan, sale of the consented site, rental income). Do NOT confuse with the overall project exit strategy (e.g. sale of completed units at GDV). If the document only describes project-level exit, return null.",
               "type": [
                 "string",
                 "null"
@@ -12876,7 +12888,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -13451,7 +13463,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -13553,7 +13565,7 @@
                     "properties": {
                       "amount": {
                         "minimum": 0,
-                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                        "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                         "type": [
                           "number",
                           "null"
@@ -13902,7 +13914,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -14056,7 +14068,7 @@
               ]
             },
             "value": {
-              "description": "Projected profit explicitly stated for the scheme — must come from the appraisal's own 'Profit' / 'Developer Profit' line. Do NOT calculate from GDV less costs. If the source does not state an explicit profit figure, return null.",
+              "description": "Projected profit explicitly stated for the scheme \u2014 must come from the appraisal's own 'Profit' / 'Developer Profit' line. Do NOT calculate from GDV less costs. If the source does not state an explicit profit figure, return null.",
               "type": [
                 "object",
                 "null"
@@ -14064,7 +14076,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -14290,7 +14302,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -14372,7 +14384,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -14526,7 +14538,7 @@
               ]
             },
             "value": {
-              "description": "Equivalent yield for the whole asset. The single discount/capitalization rate that equates a property’s current value to its expected future rental cash flows, allowing for any reversion to market rent. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Valid labels or aliases: equivalent yield, forward yield. Reject and return null for: NIY, net initial yield, initial yield, transacted NIY, reversionary yield, IRR, cash-on-cash return, cap rate, unit-level yield, building-level yield, phase-level yield. Use a value explicitly labeled 'equivalent yield' when present. DO NOT backfill or infer from other metrics. Extract when the metric is described as a blended, time-weighted, or single discount rate reflecting both current passing rent and future reversion to market rent. If no exact 'equivalent yield' label is present, allow an asset-level forward yield only when the source clearly presents it as the yield after stabilisation, lease-up, or letting-up for the same asset. Do not infer this metric from price, rent, ERV, valuation tables, or narrative commentary unless the yield itself is explicitly stated. Return null when the source does not clearly state an asset-level equivalent yield",
+              "description": "Equivalent yield for the whole asset. The single discount/capitalization rate that equates a property\u2019s current value to its expected future rental cash flows, allowing for any reversion to market rent. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Valid labels or aliases: equivalent yield, forward yield. Reject and return null for: NIY, net initial yield, initial yield, transacted NIY, reversionary yield, IRR, cash-on-cash return, cap rate, unit-level yield, building-level yield, phase-level yield. Use a value explicitly labeled 'equivalent yield' when present. DO NOT backfill or infer from other metrics. Extract when the metric is described as a blended, time-weighted, or single discount rate reflecting both current passing rent and future reversion to market rent. If no exact 'equivalent yield' label is present, allow an asset-level forward yield only when the source clearly presents it as the yield after stabilisation, lease-up, or letting-up for the same asset. Do not infer this metric from price, rent, ERV, valuation tables, or narrative commentary unless the yield itself is explicitly stated. Return null when the source does not clearly state an asset-level equivalent yield",
               "type": [
                 "object",
                 "null"
@@ -14772,7 +14784,7 @@
               ]
             },
             "value": {
-              "description": "Net sellable area (NSA) — the total area of the units that will be sold, where the source states it under 'sellable area', 'net sales area' or 'saleable area'. This is NOT GIA or NIA; when the source gives only a sellable-area figure (common in residential appraisals), populate this field and leave GIA/NIA null. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Valid labels or aliases: Sellable area, NSA, net sales area, saleable area, sq ft sellable. Reject and return null for: GIA, Gross Internal Area, GEA, site area, land area, plot. If the source states it in both sq ft and m², extract the sq ft figure. Do not convert GIA/NIA into sellable area — only extract a stated sellable-area figure.",
+              "description": "Net sellable area (NSA) \u2014 the total area of the units that will be sold, where the source states it under 'sellable area', 'net sales area' or 'saleable area'. This is NOT GIA or NIA; when the source gives only a sellable-area figure (common in residential appraisals), populate this field and leave GIA/NIA null. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Valid labels or aliases: Sellable area, NSA, net sales area, saleable area, sq ft sellable. Reject and return null for: GIA, Gross Internal Area, GEA, site area, land area, plot. If the source states it in both sq ft and m\u00b2, extract the sq ft figure. Do not convert GIA/NIA into sellable area \u2014 only extract a stated sellable-area figure.",
               "type": [
                 "object",
                 "null"
@@ -14855,7 +14867,7 @@
               ]
             },
             "value": {
-              "description": "Community Infrastructure Levy (CIL) liability stated for the scheme — a numeric amount (e.g. '£426,678'). Extract the CIL figure here; never fold CIL into the planning_status text.",
+              "description": "Community Infrastructure Levy (CIL) liability stated for the scheme \u2014 a numeric amount (e.g. '\u00a3426,678'). Extract the CIL figure here; never fold CIL into the planning_status text.",
               "type": [
                 "object",
                 "null"
@@ -14863,7 +14875,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -14945,7 +14957,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -15269,7 +15281,7 @@
               ]
             },
             "value": {
-              "description": "Tenant covenant web research — entity type, summary, adverse findings.",
+              "description": "Tenant covenant web research \u2014 entity type, summary, adverse findings.",
               "type": [
                 "object",
                 "null"
@@ -16131,7 +16143,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -16213,7 +16225,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -16933,7 +16945,7 @@
               ]
             },
             "value": {
-              "description": "Total cost to complete the development excluding land acquisition. Must be the ALL-IN total from the appraisal's summary line — including construction costs, professional fees, finance costs, marketing, disposal fees, and contingency. Do NOT extract a construction-cost subtotal as TDC. If the source presents a 'Construction Costs' or 'Build Costs' subtotal that excludes finance/fees, that is NOT the TDC — look for the 'Total Development Cost' or 'Total Cost' summary line. Include finance costs ONLY if explicitly stated or clearly part of 'all-in development cost'. Do NOT substitute Total Investment Cost unless the source explicitly equates them. Only populate if THIS facility is a development loan. For bridge/refinance deals, return null even if the document mentions TDC for the overall project.",
+              "description": "Total cost to complete the development excluding land acquisition. Must be the ALL-IN total from the appraisal's summary line \u2014 including construction costs, professional fees, finance costs, marketing, disposal fees, and contingency. Do NOT extract a construction-cost subtotal as TDC. If the source presents a 'Construction Costs' or 'Build Costs' subtotal that excludes finance/fees, that is NOT the TDC \u2014 look for the 'Total Development Cost' or 'Total Cost' summary line. Include finance costs ONLY if explicitly stated or clearly part of 'all-in development cost'. Do NOT substitute Total Investment Cost unless the source explicitly equates them. Only populate if THIS facility is a development loan. For bridge/refinance deals, return null even if the document mentions TDC for the overall project.",
               "type": [
                 "object",
                 "null"
@@ -16941,7 +16953,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -17214,7 +17226,7 @@
               ]
             },
             "value": {
-              "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal. A principal must belong to the SPONSOR / borrower entity — the party whose deal this is. Staff of the contractor, selling agent, broker, or a third party named in the pack are NOT borrower principals. If a person is labelled as working for a different entity (e.g. the main contractor's team), exclude them rather than listing them under the borrower.",
+              "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal. A principal must belong to the SPONSOR / borrower entity \u2014 the party whose deal this is. Staff of the contractor, selling agent, broker, or a third party named in the pack are NOT borrower principals. If a person is labelled as working for a different entity (e.g. the main contractor's team), exclude them rather than listing them under the borrower.",
               "type": [
                 "array",
                 "null"
@@ -17366,14 +17378,14 @@
               ]
             },
             "value": {
-              "description": "Developer/company web research — real projects and credibility evidence.",
+              "description": "Developer/company web research \u2014 real projects and credibility evidence.",
               "type": [
                 "object",
                 "null"
               ],
               "properties": {
                 "developer_name": {
-                  "description": "Operating developer company identified from web research — not the deal SPV.",
+                  "description": "Operating developer company identified from web research \u2014 not the deal SPV.",
                   "type": [
                     "string",
                     "null"
@@ -17567,7 +17579,7 @@
               ]
             },
             "value": {
-              "description": "List every distinct loan, debt facility, or capital arrangement mentioned in this document. Each separate lending arrangement (different lender, different role, or different status) is a separate entry. Do NOT merge a senior loan and a mezzanine loan into one entry. Do NOT include total project cost or total development cost as a facility — only actual loans/debt/equity arrangements. If the document mentions an existing loan being refinanced AND a new loan being made, list BOTH. This inventory helps the downstream classification correctly model all facilities.",
+              "description": "List every distinct loan, debt facility, or capital arrangement mentioned in this document. Each separate lending arrangement (different lender, different role, or different status) is a separate entry. Do NOT merge a senior loan and a mezzanine loan into one entry. Do NOT include total project cost or total development cost as a facility \u2014 only actual loans/debt/equity arrangements. If the document mentions an existing loan being refinanced AND a new loan being made, list BOTH. This inventory helps the downstream classification correctly model all facilities.",
               "type": [
                 "array",
                 "null"
@@ -17580,7 +17592,7 @@
                     "type": "string"
                   },
                   "amount": {
-                    "description": "Commitment or principal amount of this facility as stated in the source. Use the exact number from the document. If the source says £25.75m, return 25.75 (in millions) or 25750000 (in pounds) — match the source's scale.",
+                    "description": "Commitment or principal amount of this facility as stated in the source. Use the exact number from the document. If the source says \u00a325.75m, return 25.75 (in millions) or 25750000 (in pounds) \u2014 match the source's scale.",
                     "type": [
                       "number",
                       "null"
@@ -17616,7 +17628,7 @@
                     ]
                   },
                   "quote": {
-                    "description": "Direct quote from the source that identifies this facility and its amount, e.g. 'The bridge facility of £25.75m will refinance the existing Shojin senior debt'.",
+                    "description": "Direct quote from the source that identifies this facility and its amount, e.g. 'The bridge facility of \u00a325.75m will refinance the existing Shojin senior debt'.",
                     "type": [
                       "string",
                       "null"
@@ -17688,7 +17700,7 @@
               ]
             },
             "value": {
-              "description": "Overall project Gross Development Value — the completed value of the FULL development scheme, which may differ from the deal-specific exit value. Only populate when the document explicitly states a project-level GDV that is different from the deal exit value. For a bridge selling a consented site, this is the GDV of the future development the borrower will NOT build. If the project GDV and deal exit value are the same, leave this null and use gross_development_value only.",
+              "description": "Overall project Gross Development Value \u2014 the completed value of the FULL development scheme, which may differ from the deal-specific exit value. Only populate when the document explicitly states a project-level GDV that is different from the deal exit value. For a bridge selling a consented site, this is the GDV of the future development the borrower will NOT build. If the project GDV and deal exit value are the same, leave this null and use gross_development_value only.",
               "type": [
                 "object",
                 "null"
@@ -17696,7 +17708,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -17770,7 +17782,7 @@
               ]
             },
             "value": {
-              "description": "Market value explicitly labelled as such by a valuer (e.g. 'Market Value: £32,500,000'). This is the valuer's headline opinion of market value for the collateral. Do NOT use GDV, asking price, residual value, or 90-day forced-sale value here. Do NOT use the purchase price or acquisition cost. If the valuer provides both a market value and a 90-day value, extract them separately into market_value and ninety_day_sale_value.",
+              "description": "Market value explicitly labelled as such by a valuer (e.g. 'Market Value: \u00a332,500,000'). This is the valuer's headline opinion of market value for the collateral. Do NOT use GDV, asking price, residual value, or 90-day forced-sale value here. Do NOT use the purchase price or acquisition cost. If the valuer provides both a market value and a 90-day value, extract them separately into market_value and ninety_day_sale_value.",
               "type": [
                 "object",
                 "null"
@@ -17778,7 +17790,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -17852,7 +17864,7 @@
               ]
             },
             "value": {
-              "description": "90-day forced-sale value or special-assumption value explicitly stated by the valuer (e.g. '90-Day Market Value: £23,425,000'). This is a stressed valuation assuming a quick sale, distinct from the headline market value. Do NOT use the headline market value here — use market_value for that.",
+              "description": "90-day forced-sale value or special-assumption value explicitly stated by the valuer (e.g. '90-Day Market Value: \u00a323,425,000'). This is a stressed valuation assuming a quick sale, distinct from the headline market value. Do NOT use the headline market value here \u2014 use market_value for that.",
               "type": [
                 "object",
                 "null"
@@ -17860,7 +17872,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -17934,7 +17946,7 @@
               ]
             },
             "value": {
-              "description": "Agreed purchase price or acquisition price for the subject interest being acquired (e.g. 'agreed purchase price: £23,425,000'). This may differ from both the market value and the 90-day sale value. If the valuation report and the financial model state different purchase prices, extract the value from each document separately — the system will flag the conflict.",
+              "description": "Agreed purchase price or acquisition price for the subject interest being acquired (e.g. 'agreed purchase price: \u00a323,425,000'). This may differ from both the market value and the 90-day sale value. If the valuation report and the financial model state different purchase prices, extract the value from each document separately \u2014 the system will flag the conflict.",
               "type": [
                 "object",
                 "null"
@@ -17942,7 +17954,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -18016,7 +18028,7 @@
               ]
             },
             "value": {
-              "description": "All-in total cost of acquiring the asset explicitly stated as a single figure (e.g. 'total acquisition cost: £25,285,000', 'total consideration', 'all-in cost'). This INCLUDES the purchase price plus taxes, fees and costs ONLY where the source states the combined total — do NOT compute it from purchase_price + purchaser_costs, and do NOT copy the purchase price here. Use null unless the source states an explicit all-in acquisition total.",
+              "description": "All-in total cost of acquiring the asset explicitly stated as a single figure (e.g. 'total acquisition cost: \u00a325,285,000', 'total consideration', 'all-in cost'). This INCLUDES the purchase price plus taxes, fees and costs ONLY where the source states the combined total \u2014 do NOT compute it from purchase_price + purchaser_costs, and do NOT copy the purchase price here. Use null unless the source states an explicit all-in acquisition total.",
               "type": [
                 "object",
                 "null"
@@ -18024,7 +18036,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -18106,7 +18118,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -18180,7 +18192,7 @@
               ]
             },
             "value": {
-              "description": "Finance rate or discount rate used by the valuer in their residual appraisal or discounted cash flow (e.g. 'The valuer assumed a finance rate of 8%'). This is a valuation assumption, NOT the contractual interest rate on the focus facility. Do NOT extract this as interest_rate — use valuation_finance_rate instead. If the document only provides a valuer's finance rate and no contractual loan rate, return null for interest_rate and populate this field.",
+              "description": "Finance rate or discount rate used by the valuer in their residual appraisal or discounted cash flow (e.g. 'The valuer assumed a finance rate of 8%'). This is a valuation assumption, NOT the contractual interest rate on the focus facility. Do NOT extract this as interest_rate \u2014 use valuation_finance_rate instead. If the document only provides a valuer's finance rate and no contractual loan rate, return null for interest_rate and populate this field.",
               "type": [
                 "object",
                 "null"
@@ -19062,7 +19074,7 @@
               ]
             },
             "value": {
-              "description": "Agreed sale price / capital sum in a structured transaction (e.g. sale & leaseback, ground lease sale, income strip purchase price). This is the headline consideration paid by the investor — NOT a loan. Do not use purchase_price when the source calls it a sale price or capital sum.",
+              "description": "Agreed sale price / capital sum in a structured transaction (e.g. sale & leaseback, ground lease sale, income strip purchase price). This is the headline consideration paid by the investor \u2014 NOT a loan. Do not use purchase_price when the source calls it a sale price or capital sum.",
               "type": [
                 "object",
                 "null"
@@ -19070,7 +19082,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19144,7 +19156,7 @@
               ]
             },
             "value": {
-              "description": "Price an institutional investor commits to pay for the completed asset under a forward-funding or forward-purchase agreement (e.g. 'Forward purchase price: £40m'). This is the exit value, not a loan and not necessarily today's GDV.",
+              "description": "Price an institutional investor commits to pay for the completed asset under a forward-funding or forward-purchase agreement (e.g. 'Forward purchase price: \u00a340m'). This is the exit value, not a loan and not necessarily today's GDV.",
               "type": [
                 "object",
                 "null"
@@ -19152,7 +19164,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19226,7 +19238,7 @@
               ]
             },
             "value": {
-              "description": "Value of land or an asset with planning consent / on grant of consent explicitly stated (e.g. 'consented value £6m', 'value with planning'). Distinct from current market value — the uplift is hope value.",
+              "description": "Value of land or an asset with planning consent / on grant of consent explicitly stated (e.g. 'consented value \u00a36m', 'value with planning'). Distinct from current market value \u2014 the uplift is hope value.",
               "type": [
                 "object",
                 "null"
@@ -19234,7 +19246,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19308,7 +19320,7 @@
               ]
             },
             "value": {
-              "description": "Open market value assuming vacant possession, explicitly stated by the valuer (e.g. OMV-VP £42m against an EUV-SH basis of £18m). This is an information-only comparator for social-housing or let assets — do NOT treat it as the lending basis.",
+              "description": "Open market value assuming vacant possession, explicitly stated by the valuer (e.g. OMV-VP \u00a342m against an EUV-SH basis of \u00a318m). This is an information-only comparator for social-housing or let assets \u2014 do NOT treat it as the lending basis.",
               "type": [
                 "object",
                 "null"
@@ -19316,7 +19328,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19390,7 +19402,7 @@
               ]
             },
             "value": {
-              "description": "Existing Use Value — Social Housing (EUV-SH) explicitly stated by the valuer for a registered-provider security. This is the lending basis for social-housing facilities, not open-market value.",
+              "description": "Existing Use Value \u2014 Social Housing (EUV-SH) explicitly stated by the valuer for a registered-provider security. This is the lending basis for social-housing facilities, not open-market value.",
               "type": [
                 "object",
                 "null"
@@ -19398,7 +19410,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19472,7 +19484,7 @@
               ]
             },
             "value": {
-              "description": "Adjusted EBITDA explicitly stated for a trading property (care home, hotel, nursery, pub) — the maintainable earnings figure the loan is sized on. Do not compute from accounts lines.",
+              "description": "Adjusted EBITDA explicitly stated for a trading property (care home, hotel, nursery, pub) \u2014 the maintainable earnings figure the loan is sized on. Do not compute from accounts lines.",
               "type": [
                 "object",
                 "null"
@@ -19480,7 +19492,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19554,7 +19566,7 @@
               ]
             },
             "value": {
-              "description": "Outstanding balance of existing secured debt being refinanced or remaining in place, explicitly stated (e.g. 'existing facility £5.08m', 'current balance £4.5m'). Do not confuse with the requested facility amount.",
+              "description": "Outstanding balance of existing secured debt being refinanced or remaining in place, explicitly stated (e.g. 'existing facility \u00a35.08m', 'current balance \u00a34.5m'). Do not confuse with the requested facility amount.",
               "type": [
                 "object",
                 "null"
@@ -19562,7 +19574,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19636,7 +19648,7 @@
               ]
             },
             "value": {
-              "description": "Portion of the purchase price payable later under a deferred-consideration or vendor-deferral arrangement (e.g. '£1.6m deferred over 24 months'). The full purchase price includes this amount.",
+              "description": "Portion of the purchase price payable later under a deferred-consideration or vendor-deferral arrangement (e.g. '\u00a31.6m deferred over 24 months'). The full purchase price includes this amount.",
               "type": [
                 "object",
                 "null"
@@ -19644,7 +19656,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19718,7 +19730,7 @@
               ]
             },
             "value": {
-              "description": "Amendment, extension or waiver fee stated on a loan variation or stressed refinance (e.g. 'amendment fee £300k', 'extension fee 1%').",
+              "description": "Amendment, extension or waiver fee stated on a loan variation or stressed refinance (e.g. 'amendment fee \u00a3300k', 'extension fee 1%').",
               "type": [
                 "object",
                 "null"
@@ -19726,7 +19738,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19808,7 +19820,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19882,7 +19894,7 @@
               ]
             },
             "value": {
-              "description": "Budget or facility for planning/promotion costs on strategic land before consent (e.g. 'planning costs facility £350k').",
+              "description": "Budget or facility for planning/promotion costs on strategic land before consent (e.g. 'planning costs facility \u00a3350k').",
               "type": [
                 "object",
                 "null"
@@ -19890,7 +19902,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -19972,7 +19984,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20046,7 +20058,7 @@
               ]
             },
             "value": {
-              "description": "Value of a comparable unencumbered/freehold interest stated as a comparator (e.g. '£560k freehold value' against a short-leasehold asset). This is NOT the subject's value.",
+              "description": "Value of a comparable unencumbered/freehold interest stated as a comparator (e.g. '\u00a3560k freehold value' against a short-leasehold asset). This is NOT the subject's value.",
               "type": [
                 "object",
                 "null"
@@ -20054,7 +20066,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20136,7 +20148,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20210,7 +20222,7 @@
               ]
             },
             "value": {
-              "description": "Annual rent payable under a sale-and-leaseback or ground-lease arrangement, explicitly stated (e.g. 'leaseback rent £200,000 p.a.'). This is the repayment stream to the investor, not a loan coupon.",
+              "description": "Annual rent payable under a sale-and-leaseback or ground-lease arrangement, explicitly stated (e.g. 'leaseback rent \u00a3200,000 p.a.'). This is the repayment stream to the investor, not a loan coupon.",
               "type": [
                 "object",
                 "null"
@@ -20218,7 +20230,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20292,7 +20304,7 @@
               ]
             },
             "value": {
-              "description": "Price paid for an income strip — the capitalised value of a contracted rent stream, explicitly stated (e.g. 'strip price £12m'). No reversionary value is included.",
+              "description": "Price paid for an income strip \u2014 the capitalised value of a contracted rent stream, explicitly stated (e.g. 'strip price \u00a312m'). No reversionary value is included.",
               "type": [
                 "object",
                 "null"
@@ -20300,7 +20312,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20382,7 +20394,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20576,7 +20588,7 @@
               ]
             },
             "value": {
-              "description": "Deferred management fee (DMF) stream or event-fee income stated for a later-living / retirement scheme. This is recurring income, not sales GDV — do not fold it into gross_development_value.",
+              "description": "Deferred management fee (DMF) stream or event-fee income stated for a later-living / retirement scheme. This is recurring income, not sales GDV \u2014 do not fold it into gross_development_value.",
               "type": [
                 "object",
                 "null"
@@ -20584,7 +20596,7 @@
               "properties": {
                 "amount": {
                   "minimum": 0,
-                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for £25.75m, 1792298 for £1,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
+                  "description": "Numeric amount explicitly supported by the source for this exact metric, expressed as the raw currency figure (e.g. 25750000 for \u00a325.75m, 1792298 for \u00a31,792,298). Do not use millions shorthand (25.75) unless the true amount is below 1000. Prefer the most precise explicit amount for the same metric and scope. Do not round, back-solve, sum unrelated lines, or derive from other values.",
                   "type": [
                     "number",
                     "null"
@@ -20658,7 +20670,7 @@
               ]
             },
             "value": {
-              "description": "Terms of a land option agreement — who may buy, at what price formula, exercisable when (e.g. 'option to purchase at 90% of consented open-market value, exercisable within 24 months of grant').",
+              "description": "Terms of a land option agreement \u2014 who may buy, at what price formula, exercisable when (e.g. 'option to purchase at 90% of consented open-market value, exercisable within 24 months of grant').",
               "type": [
                 "string",
                 "null"
@@ -20718,7 +20730,7 @@
               ]
             },
             "value": {
-              "description": "Terms of a land promotion agreement — promoter's obligations and share of proceeds.",
+              "description": "Terms of a land promotion agreement \u2014 promoter's obligations and share of proceeds.",
               "type": [
                 "string",
                 "null"
@@ -20778,7 +20790,7 @@
               ]
             },
             "value": {
-              "description": "Overage or clawback provision on a site purchase (e.g. '25% of GDV above £9m payable to vendor'). This is contingent consideration, often excluded from stated cost.",
+              "description": "Overage or clawback provision on a site purchase (e.g. '25% of GDV above \u00a39m payable to vendor'). This is contingent consideration, often excluded from stated cost.",
               "type": [
                 "string",
                 "null"
@@ -20898,7 +20910,7 @@
               ]
             },
             "value": {
-              "description": "Covenant breach, waiver, cure or compliance status stated for an existing facility (e.g. 'LTV covenant 70% breached — £800k cure proposed').",
+              "description": "Covenant breach, waiver, cure or compliance status stated for an existing facility (e.g. 'LTV covenant 70% breached \u2014 \u00a3800k cure proposed').",
               "type": [
                 "string",
                 "null"
@@ -21080,7 +21092,7 @@
             "value": {
               "anyOf": [
                 {
-                  "description": "Nomination agreement for PBSA or specialist accommodation — operator/university, beds covered, coverage percentage, terms."
+                  "description": "Nomination agreement for PBSA or specialist accommodation \u2014 operator/university, beds covered, coverage percentage, terms."
                 },
                 {
                   "type": "null"
@@ -21206,7 +21218,7 @@
             "value": {
               "anyOf": [
                 {
-                  "description": "Per-asset schedule for a portfolio or cross-collateralised facility — asset_id, value, release price per asset."
+                  "description": "Per-asset schedule for a portfolio or cross-collateralised facility \u2014 asset_id, value, release price per asset."
                 },
                 {
                   "type": "null"
@@ -21267,7 +21279,7 @@
               ]
             },
             "value": {
-              "description": "Construction method where relevant to the facility structure (e.g. 'volumetric modular — 30% factory deposit').",
+              "description": "Construction method where relevant to the facility structure (e.g. 'volumetric modular \u2014 30% factory deposit').",
               "type": [
                 "string",
                 "null"
@@ -21327,7 +21339,7 @@
               ]
             },
             "value": {
-              "description": "Forward purchase or forward commitment terms — who commits to buy, when, at what price (e.g. 'institutional purchaser committed to buy at PC for £40m').",
+              "description": "Forward purchase or forward commitment terms \u2014 who commits to buy, when, at what price (e.g. 'institutional purchaser committed to buy at PC for \u00a340m').",
               "type": [
                 "string",
                 "null"
@@ -21567,7 +21579,7 @@
               ]
             },
             "value": {
-              "description": "Buy-back / repurchase option in a sale & leaseback or ground-lease transaction (e.g. '£1 nominal at year 75').",
+              "description": "Buy-back / repurchase option in a sale & leaseback or ground-lease transaction (e.g. '\u00a31 nominal at year 75').",
               "type": [
                 "string",
                 "null"

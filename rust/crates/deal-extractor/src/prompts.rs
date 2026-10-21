@@ -149,7 +149,8 @@ Return JSON:
   "focus_facility_id": "<id>",
   "focus_resolution_status": "resolved" | "ambiguous" | "unresolved",
   "candidate_facility_ids": [...],
-  "document_annotations": [...]
+  "document_annotations": [...],
+  "parties": [...]
 }
 
 ## CLASSIFICATION
@@ -202,6 +203,13 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 
 ## CAPITAL SNAPSHOTS
 { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
+
+## PARTIES
+Every named entity with a stake in the deal:
+{ "id": "<slug>", "name", "entity_type": "company" | "person", "roles": [], "jurisdiction", "company_number", "evidence": [{ "file_id", "quote" }] }
+- roles from: borrower | lender | sponsor | investment_manager | parent | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | selling_agent | broker | contractor | architect | other.
+- Emit the borrower SPV AND every entity on a structure chart, with its stated role — "X is the investment manager of Y", "SSRE – Cell 1", parent groups, shareholding chains all count. The SPV alone is not the sponsor; the operating group behind it is.
+- A contractor, selling agent, broker or valuer gets its own role — NEVER sponsor or developer, even when its brochure dominates the pack ("Deep Group brochure – Contractor" → contractor). A contractor CV enclosed for capability does not make the contractor the sponsor.
 
 Return ONLY valid JSON."#;
 

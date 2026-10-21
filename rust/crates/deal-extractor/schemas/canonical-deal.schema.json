@@ -5248,7 +5248,13 @@
                 "valuer",
                 "servicer",
                 "adviser",
-                "other"
+                "other",
+                "investment_manager",
+                "parent",
+                "contractor",
+                "selling_agent",
+                "broker",
+                "architect"
               ]
             }
           },
@@ -5438,6 +5444,12 @@
                 "quote"
               ]
             }
+          },
+          "jurisdiction": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

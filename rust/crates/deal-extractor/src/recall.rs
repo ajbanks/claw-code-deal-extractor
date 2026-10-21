@@ -80,6 +80,9 @@ const PCT_KEYWORDS: &[(&str, u8)] = &[
     ("coupon", 2),
     ("interest", 2),
     ("cap rate", 2),
+    ("capitalisation", 2),
+    ("capitalization", 2),
+    ("exit yield", 2),
     ("return", 1),
     ("rate", 1),
     ("occupancy", 1),
@@ -646,5 +649,21 @@ mod tests {
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].value, 20_000_000.0);
         assert_eq!(got[0].occurrences, 2);
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn xlsx_cap_rate_fraction_is_a_recall_candidate() {
+        let c = Corpus::from_pages(vec![crate::documents::DocPage {
+            doc_name: "model.xlsx".into(), page_label: "1".into(),
+            text: "Yield Summary\tCapitalisation Rate\t0.045\nResidential\tParking".into(),
+        }]);
+        let got = unaccounted_figures(&json!({}), &c);
+        assert!(!got.is_empty(), "expected unaccounted cap figure");
     }
 }

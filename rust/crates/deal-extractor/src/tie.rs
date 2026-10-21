@@ -125,6 +125,24 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
         let pc = pct(doc, "details.purchaser_costs").unwrap_or(0.0) / 100.0;
         if gdv > 0.0 {
             let implied = noi / (gdv / (1.0 - pc)) * 100.0;
+            // Only meaningful when the GDV is an INVESTMENT value (income /
+            // BTR exit): on a unit-sales scheme the cap vs NOI comparison is
+            // a category error (IH sales GDV £115.2m vs stated cap 5.2% on a
+            // much smaller income stream). Investment-like = a stabilised
+            // valuation exists, no residential unit-sales schedule, or the
+            // stated cap actually explains the GDV (NOI ÷ cap ≈ GDV ±50%).
+            let resi_units = d("residential_units").unwrap_or(0.0);
+            let stabilised = doc
+                .get("canonical_deal")
+                .and_then(|c| c.get("valuations"))
+                .and_then(Value::as_array)
+                .is_some_and(|vs| vs.iter().any(|v| {
+                    v.get("value_type").and_then(Value::as_str) == Some("stabilised_value")
+                }));
+            let investment_like = stabilised || resi_units <= 0.0 || (implied - stated).abs() <= 0.5;
+            if !investment_like {
+                // Sales GDV — a NOI/cap tie would misfire and burn a fix call.
+            } else {
             let ok = (implied - stated).abs() <= 0.25;
             out.push(Tie {
                 id: "cap_vs_noi_value",
@@ -132,6 +150,7 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
                 detail: format!("stated cap {stated:.2}% vs implied {implied:.2}% (NOI {noi:.0} ÷ GDV {gdv:.0} net of {:.1}% costs)", pc * 100.0),
                 fields: vec!["details.stabilised_yield".into(), "details.net_operating_income".into(), "details.gross_development_value".into()],
             });
+            }
         }
     }
 
@@ -349,5 +368,37 @@ mod tests {
             "total_development_cost": ws(json!({"amount": 5500000})),
         }));
         assert!(!tie_checks(&d2).iter().any(|t| t.id == "profit_vs_gdv_cost"));
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn cap_tie_skipped_on_sales_gdv() {
+        let d = json!({"details": {
+            "net_operating_income": {"value": {"amount": 3340000}},
+            "gross_development_value": {"value": {"amount": 115200000}},
+            "stabilised_yield": {"value": 0.052},
+            "residential_units": {"value": 108},
+            "purchaser_costs": {"value": 0.0},
+        }, "canonical_deal": {"valuations": []}});
+        let ties = tie_checks(&d);
+        assert!(!ties.iter().any(|t| t.id == "cap_vs_noi_value"), "{ties:?}");
+    }
+
+    #[test]
+    fn cap_tie_fires_on_investment_gdv() {
+        let d = json!({"details": {
+            "net_operating_income": {"value": {"amount": 2888391}},
+            "gross_development_value": {"value": {"amount": 59903986}},
+            "stabilised_yield": {"value": 0.045},
+            "residential_units": {"value": 183},
+            "purchaser_costs": {"value": 0.0},
+        }, "canonical_deal": {"valuations": []}});
+        let ties = tie_checks(&d);
+        assert!(ties.iter().any(|t| t.id == "cap_vs_noi_value"), "{ties:?}");
     }
 }

@@ -58,12 +58,17 @@ pub struct RecallDiagnostics {
     pub escalation_error: Option<String>,
     pub coverage_filled: Vec<String>,
     pub coverage_rejected: Vec<String>,
+    /// First new validation issue per rejected fill path:
+    /// "path: code message" — fills used to die silently on nullable
+    /// required keys.
+    pub coverage_rejected_reasons: Vec<String>,
     pub coverage_error: Option<String>,
     /// Corpus figures (labelled money / percentages) found nowhere in the
     /// output, before the tool fill: "<doc> p<page>: <label> <figure>".
     pub unaccounted_figures: Vec<String>,
     pub tool_fill_merged: Vec<String>,
     pub tool_fill_rejected: Vec<String>,
+    pub tool_fill_rejected_reasons: Vec<String>,
     pub tool_fill_error: Option<String>,
     /// Evidenced-but-empty paths still empty at the end.
     pub coverage_gaps_remaining: Vec<String>,
@@ -278,6 +283,8 @@ pub async fn run_multi_pass(
         // chosen result is restored iff its commitment is corpus-evidenced.
         let vote_refs: Vec<&Value> = votes.iter().collect();
         restore_dropped_facilities(&mut chosen, &vote_refs, corpus, &mut recall);
+        dedupe_facilities(&mut chosen);
+        merge_parties(&mut chosen, &votes);
         // Focus adopt: the adjudicator can clear focus_facility_id even when
         // a vote pointed at a facility that (possibly via the union) is in
         // the chosen set — adopt the first vote focus that resolves.
@@ -437,6 +444,7 @@ pub async fn run_multi_pass(
             "facility_parties": [],
             "capital_events": capital_events,
             "capital_snapshots": capital_snapshots,
+            "parties": pass_a.get("parties").cloned().unwrap_or(json!([])),
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
@@ -594,7 +602,7 @@ pub async fn run_multi_pass(
             );
             let t = std::time::Instant::now();
             match coverage::fill_missing(cov_ex, &mut final_doc, &missing).await {
-                Ok((merged, rejected)) => {
+                Ok((merged, rejected, reasons)) => {
                     eprintln!(
                         "[coverage] filled {} paths in {:.1}s",
                         merged.len(),
@@ -602,6 +610,7 @@ pub async fn run_multi_pass(
                     );
                     recall.coverage_filled = merged;
                     recall.coverage_rejected = rejected;
+                    recall.coverage_rejected_reasons = reasons;
                 }
                 Err(e) => {
                     eprintln!("[coverage] fill FAILED: {e}");
@@ -667,13 +676,14 @@ pub async fn run_multi_pass(
             fill_issues.len() - unaccounted.len()
         );
         match repair::tool_fill(fill_model, corpus, &mut final_doc, &fill_issues).await {
-            Ok((merged, rejected)) => {
+            Ok((merged, rejected, reasons)) => {
                 eprintln!(
                     "[recall] merged {} paths, rejected {}",
                     merged.len(),
                     rejected.len()
                 );
                 recall.tool_fill_merged = merged;
+                recall.tool_fill_rejected_reasons = reasons;
                 recall.tool_fill_rejected = rejected;
             }
             Err(e) => {
@@ -722,7 +732,7 @@ pub async fn run_multi_pass(
                         }
                     }
                 }
-                let (merged, _rejected) =
+                let (merged, _rejected, _reasons) =
                     coverage::merge_patch_guarded(&mut final_doc, &scoped, |_| None, false);
                 recall.tie_fixes = merged;
             }
@@ -903,6 +913,7 @@ fn restore_dropped_facilities(
             let id = f.get("id").and_then(Value::as_str);
             if id.is_some_and(|i| kept_ids.contains(&i))
                 || kept_amts.iter().any(|&g| close(amt, g))
+                || kept.iter().any(|g| same_facility(&f, g))
                 || restored
                     .iter()
                     .any(|r: &Value| facility_commitment(r).is_some_and(|g| close(amt, g)))
@@ -930,6 +941,119 @@ fn restore_dropped_facilities(
         .or_insert_with(|| json!([]));
     if let Some(list) = arr.as_array_mut() {
         list.extend(restored);
+    }
+}
+
+/// Normalised amount-bearing quotes a facility's evidence carries — the
+/// same cost/loan line quoted by two facilities is the fingerprint of an
+/// extraction duplicate ("Land Refinance Cost 5078772.32" produced both a
+/// "leg" and a "facility" on Luton6).
+fn facility_quotes(f: &Value) -> Vec<String> {
+    f.get("evidence")
+        .and_then(Value::as_array)
+        .map(|evs| {
+            evs.iter()
+                .filter_map(|e| e.get("quote").and_then(Value::as_str))
+                .map(|q| q.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|q| !q.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Two facilities are the same extraction when their commitments match
+/// (±0.5%) AND they share at least one identical evidence quote — the
+/// adjudication-restored twin that rebuilt Luton6's £39.16m group.
+fn same_facility(a: &Value, b: &Value) -> bool {
+    let (Some(x), Some(y)) = (facility_commitment(a), facility_commitment(b)) else {
+        return false;
+    };
+    if (x - y).abs() > 0.005 * x.abs().max(y.abs()) {
+        return false;
+    }
+    let bq = facility_quotes(b);
+    facility_quotes(a).iter().any(|q| bq.contains(q))
+}
+
+/// Final dedupe after restore/adjudication: drop the SECOND facility of
+/// every same-amount same-quote pair, keeping the richer entry.
+fn dedupe_facilities(chosen: &mut Value) {
+    let Some(list) = chosen.get_mut("facilities").and_then(Value::as_array_mut) else {
+        return;
+    };
+    let snapshot = list.clone();
+    let mut keep_idx: Vec<usize> = Vec::new();
+    for (i, f) in snapshot.iter().enumerate() {
+        if let Some(pos) = keep_idx
+            .iter()
+            .position(|&j| same_facility(f, &snapshot[j]))
+        {
+            // Keep whichever carries more evidence entries.
+            let fe = f.get("evidence").and_then(Value::as_array).map_or(0, Vec::len);
+            let j = keep_idx[pos];
+            let ge = snapshot[j]
+                .get("evidence")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len);
+            if fe > ge {
+                keep_idx[pos] = i;
+            }
+            continue;
+        }
+        keep_idx.push(i);
+    }
+    if keep_idx.len() != snapshot.len() {
+        let kept: Vec<Value> = keep_idx.iter().map(|&i| snapshot[i].clone()).collect();
+        *list = kept;
+    }
+}
+
+/// Union of the vote/adjudication party lists by normalised name —
+/// adjudication returns PASS A's full format but routinely drops parties
+/// the votes found (canonical parties was empty on every prod run).
+fn merge_parties(chosen: &mut Value, votes: &[Value]) {
+    let norm = |s: &str| s.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut merged: Vec<Value> = chosen
+        .get("parties")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for vote in votes {
+        for p in vote.get("parties").and_then(Value::as_array).cloned().unwrap_or_default() {
+            let name = p.get("name").and_then(Value::as_str).map(norm);
+            let Some(name) = name.filter(|n| !n.is_empty()) else {
+                continue;
+            };
+            if let Some(existing) = merged.iter_mut().find(|m| {
+                m.get("name").and_then(Value::as_str).map(norm).as_deref() == Some(name.as_str())
+            }) {
+                // Merge roles (union) and backfill missing scalar fields.
+                if let (Some(er), Some(vr)) = (
+                    existing.get_mut("roles").and_then(Value::as_array_mut),
+                    p.get("roles").and_then(Value::as_array),
+                ) {
+                    for r in vr {
+                        if !er.contains(r) {
+                            er.push(r.clone());
+                        }
+                    }
+                }
+                for key in ["company_number", "jurisdiction", "entity_type", "address"] {
+                    if existing.get(key).is_none_or(Value::is_null) {
+                        if let Some(v) = p.get(key).filter(|v| !v.is_null()) {
+                            existing.as_object_mut().unwrap().insert(key.to_string(), v.clone());
+                        }
+                    }
+                }
+            } else {
+                merged.push(p);
+            }
+        }
+    }
+    if !merged.is_empty() || chosen.get("parties").is_some() {
+        if let Some(obj) = chosen.as_object_mut() {
+            obj.insert("parties".to_string(), Value::Array(merged));
+        }
     }
 }
 
@@ -1856,5 +1980,71 @@ mod tests {
 
         let gd = details["gross_debt"]["value"]["amount"].as_str().unwrap();
         assert_eq!(gd, "25750000");
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn restore_skips_and_dedupe_drops_shared_quote_twin() {
+        let leg = json!({"id":"leg","name":"Luton land refinance leg",
+            "commitment":{"amount":"5078772.32","currency":"GBP"},
+            "disposition":"requested","loan_type":"development",
+            "evidence":[{"quote":"Land Refinance Cost 5078772.32"}]});
+        let facq = json!({"id":"fac","name":"Luton Phase 2 Land Refinance Facility",
+            "commitment":{"amount":"5078772.32","currency":"GBP"},
+            "disposition":"requested","loan_type":"development",
+            "evidence":[{"quote":"Land Refinance Cost 5078772.32"}]});
+        let mut chosen = json!({"facilities":[leg.clone(), facq.clone()]});
+        dedupe_facilities(&mut chosen);
+        assert_eq!(chosen["facilities"].as_array().unwrap().len(), 1);
+        let mut adj = json!({"facilities":[leg.clone()]});
+        let mut recall = RecallDiagnostics::default();
+        let vote = json!({"facilities":[leg, facq]});
+        let corpus = Corpus::from_pages(vec![crate::documents::DocPage {
+            doc_name: "pack.pdf".into(), page_label: "1".into(),
+            text: "Land Refinance Cost 5078772.32".into(),
+        }]);
+        restore_dropped_facilities(&mut adj, &[&vote], &corpus, &mut recall);
+        assert!(recall.adjudication_restored.is_empty());
+        assert_eq!(adj["facilities"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn merge_parties_unions_roles_and_fields() {
+        let p = |name: &str, roles: &[&str], extra: Value| {
+            let mut o = json!({"id": name, "name": name, "entity_type": "company",
+                "roles": roles, "evidence": [{"file_id":"f1","document_type":"brochure","quote":"q"}]});
+            o.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            o
+        };
+        let v1 = json!({"parties":[
+            p("SSRE Investment 2 Limited", &["borrower"], json!({"jurisdiction":"Guernsey","company_number":"63888"})),
+            p("Strawberry Star Investment Manager Guernsey Limited", &["investment_manager"], json!({})),
+        ]});
+        let v2 = json!({"parties":[
+            p("SSRE Investment 2 Limited", &["borrower","sponsor"], json!({})),
+            p("Strawberry Star Real Estate PCC Limited", &["parent"], json!({})),
+            p("Deep Group London", &["contractor"], json!({})),
+        ]});
+        let mut chosen = json!({"parties":[]});
+        merge_parties(&mut chosen, &[v1, v2]);
+        let parties = chosen["parties"].as_array().unwrap();
+        assert_eq!(parties.len(), 4);
+        let ssre = parties.iter().find(|x| x["name"] == "SSRE Investment 2 Limited").unwrap();
+        assert!(ssre["roles"].as_array().unwrap().contains(&json!("sponsor")));
+        assert_eq!(ssre["jurisdiction"], "Guernsey");
+        let deep = parties.iter().find(|x| x["name"] == "Deep Group London").unwrap();
+        assert_eq!(deep["roles"], json!(["contractor"]));
+        // conform fills the party-level keys the model omits.
+        let mut doc = json!({"canonical_deal":{"parties": parties.clone()}});
+        crate::conform::conform_document(&mut doc);
+        let c = &doc["canonical_deal"]["parties"][0];
+        for key in ["address", "company_number", "evidence_assertion_ids", "evidence"] {
+            assert!(c.get(key).is_some(), "missing {key}");
+        }
     }
 }

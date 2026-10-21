@@ -168,9 +168,9 @@ pub async fn fill_missing(
     ex: &crate::extract::Extractor,
     doc: &mut Value,
     issues: &[Issue],
-) -> Result<(Vec<String>, Vec<String>), String> {
+) -> Result<(Vec<String>, Vec<String>, Vec<String>), String> {
     if issues.is_empty() {
-        return Ok((Vec::new(), Vec::new()));
+        return Ok((Vec::new(), Vec::new(), Vec::new()));
     }
     let prompt = format!(
         "{PATCH_PROMPT}{}\n\nDOCUMENT (for shape reference):\n{}",
@@ -201,19 +201,24 @@ pub async fn fill_missing(
 /// Merge a `{path: value}` patch one path at a time, rolling back any path
 /// that introduces validation errors. With `only_empty`, paths whose current
 /// value is populated are rejected — fills may add, never overwrite.
-/// Returns (merged, rejected) paths.
+/// Returns (merged, rejected, rejection_reasons) where each reason is
+/// "path: code message" for the first new issue the insert raised — the
+/// model routinely omits nullable required keys, so the value is conformed
+/// BEFORE validation or every fill dies on missing-null keys
+/// (facility_parties / planning_applications rejected on every run).
 pub(crate) fn merge_patch_guarded(
     doc: &mut Value,
     obj: &serde_json::Map<String, Value>,
     source_for: impl Fn(&str) -> Option<String>,
     only_empty: bool,
-) -> (Vec<String>, Vec<String>) {
+) -> (Vec<String>, Vec<String>, Vec<String>) {
     let baseline_errors: std::collections::HashSet<String> = crate::validate::validate(doc)
         .iter()
         .map(|i| i.path.clone())
         .collect();
     let mut merged = Vec::new();
     let mut rejected = Vec::new();
+    let mut reasons = Vec::new();
     for (path, value) in obj {
         if value.is_null() || (only_empty && !path_is_empty(doc, path)) {
             rejected.push(path.clone());
@@ -237,6 +242,10 @@ pub(crate) fn merge_patch_guarded(
             }
         }
         set_path(doc, path, v);
+        // Conform the inserted value BEFORE judging it — schema `required`
+        // lists nullable keys the model omits, and judging the raw insert
+        // rejects every facility_parties / planning_applications fill.
+        crate::conform::conform_document(doc);
         let new_issues = crate::validate::validate(doc);
         let bad = new_issues
             .iter()
@@ -249,6 +258,13 @@ pub(crate) fn merge_patch_guarded(
         if bad || worse {
             *doc = snapshot;
             rejected.push(path.clone());
+            if let Some(issue) = new_issues
+                .iter()
+                .find(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path))
+                .or_else(|| new_issues.iter().find(|i| !baseline_errors.contains(&i.path)))
+            {
+                reasons.push(format!("{path}: {} {}", issue.code, issue.message));
+            }
         } else {
             merged.push(path.clone());
         }
@@ -256,7 +272,7 @@ pub(crate) fn merge_patch_guarded(
     if !rejected.is_empty() {
         eprintln!("[coverage] rejected patch paths: {}", rejected.join(", "));
     }
-    (merged, rejected)
+    (merged, rejected, reasons)
 }
 
 /// Like `field_is_empty`, but follows `[i]` array indices; an index past the
@@ -359,5 +375,29 @@ fn set_path_at(node: &mut Value, segs: &[&str], value: Value) {
                 set_path_at(child, &segs[1..], value);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn planning_application_missing_nullable_keys_merges() {
+        // Prod order: conform runs before merge, so baseline issues are
+        // pre-existing and only the inserted path is judged.
+        let mut doc = json!({
+            "details": {},
+            "canonical_deal": { "planning_applications": [], "facilities": [] },
+        });
+        crate::conform::conform_document(&mut doc);
+        let obj = serde_json::Map::from_iter([(
+            "canonical_deal.planning_applications[0]".to_string(),
+            json!({"id":"pa_1","reference":"LUT/2024/1234","description":"183 dwellings","status":"granted"}),
+        )]);
+        let (merged, rejected, reasons) = merge_patch_guarded(&mut doc, &obj, |_| None, false);
+        assert!(rejected.is_empty(), "rejected={rejected:?} reasons={reasons:?}");
+        assert!(merged.contains(&"canonical_deal.planning_applications[0]".to_string()));
     }
 }
