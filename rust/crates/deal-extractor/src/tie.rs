@@ -131,7 +131,21 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
             // much smaller income stream). Investment-like = a stabilised
             // valuation exists, no residential unit-sales schedule, or the
             // stated cap actually explains the GDV (NOI ÷ cap ≈ GDV ±50%).
-            let resi_units = d("residential_units").unwrap_or(0.0);
+            // Sales vs rental scheme is decided by the unit schedule:
+            // unit-sales schemes price units (expected_gdv, no pcm rents);
+            // BTR/rental schemes carry expected_rent_pcm. A misread cap on a
+            // rental scheme is exactly what this tie catches — never skip it.
+            let units = doc
+                .get("details")
+                .and_then(|d| d.get("residential_units"))
+                .and_then(|u| Some(u.get("value").unwrap_or(u)))
+                .and_then(Value::as_array);
+            let has_sale_prices = units.is_some_and(|us| us.iter().any(|u| {
+                u.get("expected_gdv").or_else(|| u.get("price")).is_some_and(|v| !v.is_null())
+            }));
+            let has_rents = units.is_some_and(|us| us.iter().any(|u| {
+                u.get("expected_rent_pcm").or_else(|| u.get("rent_pcm")).is_some_and(|v| !v.is_null())
+            }));
             let stabilised = doc
                 .get("canonical_deal")
                 .and_then(|c| c.get("valuations"))
@@ -139,7 +153,8 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
                 .is_some_and(|vs| vs.iter().any(|v| {
                     v.get("value_type").and_then(Value::as_str) == Some("stabilised_value")
                 }));
-            let investment_like = stabilised || resi_units <= 0.0 || (implied - stated).abs() <= 0.5;
+            let sales_scheme = has_sale_prices && !has_rents && !stabilised;
+            let investment_like = !sales_scheme;
             if !investment_like {
                 // Sales GDV — a NOI/cap tie would misfire and burn a fix call.
             } else {
@@ -382,7 +397,7 @@ mod extra_tests {
             "net_operating_income": {"value": {"amount": 3340000}},
             "gross_development_value": {"value": {"amount": 115200000}},
             "stabilised_yield": {"value": 0.052},
-            "residential_units": {"value": 108},
+            "residential_units": {"value": [{"bedrooms":1,"quantity":60,"expected_gdv":525000},{"bedrooms":2,"quantity":48,"expected_gdv":720000}]},
             "purchaser_costs": {"value": 0.0},
         }, "canonical_deal": {"valuations": []}});
         let ties = tie_checks(&d);
@@ -394,8 +409,8 @@ mod extra_tests {
         let d = json!({"details": {
             "net_operating_income": {"value": {"amount": 2888391}},
             "gross_development_value": {"value": {"amount": 59903986}},
-            "stabilised_yield": {"value": 0.045},
-            "residential_units": {"value": 183},
+            "stabilised_yield": {"value": 0.06},
+            "residential_units": {"value": [{"bedrooms":1,"quantity":122,"expected_gdv":null,"expected_rent_pcm":1350},{"bedrooms":2,"quantity":61,"expected_rent_pcm":1800}]},
             "purchaser_costs": {"value": 0.0},
         }, "canonical_deal": {"valuations": []}});
         let ties = tie_checks(&d);

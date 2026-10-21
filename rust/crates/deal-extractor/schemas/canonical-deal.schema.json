@@ -5236,6 +5236,8 @@
                 "borrower",
                 "lender",
                 "sponsor",
+                "investment_manager",
+                "parent",
                 "guarantor",
                 "security_trustee",
                 "facility_agent",
@@ -5248,14 +5250,12 @@
                 "valuer",
                 "servicer",
                 "adviser",
-                "other",
-                "investment_manager",
-                "parent",
-                "contractor",
                 "selling_agent",
                 "broker",
-                "architect"
-              ]
+                "contractor",
+                "architect",
+                "other"
+            ]
             }
           },
           "address": {
@@ -5444,12 +5444,6 @@
                 "quote"
               ]
             }
-          },
-          "jurisdiction": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
