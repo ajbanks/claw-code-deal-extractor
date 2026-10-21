@@ -327,7 +327,10 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
                     && line.contains('\t')
                     && PCT_KEYWORDS.iter().any(|(k, _)| context.contains(k));
                 let (value, tol, kind) = if sheet_fraction {
-                    (p.value * 100.0, p.tol * 100.0, FigureKind::Percent)
+                    // Percent-scale tolerance: the decimal half-step ×100 is
+                    // far too wide (stated 0.045 vs implied 4.515% sat inside
+                    // it and the flag never fired). ±0.01pp.
+                    (p.value * 100.0, (p.tol * 100.0).min(0.01), FigureKind::Percent)
                 } else {
                     (p.value, p.tol, p.kind)
                 };
@@ -549,6 +552,21 @@ mod tests {
         assert!(unaccounted_figures(&doc, &c).is_empty());
         let got = unaccounted_figures(&json!({}), &c);
         assert_eq!(values(&got).len(), 2);
+    }
+
+    #[test]
+    fn xlsx_sheet_row_cap_rate_fraction_is_flagged() {
+        // Real calamine render of the Luton CF sheet — "Parking Cap Rate
+        // 0.045" is a bare fraction beside a rate label on a tab row.
+        let c = corpus(&[(
+            "CF.xlsx",
+            "Luton P2 Block C",
+            "GIA Efficiency \t0.7405269709347994\tValue per parking space (Per Month)\t175\tParking Cap Rate\t0.045\t\t6858802.88",
+        )]);
+        // Output carries only an implied cap — the stated 4.5% is unaccounted.
+        let doc = json!({ "kpis": { "cap": { "value": 0.04515041437980576 } } });
+        let got = unaccounted_figures(&doc, &c);
+        assert!(values(&got).contains(&4.5), "{:?}", values(&got));
     }
 
     #[test]

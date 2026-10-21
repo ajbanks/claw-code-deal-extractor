@@ -127,6 +127,22 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
                     *fixes += 1;
                 }
                 Value::String(s) => {
+                    // Empty string on an enum field is a missing value, not a
+                    // member — null it out when the schema allows, else fall
+                    // back to the catch-all "other" member (model emitted
+                    // "" for facility_parties[].role → schema_violation).
+                    if s.trim().is_empty() && schema.get("enum").is_some() {
+                        if nullable(schema) {
+                            *inst = Value::Null;
+                            *fixes += 1;
+                            return;
+                        }
+                        if enum_fix(schema, "other").is_some() {
+                            *inst = Value::String("other".to_string());
+                            *fixes += 1;
+                            return;
+                        }
+                    }
                     if let Some(fixed) = enum_fix(schema, &s) {
                         if fixed != s {
                             *inst = Value::String(fixed);
@@ -252,6 +268,27 @@ mod tests {
         let f = &doc["canonical_deal"]["facilities"][0];
         assert_eq!(f["instrument_type"], "debt_facility");
         assert_eq!(f["role"], "senior_debt");
+    }
+
+    #[test]
+    fn empty_enum_string_becomes_other_or_null() {
+        let mut doc = json!({
+            "canonical_deal": {
+                "facilities": [{"id": "f1", "name": "x"}],
+                "facility_parties": [
+                    {"facility_id": "f1", "name": "a", "role": ""},
+                    {"facility_id": "f1", "name": "b", "role": ""}
+                ]
+            },
+            "details": {}, "kpis": {}, "classification": {}
+        });
+        conform_document(&mut doc);
+        let p = &doc["canonical_deal"]["facility_parties"];
+        // facility_parties[].role is non-nullable with an "other" member —
+        // the empty string the model emitted becomes "other" instead of a
+        // schema_violation rejection.
+        assert_eq!(p[0]["role"], "other");
+        assert_eq!(p[1]["role"], "other");
     }
 
     #[test]
