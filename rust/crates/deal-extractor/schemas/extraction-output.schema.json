@@ -11232,11 +11232,9 @@
               ]
             },
             "value": {
-              "description": "Fee description explicitly stated in the source, such as arrangement, exit, monitoring, commitment, or non-utilisation fees. Do not calculate total fees.",
-              "type": [
-                "string",
-                "null"
-              ]
+              "description": "Stated lender fee. Prefer the object form: { percentage: <number>, split: <string> } — e.g. \"2% fee, 50/50 on drawdown and exit\" → { percentage: 2, split: \"50/50 drawdown/exit\" }. A plain string is acceptable only when the fee cannot be expressed as percentage + split (e.g. monitoring fee £750/quarter). Do not calculate total fees.",
+              "type": ["string", "object", "null"],
+              "properties": { "percentage": { "type": ["number", "null"] }, "split": { "type": ["string", "null"] }, "description": { "type": ["string", "null"] } }
             }
           },
           "required": [

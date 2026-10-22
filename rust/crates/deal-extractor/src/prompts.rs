@@ -25,10 +25,11 @@ For each facility:
 - role: one of senior_debt | mezzanine_debt | junior_debt | whole_loan | developer_equity | preferred_equity | other
 - scope_level: "deal" if it is part of the deal being underwritten, "project" if it is a future/project-scope facility, null if unclear
 - loan_type: one of bridge | development | investment_term — NEVER free text like "finance requirement"
-- commitment: { amount, currency } — `amount` is an exact DECIMAL STRING in absolute units ("25750000"), NEVER a JSON number and NEVER millions shorthand (not "25.75")
+- commitment: { amount, currency } — `amount` is an exact DECIMAL STRING in absolute units ("25750000"), NEVER a JSON number and NEVER millions shorthand (not "25.75"). The commitment is the GROSS facility figure the facility letter/appraisal names ("development facility £73,393,202", "gross loan including rolled interest") — never a sub-total such as the drawdown-only amount, a single tranche, net-of-fees advance, or "loan less retained interest". If the pack states both gross and net figures, gross is the commitment and the net figure belongs in loan_components.net_proceeds. When a valuer reports a "proposed loan amount" it was told (e.g. "you have advised the proposed loan is £X"), that is the lender's quoted ask — it is NOT the development facility's sized commitment; the sponsor appraisal's named facility figure ("Gross Facility £73,393,202") is the commitment. Emit the valuer-quoted amount as its own facility/assertion when it differs.
 - term_months: number if stated — the stated EXPECTED facility term (e.g. "18-months expected"), never a period used only in an interest illustration, cash-flow example or extension scenario
 - stated_interest: { amount, currency } — explicit interest amount for THIS facility if stated (e.g. "rolled-up interest £509,123", "mezzanine interest £X"), else null
 - stated_redemption: { amount, currency } — the all-in repayment figure if stated (e.g. "loan including interest £5,699,659"), else null
+- loan_components.fees: EVERY stated lender fee as its own item — { label, kind (arrangement|exit|monitoring|commitment|non_utilisation|other), amount, stated: true }. A split fee becomes two items: "2% fee split 50/50 on drawdown and exit" → arrangement (1%) + exit (1%); put the rate in the label ("Arrangement fee (1%)") and the money amount when stated or trivially computable from the commitment. Never drop a stated fee — it prices the lender's return.
 - status: one of candidate | active | repaid | cancelled | superseded
 - disposition: one of requested | existing | repaid | proposed
 - lender_name: if named
@@ -61,6 +62,7 @@ Every named entity with a stake in the deal: { id, name, entity_type, roles, evi
 - roles from: borrower | lender | sponsor | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | other.
 - When the borrower is an SPV, also emit the sponsor/development group behind it — structure charts, "on behalf of", shareholder/parent mentions, promoter credits all count. The SPV alone is not the sponsor; the operating group it sits under is.
 - A contractor, selling agent, broker or valuer gets its own role — never sponsor/developer, even when its brochure dominates the pack (a contractor CV enclosed for capability does not make the contractor the sponsor).
+- Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
 
 ## VALUATIONS
 For each: { id, value_type (market_value|gross_development_value|residual_value|purchase_price|ninety_day_sale_value|day_1_value|unclassified), amount: {amount,currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence }.
@@ -210,6 +212,7 @@ Every named entity with a stake in the deal:
 - roles from: borrower | lender | sponsor | investment_manager | parent | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | selling_agent | broker | contractor | architect | other.
 - Emit the borrower SPV AND every entity on a structure chart, with its stated role — "X is the investment manager of Y", "SSRE – Cell 1", parent groups, shareholding chains all count. The SPV alone is not the sponsor; the operating group behind it is.
 - A contractor, selling agent, broker or valuer gets its own role — NEVER sponsor or developer, even when its brochure dominates the pack ("Deep Group brochure – Contractor" → contractor). A contractor CV enclosed for capability does not make the contractor the sponsor.
+- Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
 
 Return ONLY valid JSON."#;
 
@@ -270,7 +273,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - net_internal_area: { value: <number>, unit: "sqft" } — NIA in sqft
 - residential_units: array of { property_type, bedrooms, quantity, floor_area: { value, unit }, expected_gdv: { amount, currency } } — expected_gdv is the PER-UNIT expected sale price/GDV when the documents state one (e.g. "expected average unit prices", a sales schedule, or per-type target prices); never multiply by quantity
 - debt_structure: "whole_loan" | "senior_mezzanine" | "senior_only" | null
-- interest_rate, loan_term, fees, guarantees, covenants
+- interest_rate, loan_term, fees, guarantees, covenants — `fees` captures every stated lender fee INCLUDING the split: "2% fee, 50/50 on drawdown and exit" → { percentage: 2, split: "50/50 arrangement/exit" }. Never drop a stated fee % or split.
 - use_of_funds, source_of_funds, exit_plan — the ASSET-LEVEL exit: how the investment ends (unit sales / disposal of the completed scheme / refinance into term debt). When the documents describe both a facility-repayment step (e.g. "bridge repaid by the development facility's first advance") and an asset-level exit (e.g. "sale of completed units"), report the asset-level exit — the facility step is a capital event, not the exit plan.
 - finance_costs, purchaser_costs, project_gdv, day_1_value, stabilised_value — every other stated money/cost/value figure
 
@@ -314,10 +317,10 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - agent_details: { name, email, phone } — the selling/marketing agent or named contact in the pack's contact block (e.g. "Morgan Williams", contact footers). Always extract when stated.
 - document_date: the pack/publication date the document states (e.g. "April 2024" particulars, a dated report, an "as at" date). Preserve the stated precision — month-year when no day is given.
 - borrower_details: { name, type, track_record, email, phone, corporate_structure } — `corporate_structure` names the sponsor/parent GROUP behind a borrower SPV whenever the pack identifies one (structure chart, shareholder list, "X Ltd, a Strawberry Star company"). An SPV borrower alone leaves the sponsor invisible downstream — always populate it when a parent group is named.
-- sponsor_principals: [{ name, role, company, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder of the SPONSOR / borrower group from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role. A principal must belong to the sponsor/borrower entity — staff of the contractor, selling agent, broker or another third party named in the pack are NOT sponsor principals. `company` must be the sponsor's own group company (e.g. the entity named as sponsor/developer/parent of the borrower SPV), never the contractor's company.
+- sponsor_principals: [{ name, role, company, shareholding_pct, shareholding_company, director_of, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder of the SPONSOR / borrower group from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role. A principal must belong to the sponsor/borrower entity — staff of the contractor, selling agent, broker or another third party named in the pack are NOT sponsor principals. `company` must be the sponsor's own group company (e.g. the entity named as sponsor/developer/parent of the borrower SPV), never the contractor's company. Where a shareholding is stated, record `shareholding_company` (the company the shares are held in — often the borrower SPV) and `shareholding_pct`; record each directorship in `director_of` (list of company names). A person can direct a group company while holding shares in the SPV — keep the two distinct.
 - planning_status
 - construction_timelines: { start_date, completion_date, duration_months }
-- insurance_requirements, capex_plan
+- insurance_requirements, capex_plan — `capex_plan` captures every stated capital-expenditure budget or works line (e.g. "£1.5m capex programme") with its money amount; a stated capex figure is part of the cost basis, never drop it
 - current_asset_description: description of the property in its current state
 - building_specification: description of planned/completed works"#;
 
