@@ -284,6 +284,7 @@ pub async fn run_multi_pass(
         let vote_refs: Vec<&Value> = votes.iter().collect();
         restore_dropped_facilities(&mut chosen, &vote_refs, corpus, &mut recall);
         dedupe_facilities(&mut chosen);
+        merge_facility_amounts(&mut chosen, &votes);
         merge_parties(&mut chosen, &votes);
         // Focus adopt: the adjudicator can clear focus_facility_id even when
         // a vote pointed at a facility that (possibly via the union) is in
@@ -1005,6 +1006,44 @@ fn dedupe_facilities(chosen: &mut Value) {
     if keep_idx.len() != snapshot.len() {
         let kept: Vec<Value> = keep_idx.iter().map(|&i| snapshot[i].clone()).collect();
         *list = kept;
+    }
+}
+
+/// A facility's stated commitment survives a disagreeing vote: when the
+/// chosen (adjudicated or vote-1) result has a facility with a null
+/// commitment but another vote carries the same facility id with an amount,
+/// the stated amount is adopted. A null never overwrites a figure.
+fn merge_facility_amounts(chosen: &mut Value, votes: &[Value]) {
+    let Some(list) = chosen.get_mut("facilities").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for f in list.iter_mut() {
+        if facility_commitment(f).is_some() {
+            continue;
+        }
+        let Some(id) = f.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        for v in votes {
+            let donor = v
+                .get("facilities")
+                .and_then(Value::as_array)
+                .and_then(|fs| {
+                    fs.iter().find(|x| {
+                        x.get("id").and_then(Value::as_str) == Some(id)
+                            && facility_commitment(x).is_some()
+                    })
+                });
+            if let Some(d) = donor {
+                if let Some(obj) = f.as_object_mut() {
+                    obj.insert(
+                        "commitment".to_string(),
+                        d.get("commitment").cloned().unwrap_or(Value::Null),
+                    );
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -2047,4 +2086,30 @@ mod extra_tests {
             assert!(c.get(key).is_some(), "missing {key}");
         }
     }
+    #[test]
+    fn merge_facility_amounts_keeps_stated_amount_over_null_vote() {
+        let mut chosen = json!({
+            "facilities": [
+                {"id": "land_refinance_leg", "name": "Land refinance leg", "disposition": "requested", "commitment": null},
+                {"id": "dev_facility", "name": "Dev facility", "disposition": "requested", "commitment": {"amount": "35810099.96", "currency": "GBP"}},
+            ]
+        });
+        let votes = vec![
+            chosen.clone(),
+            json!({"facilities": [
+                {"id": "land_refinance_leg", "name": "Land refinance leg", "disposition": "requested", "commitment": {"amount": "5078772.32", "currency": "GBP"}},
+            ]}),
+        ];
+        merge_facility_amounts(&mut chosen, &votes);
+        assert_eq!(
+            chosen["facilities"][0]["commitment"]["amount"],
+            "5078772.32",
+        );
+        // An existing commitment is never overwritten.
+        assert_eq!(
+            chosen["facilities"][1]["commitment"]["amount"],
+            "35810099.96",
+        );
+    }
+
 }
