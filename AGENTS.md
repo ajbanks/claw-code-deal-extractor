@@ -7,6 +7,8 @@
 ## OVERVIEW
 Claw Code: public Rust implementation of the `claw` CLI agent harness (Claude-Code-style). Canonical code lives in `rust/`; the repo is an agent-managed exhibit (harnesses plan/execute/verify per README), not a hand-operated product. `src/` is a companion Python porting/parity workspace, not production code.
 
+> **NEVER build/test Rust locally** (`cargo build`/`cargo test`/`cargo clippy`) — it crashes WSL. Build and test on the EC2 instance instead (the copilot deploy script `--build-on-ec2` syncs claw-code source and builds the `deal-extractor` image on-host).
+
 ## STRUCTURE
 ```
 claw-code/

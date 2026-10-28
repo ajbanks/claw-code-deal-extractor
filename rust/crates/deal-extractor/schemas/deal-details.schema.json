@@ -1442,7 +1442,7 @@
           ]
         },
         "value": {
-          "description": "Estate agent or broker details only. Return null if not available. Do not populate with seller or borrower contacts unless the source identifies them as the agent / broker.",
+          "description": "Estate agent or broker details only — the firm marketing or selling the deal. Return null if not available. The VALUER (e.g. the firm that wrote the appraisal — Allsop, Savills, CBRE) is a professional adviser, NOT the agent: never file a valuer or surveyor here, even when they are the only named contact. When the pack names the selling agents without contact details, put those firm names in `name` and leave contacts empty. Do not populate with seller or borrower contacts unless the source identifies them as the agent / broker.",
           "type": [
             "object",
             "null"
@@ -2072,7 +2072,20 @@
             "retail",
             "industrial",
             "mixed_use",
-            "residential"
+            "residential",
+            "student_accommodation",
+            "hmo",
+            "co_living",
+            "serviced_accommodation",
+            "self_storage",
+            "logistics",
+            "healthcare",
+            "senior_living",
+            "leisure",
+            "data_centre",
+            "ground_rent",
+            "land",
+            "other"
           ]
         }
       },
@@ -2151,7 +2164,20 @@
                 "retail",
                 "industrial",
                 "mixed_use",
-                "residential"
+                "residential",
+                "student_accommodation",
+                "hmo",
+                "co_living",
+                "serviced_accommodation",
+                "self_storage",
+                "logistics",
+                "healthcare",
+                "senior_living",
+                "leisure",
+                "data_centre",
+                "ground_rent",
+                "land",
+                "other"
               ]
             },
             "asset_class_secondary": {
@@ -2169,7 +2195,20 @@
                 "retail",
                 "industrial",
                 "mixed_use",
-                "residential"
+                "residential",
+                "student_accommodation",
+                "hmo",
+                "co_living",
+                "serviced_accommodation",
+                "self_storage",
+                "logistics",
+                "healthcare",
+                "senior_living",
+                "leisure",
+                "data_centre",
+                "ground_rent",
+                "land",
+                "other"
               ]
             },
             "asset_class_display": {
@@ -2184,7 +2223,20 @@
                 "retail",
                 "industrial",
                 "mixed_use",
-                "residential"
+                "residential",
+                "student_accommodation",
+                "hmo",
+                "co_living",
+                "serviced_accommodation",
+                "self_storage",
+                "logistics",
+                "healthcare",
+                "senior_living",
+                "leisure",
+                "data_centre",
+                "ground_rent",
+                "land",
+                "other"
               ]
             },
             "project_type": {
@@ -2249,6 +2301,8 @@
                     "income_property",
                     "operational_re",
                     "bts",
+                    "development_to_hold",
+                    "owner_occupied",
                     "na"
                   ]
                 },
@@ -2405,7 +2459,10 @@
                   "enum": [
                     "bridge",
                     "development",
-                    "investment_term"
+                    "investment_term",
+                    "refurbishment",
+                    "revolving",
+                    "other"
                   ]
                 },
                 "description": {
@@ -2459,7 +2516,9 @@
                     "sale",
                     "refinance",
                     "hold",
-                    "mixed"
+                    "mixed",
+                    "partial_sale",
+                    "recapitalisation"
                   ]
                 },
                 "description": {
@@ -2572,7 +2631,14 @@
                     "common_equity",
                     "whole_loan",
                     "unitranche",
-                    "blended"
+                    "blended",
+                    "junior_debt",
+                    "revolving_credit",
+                    "convertible_loan",
+                    "pik_instrument",
+                    "islamic_finance",
+                    "npl",
+                    "other"
                   ]
                 },
                 "description": {
@@ -2674,6 +2740,13 @@
                     "spa",
                     "share_purchase",
                     "option_agreement",
+                    "sale_leaseback",
+                    "club_deal",
+                    "syndication",
+                    "fund",
+                    "reit",
+                    "tokenised",
+                    "recapitalisation",
                     "other"
                   ]
                 },
@@ -2802,6 +2875,101 @@
               "items": {
                 "type": "string"
               }
+            },
+            "asset_classes": {
+              "description": "All asset classes involved in the deal. Populated alongside asset_class_primary/asset_class_secondary.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "description": "One asset class involved in the deal. Superset of asset_class_primary + asset_class_secondary; include every distinct asset class (e.g. mixed-use residential + retail).",
+                "type": "string",
+                "enum": [
+                  "apartment",
+                  "single_family",
+                  "hotel",
+                  "portfolio",
+                  "office",
+                  "retail",
+                  "industrial",
+                  "mixed_use",
+                  "residential",
+                  "student_accommodation",
+                  "hmo",
+                  "co_living",
+                  "serviced_accommodation",
+                  "self_storage",
+                  "logistics",
+                  "healthcare",
+                  "senior_living",
+                  "leisure",
+                  "data_centre",
+                  "ground_rent",
+                  "land",
+                  "other"
+                ]
+              }
+            },
+            "transaction_types": {
+              "description": "All transaction events involved (e.g. acquisition + development + refinancing of existing debt). Multi-valued — do not force into one type.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "enum": [
+                  "acquisition",
+                  "disposal",
+                  "partial_disposal",
+                  "refinancing",
+                  "development",
+                  "recapitalisation",
+                  "restructuring",
+                  "extension_amendment",
+                  "new_origination",
+                  "secondary_purchase"
+                ]
+              }
+            },
+            "investment_strategies": {
+              "description": "All investment strategies that apply (e.g. development + income for a develop-to-hold BTR). Multi-valued.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "enum": [
+                  "core",
+                  "core_plus",
+                  "value_add",
+                  "opportunistic",
+                  "development",
+                  "income",
+                  "trading_flip",
+                  "loan_to_own",
+                  "distressed"
+                ]
+              }
+            },
+            "development_status": {
+              "description": "Lifecycle/development status of the asset: land / planning / pre_construction / construction / lease_up / stabilised / operating / na.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "land",
+                "planning",
+                "pre_construction",
+                "construction",
+                "lease_up",
+                "stabilised",
+                "operating",
+                "na"
+              ]
             }
           },
           "required": [
@@ -2845,7 +3013,11 @@
             "property_interest_signals",
             "rate_mechanics",
             "rate_mechanics_confidence",
-            "rate_mechanics_signals"
+            "rate_mechanics_signals",
+            "asset_classes",
+            "transaction_types",
+            "investment_strategies",
+            "development_status"
           ]
         }
       },
@@ -2913,7 +3085,10 @@
               "enum": [
                 "bridge",
                 "development",
-                "investment_term"
+                "investment_term",
+                "refurbishment",
+                "revolving",
+                "other"
               ]
             },
             "description": {
@@ -3290,9 +3465,11 @@
           ]
         },
         "value": {
-          "description": "Stated lender fee. Prefer the object form: { percentage: <number>, split: <string> } — e.g. \"2% fee, 50/50 on drawdown and exit\" → { percentage: 2, split: \"50/50 drawdown/exit\" }. A plain string is acceptable only when the fee cannot be expressed as percentage + split (e.g. monitoring fee £750/quarter). Do not calculate total fees.",
-          "type": ["string", "object", "null"],
-          "properties": { "percentage": { "type": ["number", "null"] }, "split": { "type": ["string", "null"] }, "description": { "type": ["string", "null"] } }
+          "description": "Fee description explicitly stated in the source, such as arrangement, exit, monitoring, commitment, or non-utilisation fees. Do not calculate total fees.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -9276,7 +9453,7 @@
           ]
         },
         "value": {
-          "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal. A principal must belong to the SPONSOR / borrower entity — the party whose deal this is. Staff of the contractor, selling agent, broker, or a third party named in the pack are NOT borrower principals. If a person is labelled as working for a different entity (e.g. the main contractor's team), exclude them rather than listing them under the borrower.",
+          "description": "Sponsor / borrower track record broken down per named principal. Populate only when this exact metric is explicitly supported by the source with matching scope. Prefer the most precise explicit value for the same metric and scope. Only populate from a source that clearly labels track record by individual principal (e.g. a bios / Developer CV document). Each track-record bullet MUST be attributed to the specific named principal the source assigns it to. Each entry must be a specific identifiable project or scheme (a named development, an address, or a location + units/GDV). Career-summary prose — 'advised investors on UK development projects', 'raised senior and mezz debt', 'obtained planning consents' — is a bio statement, not a project; leave it out of track_record. Company-level track record belongs to the borrower/developer entity, not to an individual principal — only file a project under a principal when the source attributes it to that person or their own vehicle. Never merge multiple principals into one combined record, and never attribute one principal's projects to another. Drop any track-record statement that cannot be tied to a specific named principal. A principal must belong to the SPONSOR / borrower entity — the party whose deal this is. Staff of the contractor, selling agent, broker, or a third party named in the pack are NOT borrower principals. If a person is labelled as working for a different entity (e.g. the main contractor's team), exclude them rather than listing them under the borrower.",
           "type": [
             "array",
             "null"
