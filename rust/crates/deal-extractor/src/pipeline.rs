@@ -475,8 +475,10 @@ pub async fn run_multi_pass(
     let initial_errors = validate::error_count(&initial_issues);
     eprintln!("[pipeline] assembled — {initial_errors} validation errors");
 
+    let t = std::time::Instant::now();
     let (mut final_doc, _pre_coverage_issues, repair_rounds) =
         repair::repair_loop(extractor, corpus, document, max_repair_rounds).await;
+    pass_times.push(("repair", t.elapsed().as_millis() as u64));
 
     // ── Thin-doc escalation ──
     // When pass B produced a sparse document (many evidenced-but-empty fields),
@@ -498,6 +500,7 @@ pub async fn run_multi_pass(
                 gaps.len(),
                 cov_ex.model
             );
+            let t = std::time::Instant::now();
             match run_pass_b(
                 cov_ex,
                 corpus,
@@ -581,6 +584,7 @@ pub async fn run_multi_pass(
                     recall.escalation_error = Some(e.chars().take(300).collect());
                 }
             }
+            pass_times.push(("details_escalation", t.elapsed().as_millis() as u64));
         }
     }
 
@@ -618,6 +622,7 @@ pub async fn run_multi_pass(
                     recall.coverage_error = Some(e.chars().take(300).collect());
                 }
             }
+            pass_times.push(("coverage_fill", t.elapsed().as_millis() as u64));
         }
     }
 
@@ -676,6 +681,7 @@ pub async fn run_multi_pass(
             unaccounted.len(),
             fill_issues.len() - unaccounted.len()
         );
+        let t = std::time::Instant::now();
         match repair::tool_fill(fill_model, corpus, &mut final_doc, &fill_issues).await {
             Ok((merged, rejected, reasons)) => {
                 eprintln!(
@@ -692,6 +698,7 @@ pub async fn run_multi_pass(
                 recall.tool_fill_error = Some(e.chars().take(300).collect());
             }
         }
+        pass_times.push(("recall_tool_fill", t.elapsed().as_millis() as u64));
     }
 
     // ── Tie checks: figures that don't reconcile with each other (NOI =
@@ -723,6 +730,7 @@ pub async fn run_multi_pass(
             tie_ex.model,
             recall.ties_initial.join("; ")
         );
+        let t = std::time::Instant::now();
         match tie_ex.call_json(&prompt, &corpus.render()).await {
             Ok((fix_obj, _)) => {
                 let mut scoped = serde_json::Map::new();
@@ -742,6 +750,7 @@ pub async fn run_multi_pass(
                 recall.tie_error = Some(e.chars().take(300).collect());
             }
         }
+        pass_times.push(("tie_fix", t.elapsed().as_millis() as u64));
         recall.ties_remaining = tie::tie_checks(&final_doc)
             .iter()
             .filter(|t| t.status == "fail")
@@ -754,8 +763,10 @@ pub async fn run_multi_pass(
     // wrong-cell errors (e.g. cap rate read as 0.04 vs a stated 0.045) that
     // conform can't see because they're shape-correct.
     let verify_model = details_ex.or(coverage_ex).unwrap_or(extractor);
+    let t = std::time::Instant::now();
     let (checked, fixes_applied, flagged) =
         crate::verify::verify_extracted_numbers(&mut final_doc, corpus, verify_model).await;
+    pass_times.push(("verify", t.elapsed().as_millis() as u64));
     recall.verify_checked = checked;
     recall.verify_fixes = fixes_applied;
     recall.verify_flagged = flagged;

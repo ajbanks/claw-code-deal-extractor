@@ -2276,8 +2276,16 @@
                   "obligation",
                   "guarantee",
                   "prepayment_term",
-                  "condition_precedent"
+                  "condition_precedent",
+                  "other"
                 ]
+              },
+              "custom_entity_type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required when subject_type is \"other\": a snake_case name for an entity type the schema does not model (e.g. \"ijara_lease\", \"escrow_arrangement\", \"ground_rent_strip\"). Use subject_type \"other\" + this field for any material structure that fits no listed type — never drop a material fact because the type is unlisted."
               },
               "subject_candidate_key": {
                 "minLength": 1,

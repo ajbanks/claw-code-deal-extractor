@@ -102,6 +102,11 @@ pub struct Diagnostics {
     pub elapsed_ms: u64,
     pub corpus: CorpusStats,
     pub usage: UsageView,
+    /// Per-pass wall-clock timings — where the 2+ minutes actually goes
+    /// (structure votes, details pass, coverage gap-fills, repair rounds).
+    /// Empty in single-pass mode.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pass_times_ms: Vec<PassTime>,
     /// Recall machinery results (multi-pass only): pass retries, coverage
     /// gaps / fills, unaccounted corpus figures, what is still missing.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,6 +115,12 @@ pub struct Diagnostics {
     /// and a document carried renderable PDF bytes).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ocr: Option<deal_extractor::ocr::OcrStats>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PassTime {
+    pub pass: String,
+    pub ms: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -323,22 +334,34 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
                 usage: usage_view(&extractor),
+                pass_times_ms: diag
+                    .pass_times_ms
+                    .iter()
+                    .map(|(pass, ms)| PassTime {
+                        pass: (*pass).to_string(),
+                        ms: *ms,
+                    })
+                    .collect(),
                 recall: Some(diag.recall),
                 ocr: ocr_stats,
             },
         })
     } else {
         eprintln!("[extract] single-pass mode — round 0 calling LLM...");
+        let extract_start = Instant::now();
         let mut candidate = extractor.extract(&corpus).await.map_err(|e| {
             eprintln!("[extract] round 0 FAILED: {e}");
             e
         })?;
+        let extract_ms = extract_start.elapsed().as_millis() as u64;
         deal_extractor::conform::conform_document(&mut candidate);
         let initial_issues = validate::validate(&candidate);
         let initial_errors = validate::error_count(&initial_issues);
         eprintln!("[extract] round 0 done — {initial_errors} validation errors");
+        let repair_start = Instant::now();
         let (doc, issues, rounds) =
             repair::repair_loop(&extractor, &corpus, candidate, req.max_repair_rounds).await;
+        let repair_ms = repair_start.elapsed().as_millis() as u64;
         eprintln!(
             "[extract] repair done — {} rounds, {} issues remaining, {:.1}s",
             rounds,
@@ -358,6 +381,16 @@ pub async fn run_extraction(req: &ExtractRequest) -> Result<ExtractResponse, Str
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 corpus: stats,
                 usage: usage_view(&extractor),
+                pass_times_ms: vec![
+                    PassTime {
+                        pass: "extract".to_string(),
+                        ms: extract_ms,
+                    },
+                    PassTime {
+                        pass: "repair".to_string(),
+                        ms: repair_ms,
+                    },
+                ],
                 recall: None,
                 ocr: ocr_stats,
             },
