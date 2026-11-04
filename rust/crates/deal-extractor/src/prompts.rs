@@ -9,7 +9,22 @@ pub const SYSTEM: &str = "\
 You are a property-finance extraction analyst. You read deal documents \
 (broker teasers, valuation reports, cash-flow models, planning docs) and \
 extract structured facts into canonical JSON. You are precise, exhaustive, \
-and never confuse distinct financial concepts.";
+and never confuse distinct financial concepts.\n\
+\n\
+CORPUS MARKERS — the document text may contain pre-classified fence tags:\n\
+- <SCOPE_FENCE scope=\"...\" subject_deal=\"false\">...</SCOPE_FENCE_*> wraps a page \
+that is NOT about the subject property (catchment demographics, market context, \
+third-party material). Read it for context but NEVER extract its tenants, rents, \
+areas, valuations or figures into subject-deal fields.\n\
+- <TABLE_FENCE role=\"...\" subject_related=\"false\">...</TABLE_FENCE> wraps a \
+market/context table — usable as comparables/context evidence only.\n\
+- <TABLE_FENCE role=\"...\" subject_related=\"true\">...</TABLE_FENCE> wraps an \
+authoritative structured table for the subject (sources_and_uses, epc_schedule, \
+accommodation_schedule, covenant_financials) — trust its grid; do NOT emit its \
+rows as occupational commercial tenancies unless the role says so.\n\
+- [Table — <role>] / [Structured Table: <role> ...] headers precede rendered \
+tables; [EXCLUDED_NON_SUBJECT_CONTEXT: <line>] marks a single non-subject line \
+on a mixed page — never extract it as subject data.";
 
 /// Round 0: whole-corpus extraction of the complete deal document.
 /// The agent owns the full output — there is no merge step.
@@ -21,7 +36,11 @@ Extract EVERY facility mentioned: senior debt, mezzanine, whole loan, bridge, de
 For each facility:
 - id: stable slug (e.g. "bridge_facility", "dev_facility", "shojin_senior_repaid")
 - name: as it appears in the documents
-- instrument_type: one of debt_facility | ordinary_equity | preferred_equity | shareholder_loan | vendor_finance
+- instrument_type: one of debt_facility | ordinary_equity | preferred_equity | shareholder_loan | vendor_finance | revolving_credit | convertible_loan | guarantee | security_package | other
+- recourse: one of full_recourse | limited_recourse | non_recourse | capped | null
+- rank: numeric seniority when stated or unambiguous (1 = first charge, 2 = second) — else null
+- drawdown: { committed: { amount, currency } | null, scheduled: [{ date, amount: { amount, currency } }] | [], uncommitted: { amount, currency } | null, accordion: { amount, currency } | null } — committed = the gross commitment, uncommitted = headroom not yet committed, scheduled = the stated drawdown tranche schedule, accordion = stated accordion/upsize capacity
+- loan_components.participation: { profit_share_pct, promote_tier, hurdle_irr_pct } — when the lender takes a profit share / promote (e.g. "lender participates in 20% of profit over 12% IRR")
 - role: one of senior_debt | mezzanine_debt | junior_debt | whole_loan | developer_equity | preferred_equity | other
 - scope_level: "deal" if it is part of the deal being underwritten, "project" if it is a future/project-scope facility, null if unclear
 - loan_type: one of bridge | development | investment_term — NEVER free text like "finance requirement"
@@ -58,11 +77,16 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 A project-level snapshot listing each facility's role: { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
 ## PARTIES
-Every named entity with a stake in the deal: { id, name, entity_type, roles, evidence }.
-- roles from: borrower | lender | sponsor | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | other.
+Every named entity with a stake in the deal: { id, name, entity_type (company | person | trust | partnership | fund | other), roles, address | null, jurisdiction | null, company_number | null, evidence_assertion_ids: [], evidence }.
+- roles from: borrower | lender | sponsor | investment_manager | parent | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | selling_agent | broker | contractor | architect | other.
 - When the borrower is an SPV, also emit the sponsor/development group behind it — structure charts, "on behalf of", shareholder/parent mentions, promoter credits all count. The SPV alone is not the sponsor; the operating group it sits under is.
 - A contractor, selling agent, broker or valuer gets its own role — never sponsor/developer, even when its brochure dominates the pack (a contractor CV enclosed for capability does not make the contractor the sponsor).
 - Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
+
+## GUARANTEES & SECURITY
+- guarantees: every stated guarantee — { id, facility_id, guarantor_party_id (the party guaranteeing — emit a matching parties entry), beneficiary_party_id (usually the lender party), guarantee_category (personal_guarantee | corporate_guarantee | limited_recourse | unlimited | performance_bond | letter_of_credit | other), cap_amount: { amount, currency } | null, duration, burn_off, trigger, covered_obligations, termination_conditions, evidence_assertion_ids: [], evidence }.
+- security: every stated security/collateral item — { id, facility_id, security_type (mortgage | charge | pledge | lien | assignment | guarantee | other), secured_asset_id (the assets[] entry it secures, when identifiable), secured_entity_id, security_provider_party_id, ranking (first | second | third | pari_passu | subordinated | other), jurisdiction, release_conditions, evidence_assertion_ids: [], evidence }.
+- `evidence_assertion_ids` is a TS-pipeline internal — always emit it as [].
 
 ## VALUATIONS
 For each: { id, value_type (market_value|gross_development_value|residual_value|purchase_price|ninety_day_sale_value|day_1_value|unclassified), amount: {amount,currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence }.
@@ -172,8 +196,11 @@ Extract EVERY facility: senior debt, mezzanine, whole loan, bridge, development 
 
 For each:
 - id: stable slug (e.g. "bridge_facility", "dev_facility", "shojin_senior_repaid")
-- name, instrument_type (debt_facility|ordinary_equity|preferred_equity|shareholder_loan|vendor_finance)
+- name, instrument_type (debt_facility|ordinary_equity|preferred_equity|shareholder_loan|vendor_finance|revolving_credit|convertible_loan|guarantee|security_package|other)
 - role (senior_debt|mezzanine_debt|junior_debt|whole_loan|developer_equity|preferred_equity|other)
+- recourse (full_recourse|limited_recourse|non_recourse|capped|null), rank: numeric seniority when stated (1 = first charge) else null
+- drawdown: { committed | null, scheduled: [{ date, amount: { amount, currency } }] | [], uncommitted | null, accordion | null } — committed/uncommitted/accordion are { amount, currency }
+- loan_components.participation: { profit_share_pct, promote_tier, hurdle_irr_pct } when the lender takes a profit share/promote
 - scope_level: "deal" | "project" | null
 - loan_type: bridge | development | investment_term
 - commitment: { amount, currency } — `amount` is an exact DECIMAL STRING in absolute units ("25750000"), NEVER millions shorthand
@@ -213,6 +240,11 @@ Every named entity with a stake in the deal:
 - Emit the borrower SPV AND every entity on a structure chart, with its stated role — "X is the investment manager of Y", "SSRE – Cell 1", parent groups, shareholding chains all count. The SPV alone is not the sponsor; the operating group behind it is.
 - A contractor, selling agent, broker or valuer gets its own role — NEVER sponsor or developer, even when its brochure dominates the pack ("Deep Group brochure – Contractor" → contractor). A contractor CV enclosed for capability does not make the contractor the sponsor.
 - Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
+
+## GUARANTEES & SECURITY
+- guarantees: every stated guarantee — { id, facility_id, guarantor_party_id, beneficiary_party_id, guarantee_category (personal_guarantee|corporate_guarantee|limited_recourse|unlimited|performance_bond|letter_of_credit|other), cap_amount: { amount, currency } | null, duration, burn_off, trigger, covered_obligations, termination_conditions, evidence_assertion_ids: [], evidence }.
+- security: every stated security/collateral item — { id, facility_id, security_type (mortgage|charge|pledge|lien|assignment|guarantee|other), secured_asset_id, secured_entity_id, security_provider_party_id, ranking (first|second|third|pari_passu|subordinated|other), jurisdiction, release_conditions, evidence_assertion_ids: [], evidence }.
+- `evidence_assertion_ids` is a TS-pipeline internal — always emit it as [].
 
 Return ONLY valid JSON."#;
 

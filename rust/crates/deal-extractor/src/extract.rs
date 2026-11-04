@@ -52,6 +52,14 @@ impl TokenUsage {
             self.output_tokens.load(Relaxed),
         )
     }
+
+    pub fn merge_from(&self, other: &Self) {
+        use std::sync::atomic::Ordering::Relaxed;
+        let (c, i, o) = other.snapshot();
+        self.calls.fetch_add(c, Relaxed);
+        self.input_tokens.fetch_add(i, Relaxed);
+        self.output_tokens.fetch_add(o, Relaxed);
+    }
 }
 
 impl Extractor {

@@ -102,7 +102,10 @@ fn repaid_status_requires_repaid_event() {
 fn enums_are_enforced() {
     let mut d = base();
     d["canonical_deal"]["facilities"][0]["loan_type"] = json!("finance requirement");
-    assert!(has_error(&d, "bad_loan_type"));
+    // loan_type is open in the TS schema now — flagged as a warning, not an error.
+    assert!(validate::validate(&d)
+        .iter()
+        .any(|i| i.code == "bad_loan_type" && i.severity == Severity::Warn));
 
     let mut d2 = base();
     d2["canonical_deal"]["facilities"][0]["role"] = json!("nonsense");
@@ -111,6 +114,24 @@ fn enums_are_enforced() {
     let mut d3 = base();
     d3["canonical_deal"]["facilities"][0]["status"] = json!("bogus");
     assert!(has_error(&d3, "bad_status"));
+}
+
+#[test]
+fn expanded_instrument_types_are_accepted() {
+    for it in [
+        "revolving_credit",
+        "convertible_loan",
+        "guarantee",
+        "security_package",
+        "other",
+    ] {
+        let mut d = base();
+        d["canonical_deal"]["facilities"][0]["instrument_type"] = json!(it);
+        assert!(
+            !has_error(&d, "bad_instrument_type"),
+            "{it} should be schema-valid"
+        );
+    }
 }
 
 #[test]

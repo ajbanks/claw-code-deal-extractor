@@ -9,6 +9,13 @@ pub const CANONICAL_DEAL_SCHEMA: &str = include_str!("../schemas/canonical-deal.
 pub const DEAL_DETAILS_SCHEMA: &str = include_str!("../schemas/deal-details.schema.json");
 pub const OUTPUT_SCHEMA: &str = include_str!("../schemas/extraction-output.schema.json");
 
+/// Instrument types that count as DEBT for gross/senior/mezz derivation and
+/// debt-presence checks. `shareholder_loan` is deliberately excluded (it is
+/// quasi-equity, resolved separately downstream) and `other` covers non-loan
+/// instruments (e.g. co-investment bonds) that are not debt of the facility.
+pub const DEBT_INSTRUMENT_TYPES: &[&str] =
+    &["debt_facility", "revolving_credit", "convertible_loan"];
+
 /// Canonical-deal top-level fields the agent is asked to fill. The rest are
 /// TS-pipeline internals (assertions, conflicts, review workflow, phase-6
 /// legal entities) that the agent emits as empty arrays.
@@ -29,10 +36,13 @@ const CD_ACTIVE_FIELDS: &[&str] = &[
     "planning_applications",
     "valuations",
     "construction_budgets",
+    "parties",
+    "security",
+    "guarantees",
 ];
 
 /// Details fields that must carry a real value when evidence exists. The
-/// full 111-field list is still validated; this subset is what the prompt
+/// full 154-field list is still validated; this subset is what the prompt
 /// calls out by name so the model does not starve them.
 const DETAILS_KEY_FIELDS: &[&str] = &[
     "address",
@@ -59,6 +69,8 @@ const DETAILS_KEY_FIELDS: &[&str] = &[
     "use_of_funds",
     "source_of_funds",
     "exit_plan",
+    "drawdown_schedule",
+    "corporate_guarantee",
 ];
 
 fn canonical_schema() -> Value {
@@ -180,7 +192,7 @@ pub fn render_contract() -> String {
         out.push_str(&format!("required: {}\n\n", names.join(", ")));
     }
 
-    out.push_str("canonical_deal fields (fill these; emit `assertions`, `conflicts`, `validation_issues` as []):\n");
+    out.push_str("canonical_deal fields (fill these; emit `assertions`, `conflicts`, `validation_issues`, `conflict_groups`, `relations`, `sections` as []):\n");
     if let Some(p) = cd.get("properties").and_then(|v| v.as_object()) {
         for key in CD_ACTIVE_FIELDS {
             if let Some(v) = p.get(*key) {

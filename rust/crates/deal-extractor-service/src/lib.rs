@@ -22,7 +22,7 @@ pub struct ExtractRequest {
     /// Optional deal identifier, echoed back in diagnostics.
     #[serde(default)]
     pub deal_id: Option<String>,
-    /// OpenAI model to use. Defaults to gpt-5.4.
+    /// OpenAI model to use. Defaults to gpt-5.4-2026-03-05 (matching the TS DEAL_EXTRACTOR default).
     #[serde(default = "default_model")]
     pub model: String,
     /// Max validate→repair rounds after round 0. Default 3.
@@ -34,12 +34,12 @@ pub struct ExtractRequest {
     /// Documents to extract from.
     pub documents: Vec<InputDocument>,
     /// Model for the coverage gap-fill patch call. Defaults to
-    /// DEAL_EXTRACT_COVERAGE_MODEL env, then gpt-5.6-sol.
+    /// DEAL_EXTRACT_COVERAGE_MODEL env, then gpt-5.6-luna.
     #[serde(default)]
     pub coverage_model: Option<String>,
     /// Model for pass A (structure / facility graph). Defaults to
-    /// DEAL_EXTRACT_STRUCTURE_MODEL env, then gpt-5.6-sol. Pass B and
-    /// repair stay on `model` — Sol sets the skeleton, Luna fills it.
+    /// DEAL_EXTRACT_STRUCTURE_MODEL env, then gpt-5.6-luna. Pass B and
+    /// repair stay on `model` — Luna sets the skeleton, Luna fills it.
     #[serde(default)]
     pub structure_model: Option<String>,
     /// Model for pass B (details). Defaults to `model`. Kept separate so
@@ -49,7 +49,7 @@ pub struct ExtractRequest {
 }
 
 fn default_model() -> String {
-    "gpt-5.4".to_string()
+    "gpt-5.4-2026-03-05".to_string()
 }
 fn default_max_repair_rounds() -> usize {
     3

@@ -34,6 +34,8 @@
               "vendor_finance",
               "revolving_credit",
               "convertible_loan",
+              "guarantee",
+              "security_package",
               "other"
             ]
           },
@@ -97,6 +99,164 @@
             "required": [
               "amount",
               "currency"
+            ]
+          },
+          "drawdown": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "committed": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "scheduled": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "amount": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "amount": {
+                          "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                          "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                          "type": "string"
+                        },
+                        "currency": {
+                          "pattern": "^[a-zA-Z]{3}$",
+                          "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "currency"
+                      ]
+                    },
+                    "label": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "amount",
+                    "label"
+                  ]
+                }
+              },
+              "uncommitted": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "accordion": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              }
+            },
+            "required": [
+              "committed",
+              "scheduled",
+              "uncommitted",
+              "accordion"
+            ]
+          },
+          "rank": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "recourse": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "full_recourse",
+              "limited_recourse",
+              "non_recourse",
+              "capped",
+              null
             ]
           },
           "term_months": {
@@ -292,7 +452,8 @@
               "requested",
               "existing",
               "repaid",
-              "proposed"
+              "proposed",
+              null
             ]
           },
           "lender_name": {
@@ -409,7 +570,8 @@
                         "monitoring",
                         "commitment",
                         "non_utilisation",
-                        "other"
+                        "other",
+                        null
                       ]
                     },
                     "amount": {
@@ -447,7 +609,8 @@
                         "financed",
                         "paid_separately",
                         "included_in_total",
-                        "unknown"
+                        "unknown",
+                        null
                       ]
                     },
                     "stated": {
@@ -493,6 +656,7 @@
                               "acquisition_agreement",
                               "jv_agreement",
                               "offering_memorandum",
+                              "mandate",
                               "other"
                             ]
                           },
@@ -597,7 +761,8 @@
                             "enum": [
                               "direct",
                               "supporting",
-                              "derived"
+                              "derived",
+                              null
                             ]
                           },
                           "derived_from_assertion_ids": {
@@ -661,6 +826,37 @@
               },
               "gross_facility_stated": {
                 "type": "boolean"
+              },
+              "participation": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "profit_share_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "promote_tier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "hurdle_irr_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "profit_share_pct",
+                  "promote_tier",
+                  "hurdle_irr_pct"
+                ]
               },
               "net_proceeds_stated": {
                 "type": "boolean"
@@ -732,6 +928,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -836,7 +1033,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -1118,6 +1316,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -1222,7 +1421,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -1372,6 +1572,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -1476,7 +1677,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -1645,6 +1847,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -1749,7 +1952,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -2052,6 +2256,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -2156,7 +2361,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -2277,8 +2483,7 @@
             "type": [
               "string",
               "null"
-            ],
-            "description": "Required when subject_type is \"other\": a snake_case name for an entity type the schema does not model (e.g. \"ijara_lease\", \"escrow_arrangement\", \"ground_rent_strip\"). Use subject_type \"other\" + this field for any material structure that fits no listed type — never drop a material fact because the type is unlisted."
+            ]
           },
           "subject_candidate_key": {
             "minLength": 1,
@@ -2329,6 +2534,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -2433,7 +2639,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -2482,7 +2689,8 @@
               "special_assumption",
               "valuer_opinion",
               "recommendation",
-              "legal_verification_required"
+              "legal_verification_required",
+              null
             ]
           },
           "stated_by_party_id": {
@@ -2557,7 +2765,8 @@
                   "stabilised",
                   "refinance",
                   "maturity",
-                  "final_exit"
+                  "final_exit",
+                  null
                 ]
               },
               "valuation_basis": {
@@ -2572,7 +2781,8 @@
                   "residual_value",
                   "vacant_possession",
                   "forced_sale",
-                  "special_assumption"
+                  "special_assumption",
+                  null
                 ]
               },
               "sale_period_days": {
@@ -2593,7 +2803,8 @@
                   "downside",
                   "upside",
                   "valuer_assumption",
-                  "borrower_case"
+                  "borrower_case",
+                  null
                 ]
               },
               "status_basis": {
@@ -2606,7 +2817,8 @@
                   "proposed",
                   "approved",
                   "unapproved",
-                  "assumed"
+                  "assumed",
+                  null
                 ]
               },
               "facility_disposition": {
@@ -2618,7 +2830,8 @@
                   "requested",
                   "existing",
                   "repaid",
-                  "proposed"
+                  "proposed",
+                  null
                 ]
               }
             },
@@ -2674,7 +2887,40 @@
               "pari_passu_with",
               "equity_holder_in",
               "sponsor_of",
-              "other"
+              "owns",
+              "parent_of",
+              "contains",
+              "tenant_of",
+              "covers",
+              "supersedes",
+              "superseded_by",
+              "cost_of",
+              "refinances",
+              "refinanced_by",
+              "precedes",
+              "follows",
+              "future_financing_stage",
+              "separate_obligation",
+              "funds_phase",
+              "subject_to",
+              "senior_to",
+              "secures",
+              "secured_by",
+              "hedged_by",
+              "other",
+              null
+            ]
+          },
+          "valid_from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
             ]
           },
           "scores": {
@@ -2981,6 +3227,7 @@
               "acquisition_agreement",
               "jv_agreement",
               "offering_memorandum",
+              "mandate",
               "other"
             ]
           },
@@ -3214,7 +3461,8 @@
                     "sqm",
                     "sqft",
                     "acres",
-                    "hectares"
+                    "hectares",
+                    null
                   ]
                 },
                 "scope": {
@@ -3276,6 +3524,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -3380,7 +3629,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -3487,7 +3737,8 @@
                     "sqm",
                     "sqft",
                     "acres",
-                    "hectares"
+                    "hectares",
+                    null
                   ]
                 },
                 "scope": {
@@ -3616,6 +3867,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -3720,7 +3972,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -3809,7 +4062,8 @@
               "pending",
               "refused",
               "not_required",
-              "unknown"
+              "unknown",
+              null
             ]
           },
           "decision_date": {
@@ -3871,6 +4125,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -3975,7 +4230,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -4101,7 +4357,8 @@
               "freehold",
               "leasehold",
               "long_leasehold",
-              "unknown"
+              "unknown",
+              null
             ]
           },
           "assumptions": {
@@ -4184,7 +4441,8 @@
               "downside",
               "upside",
               "valuer_assumption",
-              "borrower_case"
+              "borrower_case",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -4234,6 +4492,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -4338,7 +4597,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -4398,7 +4658,8 @@
             "enum": [
               "stated",
               "estimated",
-              "inferred"
+              "inferred",
+              null
             ]
           },
           "review_status": {
@@ -4408,7 +4669,8 @@
             ],
             "enum": [
               "resolved",
-              "needs_review"
+              "needs_review",
+              null
             ]
           },
           "raw_amount": {
@@ -4586,7 +4848,8 @@
                     "professional_fees",
                     "finance",
                     "contingency",
-                    "other"
+                    "other",
+                    null
                   ]
                 },
                 "amount": {
@@ -4680,6 +4943,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -4784,7 +5048,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -4885,7 +5150,8 @@
                   "stabilised",
                   "refinance",
                   "maturity",
-                  "final_exit"
+                  "final_exit",
+                  null
                 ]
               },
               "valuation_basis": {
@@ -4900,7 +5166,8 @@
                   "residual_value",
                   "vacant_possession",
                   "forced_sale",
-                  "special_assumption"
+                  "special_assumption",
+                  null
                 ]
               },
               "sale_period_days": {
@@ -4921,7 +5188,8 @@
                   "downside",
                   "upside",
                   "valuer_assumption",
-                  "borrower_case"
+                  "borrower_case",
+                  null
                 ]
               },
               "status_basis": {
@@ -4934,7 +5202,8 @@
                   "proposed",
                   "approved",
                   "unapproved",
-                  "assumed"
+                  "assumed",
+                  null
                 ]
               },
               "facility_disposition": {
@@ -4946,7 +5215,8 @@
                   "requested",
                   "existing",
                   "repaid",
-                  "proposed"
+                  "proposed",
+                  null
                 ]
               }
             },
@@ -4999,6 +5269,9 @@
               "string",
               "null"
             ]
+          },
+          "evidence_fingerprint": {
+            "type": "string"
           }
         },
         "required": [
@@ -5205,7 +5478,8 @@
                     "months",
                     "units",
                     "sqm",
-                    "sqft"
+                    "sqft",
+                    null
                   ]
                 },
                 "sheet_name": {
@@ -5391,6 +5665,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -5495,7 +5770,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -5571,7 +5847,8 @@
               "long_leasehold",
               "short_leasehold",
               "tenancy",
-              "other"
+              "other",
+              null
             ]
           },
           "commencement_date": {
@@ -5692,6 +5969,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -5796,7 +6074,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -5879,7 +6158,8 @@
                   "sqm",
                   "sqft",
                   "acres",
-                  "hectares"
+                  "hectares",
+                  null
                 ]
               },
               "scope": {
@@ -5913,8 +6193,11 @@
             "enum": [
               "occupied",
               "vacant",
+              "pre_let",
+              "under_offer",
               "non_occupational",
-              "unknown"
+              "unknown",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -5964,6 +6247,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -6068,7 +6352,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -6132,7 +6417,8 @@
               "fixed_step",
               "stepped",
               "percentage",
-              "hybrid"
+              "hybrid",
+              null
             ]
           },
           "review_dates": {
@@ -6156,7 +6442,8 @@
                   "CPI",
                   "CPIH",
                   "RPI",
-                  "CUSTOM"
+                  "CUSTOM",
+                  null
                 ]
               },
               "base_date": {
@@ -6185,7 +6472,8 @@
                 ],
                 "enum": [
                   "monthly",
-                  "annual"
+                  "annual",
+                  null
                 ]
               }
             },
@@ -6210,7 +6498,8 @@
             ],
             "enum": [
               "per_period",
-              "cumulative"
+              "cumulative",
+              null
             ]
           },
           "upwards_only": {
@@ -6273,7 +6562,8 @@
                 "enum": [
                   "valuer",
                   "market_model",
-                  "analyst_assumption"
+                  "analyst_assumption",
+                  null
                 ]
               },
               "upwards_only": {
@@ -6296,7 +6586,8 @@
             "enum": [
               "machine_normalized",
               "human_verified",
-              "ambiguous"
+              "ambiguous",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -6346,6 +6637,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -6450,7 +6742,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -6538,7 +6831,8 @@
               "guarantor",
               "licensor",
               "adjoining_owner",
-              "other"
+              "other",
+              null
             ]
           },
           "economic_type": {
@@ -6680,6 +6974,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -6784,7 +7079,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -6860,7 +7156,8 @@
               "vendor",
               "guarantor",
               "seller",
-              "other"
+              "other",
+              null
             ]
           },
           "start_date": {
@@ -6959,6 +7256,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -7063,7 +7361,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -7132,7 +7431,8 @@
               "access",
               "air_rights",
               "wayleave",
-              "other"
+              "other",
+              null
             ]
           },
           "term_start": {
@@ -7212,6 +7512,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -7316,7 +7617,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -7426,7 +7728,8 @@
               "recoverable",
               "non_recoverable",
               "partial",
-              "unknown"
+              "unknown",
+              null
             ]
           },
           "period_start": {
@@ -7488,6 +7791,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -7592,7 +7896,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -7669,7 +7974,8 @@
               "commercial",
               "parking",
               "storage",
-              "other"
+              "other",
+              null
             ]
           },
           "area": {
@@ -7696,7 +8002,8 @@
                   "sqm",
                   "sqft",
                   "acres",
-                  "hectares"
+                  "hectares",
+                  null
                 ]
               },
               "scope": {
@@ -7721,7 +8028,8 @@
               "completed",
               "sold",
               "let",
-              "vacant"
+              "vacant",
+              null
             ]
           },
           "sale_price": {
@@ -7821,6 +8129,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -7925,7 +8234,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -8033,7 +8343,8 @@
               "satisfied",
               "breached",
               "waived",
-              "ongoing"
+              "ongoing",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -8083,6 +8394,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -8187,7 +8499,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -8270,7 +8583,8 @@
               "<=",
               "=",
               ">=",
-              ">"
+              ">",
+              null
             ]
           },
           "threshold": {
@@ -8356,6 +8670,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -8460,7 +8775,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -8560,7 +8876,8 @@
               "third",
               "pari_passu",
               "subordinated",
-              "other"
+              "other",
+              null
             ]
           },
           "jurisdiction": {
@@ -8622,6 +8939,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -8726,7 +9044,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -8909,6 +9228,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -9013,7 +9333,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -9198,6 +9519,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -9302,7 +9624,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -9394,7 +9717,8 @@
               "pending",
               "satisfied",
               "waived",
-              "overdue"
+              "overdue",
+              null
             ]
           },
           "waiver_authority": {
@@ -9450,6 +9774,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -9554,7 +9879,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -9631,6 +9957,26 @@
               "pari_passu_with",
               "equity_holder_in",
               "sponsor_of",
+              "owns",
+              "parent_of",
+              "contains",
+              "tenant_of",
+              "covers",
+              "supersedes",
+              "superseded_by",
+              "cost_of",
+              "refinances",
+              "refinanced_by",
+              "precedes",
+              "follows",
+              "future_financing_stage",
+              "separate_obligation",
+              "funds_phase",
+              "subject_to",
+              "senior_to",
+              "secures",
+              "secured_by",
+              "hedged_by",
               "other"
             ]
           },
@@ -9680,6 +10026,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -9784,7 +10131,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -9808,6 +10156,170 @@
                 "column",
                 "quote"
               ]
+            }
+          },
+          "confidence": {
+            "minimum": 0,
+            "maximum": 1,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "active",
+              "superseded",
+              "disputed",
+              "unverified",
+              null
+            ]
+          },
+          "valid_from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "asset_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "phase_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "facility_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tranche_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "temporal_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "current",
+                  "pre_transaction",
+                  "completion",
+                  "stabilised",
+                  "refinance",
+                  "maturity",
+                  "final_exit",
+                  null
+                ]
+              },
+              "valuation_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "market_value",
+                  "market_rent",
+                  "gdv",
+                  "residual_value",
+                  "vacant_possession",
+                  "forced_sale",
+                  "special_assumption",
+                  null
+                ]
+              },
+              "sale_period_days": {
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "scenario": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "actual",
+                  "base_case",
+                  "downside",
+                  "upside",
+                  "valuer_assumption",
+                  "borrower_case",
+                  null
+                ]
+              },
+              "status_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "existing",
+                  "proposed",
+                  "approved",
+                  "unapproved",
+                  "assumed",
+                  null
+                ]
+              },
+              "facility_disposition": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "requested",
+                  "existing",
+                  "repaid",
+                  "proposed",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "asset_id",
+              "phase_id",
+              "facility_id",
+              "tranche_id",
+              "temporal_basis",
+              "valuation_basis",
+              "sale_period_days",
+              "scenario",
+              "status_basis"
+            ]
+          },
+          "conflict_group_ids": {
+            "type": "array",
+            "items": {
+              "minLength": 1,
+              "type": "string"
             }
           }
         },
@@ -10058,7 +10570,8 @@
               "proposed",
               "executed",
               "expired",
-              "terminated"
+              "terminated",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -10108,6 +10621,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -10212,7 +10726,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -10400,6 +10915,7 @@
                           "acquisition_agreement",
                           "jv_agreement",
                           "offering_memorandum",
+                          "mandate",
                           "other"
                         ]
                       },
@@ -10504,7 +11020,8 @@
                         "enum": [
                           "direct",
                           "supporting",
-                          "derived"
+                          "derived",
+                          null
                         ]
                       },
                       "derived_from_assertion_ids": {
@@ -10588,6 +11105,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -10692,7 +11210,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -10904,6 +11423,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -11008,7 +11528,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -11188,6 +11709,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -11292,7 +11814,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -11450,6 +11973,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -11554,7 +12078,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -11677,7 +12202,8 @@
               "proposed",
               "verified",
               "settled",
-              "cancelled"
+              "cancelled",
+              null
             ]
           },
           "parent_event_id": {
@@ -11769,6 +12295,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -11873,7 +12400,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -11982,7 +12510,8 @@
             ],
             "enum": [
               "stated",
-              "heuristic"
+              "heuristic",
+              null
             ]
           },
           "evidence_assertion_ids": {
@@ -12032,6 +12561,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -12136,7 +12666,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {
@@ -12195,7 +12726,8 @@
               "european",
               "american",
               "deal_level",
-              "other"
+              "other",
+              null
             ]
           },
           "capital_return_rule": {
@@ -12207,7 +12739,8 @@
               "pro_rata",
               "lp_first",
               "gp_first",
-              "class_priority"
+              "class_priority",
+              null
             ]
           },
           "clawback": {
@@ -12307,6 +12840,7 @@
                     "acquisition_agreement",
                     "jv_agreement",
                     "offering_memorandum",
+                    "mandate",
                     "other"
                   ]
                 },
@@ -12411,7 +12945,8 @@
                   "enum": [
                     "direct",
                     "supporting",
-                    "derived"
+                    "derived",
+                    null
                   ]
                 },
                 "derived_from_assertion_ids": {

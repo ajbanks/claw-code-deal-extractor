@@ -112,7 +112,11 @@ pub async fn run_routed(
             .then(|| Extractor::new(&m).ok())
             .flatten()
     };
-    let cov_model = resolve(coverage_model, "DEAL_EXTRACT_COVERAGE_MODEL", "gpt-5.6-sol");
+    let cov_model = resolve(
+        coverage_model,
+        "DEAL_EXTRACT_COVERAGE_MODEL",
+        "gpt-5.6-luna",
+    );
     let coverage_owned = distinct(cov_model.clone());
     // Coverage on the same model reuses the main extractor; structure and
     // details on the same model fall back to it inside run_multi_pass.
@@ -128,7 +132,7 @@ pub async fn run_routed(
     let structure_owned = Extractor::new(&resolve(
         structure_model,
         "DEAL_EXTRACT_STRUCTURE_MODEL",
-        "gpt-5.6-sol",
+        "gpt-5.6-luna",
     ))
     .ok()
     .map(|e| e.with_effort(&structure_effort));
@@ -137,7 +141,7 @@ pub async fn run_routed(
         "DEAL_EXTRACT_DETAILS_MODEL",
         &extractor.model,
     ));
-    run_multi_pass(
+    let res = run_multi_pass(
         extractor,
         corpus,
         max_repair_rounds,
@@ -145,7 +149,17 @@ pub async fn run_routed(
         structure_owned.as_ref(),
         details_owned.as_ref(),
     )
-    .await
+    .await;
+    if let Some(ex) = &structure_owned {
+        extractor.usage.merge_from(&ex.usage);
+    }
+    if let Some(ex) = &details_owned {
+        extractor.usage.merge_from(&ex.usage);
+    }
+    if let Some(ex) = &coverage_owned {
+        extractor.usage.merge_from(&ex.usage);
+    }
+    res
 }
 
 pub async fn run_multi_pass(
@@ -286,24 +300,31 @@ pub async fn run_multi_pass(
         dedupe_facilities(&mut chosen);
         merge_facility_amounts(&mut chosen, &votes);
         merge_parties(&mut chosen, &votes);
+        for key in ["guarantees", "security"] {
+            merge_id_collection(&mut chosen, &votes, key);
+        }
         // Focus adopt: the adjudicator can clear focus_facility_id even when
         // a vote pointed at a facility that (possibly via the union) is in
         // the chosen set — adopt the first vote focus that resolves.
         let chosen_ids: Vec<&str> = chosen
             .get("facilities")
             .and_then(Value::as_array)
-            .map(|fs| fs.iter().filter_map(|f| f.get("id").and_then(Value::as_str)).collect())
+            .map(|fs| {
+                fs.iter()
+                    .filter_map(|f| f.get("id").and_then(Value::as_str))
+                    .collect()
+            })
             .unwrap_or_default();
         let chosen_focus = chosen
             .get("focus_facility_id")
             .and_then(Value::as_str)
             .filter(|s| !s.is_empty());
         if chosen_focus.is_none() || !chosen_ids.contains(&chosen_focus.unwrap()) {
-            if let Some(fid) = votes.iter().filter_map(|v| {
+            if let Some(fid) = votes.iter().find_map(|v| {
                 v.get("focus_facility_id")
                     .and_then(Value::as_str)
                     .filter(|id| chosen_ids.contains(id))
-            }).next() {
+            }) {
                 if let Some(obj) = chosen.as_object_mut() {
                     obj.insert("focus_facility_id".to_string(), json!(fid));
                 }
@@ -417,6 +438,11 @@ pub async fn run_multi_pass(
     let valuations = pass_b.get("valuations").cloned().unwrap_or(json!([]));
     let phases = pass_b.get("phases").cloned().unwrap_or(json!([]));
     let mut details = pass_b.get("details").cloned().unwrap_or(json!({}));
+    if let Some(d_obj) = details.as_object_mut() {
+        d_obj
+            .entry("schema_version".to_string())
+            .or_insert_with(|| json!("1"));
+    }
     let mut kpis = pass_b.get("kpis").cloned().unwrap_or(json!({}));
     pass_times.push(("details", t.elapsed().as_millis() as u64));
     eprintln!(
@@ -446,6 +472,8 @@ pub async fn run_multi_pass(
             "capital_events": capital_events,
             "capital_snapshots": capital_snapshots,
             "parties": pass_a.get("parties").cloned().unwrap_or(json!([])),
+            "guarantees": pass_a.get("guarantees").cloned().unwrap_or(json!([])),
+            "security": pass_a.get("security").cloned().unwrap_or(json!([])),
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
@@ -557,6 +585,9 @@ pub async fn run_multi_pass(
                                 "planning_applications",
                                 "facility_parties",
                                 "construction_budgets",
+                                "parties",
+                                "guarantees",
+                                "security",
                             ] {
                                 let empty = cd
                                     .get(k)
@@ -860,12 +891,18 @@ fn facility_evidence_is_funding(f: &Value) -> bool {
         return true;
     }
     const FUNDING: &[&str] = &[
-        "loan", "facilit", "debt", "drawdown", "drawn", "borrow", "lender",
-        "mortgage", "mezz", "tranche", "advance", "senior", "funding",
+        "loan", "facilit", "debt", "drawdown", "drawn", "borrow", "lender", "mortgage", "mezz",
+        "tranche", "advance", "senior", "funding",
     ];
     const SOFT: &[&str] = &["refinanc"];
     const COST: &[&str] = &[
-        "cost", "contract", "contingency", "fee", "price", "budget", "expense",
+        "cost",
+        "contract",
+        "contingency",
+        "fee",
+        "price",
+        "budget",
+        "expense",
     ];
     let quotes: Vec<String> = f
         .get("evidence")
@@ -883,8 +920,7 @@ fn facility_evidence_is_funding(f: &Value) -> bool {
     !quotes.is_empty()
         && quotes.iter().any(|q| {
             FUNDING.iter().any(|k| q.contains(k))
-                || (SOFT.iter().any(|k| q.contains(k))
-                    && !COST.iter().any(|k| q.contains(k)))
+                || (SOFT.iter().any(|k| q.contains(k)) && !COST.iter().any(|k| q.contains(k)))
         })
 }
 
@@ -966,7 +1002,12 @@ fn facility_quotes(f: &Value) -> Vec<String> {
         .map(|evs| {
             evs.iter()
                 .filter_map(|e| e.get("quote").and_then(Value::as_str))
-                .map(|q| q.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" "))
+                .map(|q| {
+                    q.to_lowercase()
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
                 .filter(|q| !q.is_empty())
                 .collect()
         })
@@ -1001,7 +1042,10 @@ fn dedupe_facilities(chosen: &mut Value) {
             .position(|&j| same_facility(f, &snapshot[j]))
         {
             // Keep whichever carries more evidence entries.
-            let fe = f.get("evidence").and_then(Value::as_array).map_or(0, Vec::len);
+            let fe = f
+                .get("evidence")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len);
             let j = keep_idx[pos];
             let ge = snapshot[j]
                 .get("evidence")
@@ -1062,14 +1106,24 @@ fn merge_facility_amounts(chosen: &mut Value, votes: &[Value]) {
 /// adjudication returns PASS A's full format but routinely drops parties
 /// the votes found (canonical parties was empty on every prod run).
 fn merge_parties(chosen: &mut Value, votes: &[Value]) {
-    let norm = |s: &str| s.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ");
+    let norm = |s: &str| {
+        s.to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
     let mut merged: Vec<Value> = chosen
         .get("parties")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
     for vote in votes {
-        for p in vote.get("parties").and_then(Value::as_array).cloned().unwrap_or_default() {
+        for p in vote
+            .get("parties")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let name = p.get("name").and_then(Value::as_str).map(norm);
             let Some(name) = name.filter(|n| !n.is_empty()) else {
                 continue;
@@ -1091,7 +1145,10 @@ fn merge_parties(chosen: &mut Value, votes: &[Value]) {
                 for key in ["company_number", "jurisdiction", "entity_type", "address"] {
                     if existing.get(key).is_none_or(Value::is_null) {
                         if let Some(v) = p.get(key).filter(|v| !v.is_null()) {
-                            existing.as_object_mut().unwrap().insert(key.to_string(), v.clone());
+                            existing
+                                .as_object_mut()
+                                .unwrap()
+                                .insert(key.to_string(), v.clone());
                         }
                     }
                 }
@@ -1103,6 +1160,42 @@ fn merge_parties(chosen: &mut Value, votes: &[Value]) {
     if !merged.is_empty() || chosen.get("parties").is_some() {
         if let Some(obj) = chosen.as_object_mut() {
             obj.insert("parties".to_string(), Value::Array(merged));
+        }
+    }
+}
+
+/// Union of pass-A vote rows for id-keyed collections (guarantees, security)
+/// — the adjudicator drops these the same way it drops parties.
+fn merge_id_collection(chosen: &mut Value, votes: &[Value], key: &str) {
+    let mut merged: Vec<Value> = chosen
+        .get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for vote in votes {
+        for row in vote
+            .get(key)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let id = row.get("id").and_then(Value::as_str);
+            let dup = id.map_or_else(
+                || merged.contains(&row),
+                |id| {
+                    merged
+                        .iter()
+                        .any(|m| m.get("id").and_then(Value::as_str) == Some(id))
+                },
+            );
+            if !dup {
+                merged.push(row);
+            }
+        }
+    }
+    if !merged.is_empty() || chosen.get(key).is_some() {
+        if let Some(obj) = chosen.as_object_mut() {
+            obj.insert(key.to_string(), Value::Array(merged));
         }
     }
 }
@@ -1545,7 +1638,7 @@ fn apply_deterministic_fields(
             debt_currency = c.to_string();
         }
 
-        if instrument == "debt_facility" {
+        if crate::contract::DEBT_INSTRUMENT_TYPES.contains(&instrument) {
             // Only recognised debt roles count toward gross/senior/mezzanine.
             // Instruments like "other" (e.g. the Oakley co-investment bond) are
             // not debt of the underlying facility and must be excluded.
@@ -2055,7 +2148,8 @@ mod extra_tests {
         let mut recall = RecallDiagnostics::default();
         let vote = json!({"facilities":[leg, facq]});
         let corpus = Corpus::from_pages(vec![crate::documents::DocPage {
-            doc_name: "pack.pdf".into(), page_label: "1".into(),
+            doc_name: "pack.pdf".into(),
+            page_label: "1".into(),
             text: "Land Refinance Cost 5078772.32".into(),
         }]);
         restore_dropped_facilities(&mut adj, &[&vote], &corpus, &mut recall);
@@ -2068,7 +2162,9 @@ mod extra_tests {
         let p = |name: &str, roles: &[&str], extra: Value| {
             let mut o = json!({"id": name, "name": name, "entity_type": "company",
                 "roles": roles, "evidence": [{"file_id":"f1","document_type":"brochure","quote":"q"}]});
-            o.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            o.as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
             o
         };
         let v1 = json!({"parties":[
@@ -2084,16 +2180,30 @@ mod extra_tests {
         merge_parties(&mut chosen, &[v1, v2]);
         let parties = chosen["parties"].as_array().unwrap();
         assert_eq!(parties.len(), 4);
-        let ssre = parties.iter().find(|x| x["name"] == "SSRE Investment 2 Limited").unwrap();
-        assert!(ssre["roles"].as_array().unwrap().contains(&json!("sponsor")));
+        let ssre = parties
+            .iter()
+            .find(|x| x["name"] == "SSRE Investment 2 Limited")
+            .unwrap();
+        assert!(ssre["roles"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("sponsor")));
         assert_eq!(ssre["jurisdiction"], "Guernsey");
-        let deep = parties.iter().find(|x| x["name"] == "Deep Group London").unwrap();
+        let deep = parties
+            .iter()
+            .find(|x| x["name"] == "Deep Group London")
+            .unwrap();
         assert_eq!(deep["roles"], json!(["contractor"]));
         // conform fills the party-level keys the model omits.
         let mut doc = json!({"canonical_deal":{"parties": parties.clone()}});
         crate::conform::conform_document(&mut doc);
         let c = &doc["canonical_deal"]["parties"][0];
-        for key in ["address", "company_number", "evidence_assertion_ids", "evidence"] {
+        for key in [
+            "address",
+            "company_number",
+            "evidence_assertion_ids",
+            "evidence",
+        ] {
             assert!(c.get(key).is_some(), "missing {key}");
         }
     }
@@ -2122,5 +2232,4 @@ mod extra_tests {
             "35810099.96",
         );
     }
-
 }

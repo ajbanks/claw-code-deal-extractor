@@ -39,7 +39,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -122,7 +123,8 @@
                 "North East",
                 "Yorkshire & the Humber",
                 "Wales",
-                "Scotland"
+                "Scotland",
+                null
               ]
             }
           },
@@ -180,7 +182,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -312,7 +315,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -500,7 +504,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -629,7 +634,8 @@
                       "sqm",
                       "sqft",
                       "acres",
-                      "hectares"
+                      "hectares",
+                      null
                     ]
                   },
                   "display": {
@@ -772,7 +778,8 @@
                       "sqm",
                       "sqft",
                       "acres",
-                      "hectares"
+                      "hectares",
+                      null
                     ]
                   },
                   "display": {
@@ -906,7 +913,8 @@
                   "D",
                   "E",
                   "F",
-                  "G"
+                  "G",
+                  null
                 ]
               },
               "rent_review_mechanism": {
@@ -922,7 +930,8 @@
                   "rpi",
                   "fixed_uplift",
                   "turnover_based",
-                  "none"
+                  "none",
+                  null
                 ]
               },
               "rent_review_frequency": {
@@ -1012,7 +1021,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1072,7 +1082,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1132,7 +1143,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1163,7 +1175,8 @@
                 "pending",
                 "refused",
                 "not_required",
-                "unknown"
+                "unknown",
+                null
               ]
             },
             "description": {
@@ -1222,7 +1235,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1320,7 +1334,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1362,7 +1377,8 @@
                 "sqm",
                 "sqft",
                 "acres",
-                "hectares"
+                "hectares",
+                null
               ]
             },
             "display": {
@@ -1431,7 +1447,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1538,7 +1555,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1580,7 +1598,8 @@
                 "sqm",
                 "sqft",
                 "acres",
-                "hectares"
+                "hectares",
+                null
               ]
             },
             "display": {
@@ -1649,7 +1668,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1691,7 +1711,8 @@
                 "sqm",
                 "sqft",
                 "acres",
-                "hectares"
+                "hectares",
+                null
               ]
             },
             "display": {
@@ -1760,7 +1781,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1820,7 +1842,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -1903,7 +1926,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -2047,7 +2071,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -2085,7 +2110,8 @@
             "data_centre",
             "ground_rent",
             "land",
-            "other"
+            "other",
+            null
           ]
         }
       },
@@ -2131,7 +2157,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -2208,7 +2235,8 @@
                 "data_centre",
                 "ground_rent",
                 "land",
-                "other"
+                "other",
+                null
               ]
             },
             "asset_class_display": {
@@ -2393,7 +2421,8 @@
               "enum": [
                 "project",
                 "deal",
-                "phase"
+                "phase",
+                null
               ]
             },
             "deal_size": {
@@ -2608,7 +2637,8 @@
               "enum": [
                 "high",
                 "medium",
-                "low"
+                "low",
+                null
               ]
             },
             "source": {
@@ -2968,7 +2998,8 @@
                 "lease_up",
                 "stabilised",
                 "operating",
-                "na"
+                "na",
+                null
               ]
             }
           },
@@ -3063,7 +3094,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3147,7 +3179,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3229,7 +3262,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3314,7 +3348,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3394,7 +3429,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3454,7 +3490,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3514,7 +3551,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3574,7 +3612,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3656,7 +3695,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3738,7 +3778,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3820,7 +3861,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3902,7 +3944,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -3984,7 +4027,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4064,7 +4108,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4144,7 +4189,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4224,7 +4270,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4306,7 +4353,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4388,7 +4436,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4470,7 +4519,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4552,7 +4602,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4650,7 +4701,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4732,7 +4784,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4814,7 +4867,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4894,7 +4948,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -4976,7 +5031,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5036,7 +5092,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5096,7 +5153,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5178,7 +5236,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5238,7 +5297,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5298,7 +5358,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5358,7 +5419,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5418,7 +5480,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5478,7 +5541,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5538,7 +5602,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5598,7 +5663,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5658,7 +5724,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5760,7 +5827,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5862,7 +5930,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5922,7 +5991,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -5982,7 +6052,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6062,7 +6133,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6122,7 +6194,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6204,7 +6277,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6284,7 +6358,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6366,7 +6441,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6446,7 +6522,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6464,7 +6541,8 @@
           ],
           "enum": [
             "debt",
-            "equity"
+            "equity",
+            null
           ]
         }
       },
@@ -6510,7 +6588,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6592,7 +6671,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6674,7 +6754,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6754,7 +6835,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6834,7 +6916,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -6917,7 +7000,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7000,7 +7084,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7083,7 +7168,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7165,7 +7251,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7247,7 +7334,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7270,7 +7358,8 @@
             "D",
             "E",
             "F",
-            "G"
+            "G",
+            null
           ]
         }
       },
@@ -7316,7 +7405,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7376,7 +7466,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7436,7 +7527,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7497,7 +7589,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -7569,7 +7662,8 @@
                     ],
                     "enum": [
                       "full",
-                      "summary"
+                      "summary",
+                      null
                     ]
                   },
                   "legal_name": {
@@ -7793,7 +7887,8 @@
                       "strong",
                       "moderate",
                       "weak",
-                      "insufficient_data"
+                      "insufficient_data",
+                      null
                     ]
                   },
                   "covenant_rule": {
@@ -8008,7 +8103,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8088,7 +8184,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8171,7 +8268,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8231,7 +8329,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8291,7 +8390,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8351,7 +8451,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8433,7 +8534,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8515,7 +8617,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8595,7 +8698,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8659,7 +8763,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8719,7 +8824,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8831,7 +8937,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8911,7 +9018,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -8934,7 +9042,8 @@
             "rpi",
             "fixed_uplift",
             "turnover_based",
-            "none"
+            "none",
+            null
           ]
         }
       },
@@ -8980,7 +9089,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9040,7 +9150,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9101,7 +9212,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9161,7 +9273,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9243,7 +9356,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9303,7 +9417,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9377,7 +9492,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9396,7 +9512,8 @@
           "enum": [
             "whole_loan",
             "senior_mezzanine",
-            "other"
+            "other",
+            null
           ]
         }
       },
@@ -9442,7 +9559,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9500,7 +9618,8 @@
                         "operational",
                         "in_progress",
                         "planned",
-                        "unknown"
+                        "unknown",
+                        null
                       ]
                     },
                     "gdv": {
@@ -9594,7 +9713,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9795,7 +9915,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9916,7 +10037,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -9998,7 +10120,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10080,7 +10203,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10162,7 +10286,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10244,7 +10369,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10326,7 +10452,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10408,7 +10535,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10488,7 +10616,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10549,7 +10678,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10610,7 +10740,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10671,7 +10802,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10732,7 +10864,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10844,7 +10977,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -10935,7 +11069,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11018,7 +11153,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11095,7 +11231,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11208,7 +11345,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11290,7 +11428,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11372,7 +11511,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11454,7 +11594,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11536,7 +11677,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11618,7 +11760,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11700,7 +11843,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11782,7 +11926,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11864,7 +12009,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -11946,7 +12092,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12028,7 +12175,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12110,7 +12258,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12192,7 +12341,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12274,7 +12424,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12356,7 +12507,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12438,7 +12590,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12520,7 +12673,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12602,7 +12756,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12684,7 +12839,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12744,7 +12900,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12804,7 +12961,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12886,7 +13044,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -12946,7 +13105,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13006,7 +13166,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13066,7 +13227,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13126,7 +13288,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13186,7 +13349,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13246,7 +13410,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13306,7 +13471,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13369,7 +13535,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13432,7 +13599,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13495,7 +13663,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13555,7 +13724,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13615,7 +13785,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13675,7 +13846,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13735,7 +13907,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {
@@ -13795,7 +13968,8 @@
           ],
           "enum": [
             "deal",
-            "project"
+            "project",
+            null
           ]
         },
         "evidence_text": {

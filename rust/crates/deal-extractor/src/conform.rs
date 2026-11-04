@@ -52,11 +52,27 @@ fn is_with_source(schema: &Value) -> bool {
 
 /// Type-appropriate default for a required key that the model omitted.
 fn default_for(schema: &Value) -> Value {
+    if is_with_source(schema) {
+        return with_source_empty();
+    }
     if nullable(schema) {
         return Value::Null;
     }
+    if schema.get("enum").is_some() {
+        return default_enum(schema);
+    }
     match primary_type(schema) {
-        Some("string") => Value::String(String::new()),
+        Some("string") => {
+            if schema
+                .get("minLength")
+                .and_then(Value::as_u64)
+                .is_some_and(|m| m >= 1)
+            {
+                Value::String("unknown".to_string())
+            } else {
+                Value::String(String::new())
+            }
+        }
         Some("number") | Some("integer") => Value::from(0),
         Some("boolean") => Value::Bool(false),
         Some("array") => Value::Array(Vec::new()),
@@ -65,7 +81,44 @@ fn default_for(schema: &Value) -> Value {
     }
 }
 
+fn default_enum(schema: &Value) -> Value {
+    for candidate in [
+        "unknown",
+        "other",
+        "parsed",
+        "extracted",
+        "deal",
+        "committed",
+    ] {
+        if let Some(m) = enum_fix(schema, candidate) {
+            return Value::String(m);
+        }
+    }
+    if let Some(first) = schema
+        .get("enum")
+        .and_then(Value::as_array)
+        .and_then(|arr| arr.iter().find_map(Value::as_str))
+    {
+        return Value::String(first.to_string());
+    }
+    Value::String(String::new())
+}
+
 const WITH_SOURCE_DEFAULTS: &[(&str, Value)] = &[];
+
+fn with_source_empty() -> Value {
+    let mut o = Map::new();
+    o.insert("source".to_string(), Value::String(String::new()));
+    o.insert(
+        "source_type".to_string(),
+        Value::String("unknown".to_string()),
+    );
+    o.insert("notes".to_string(), Value::Null);
+    o.insert("scope".to_string(), Value::Null);
+    o.insert("evidence_text".to_string(), Value::Null);
+    o.insert("value".to_string(), Value::Null);
+    Value::Object(o)
+}
 
 fn with_source_wrapper(value: Value) -> Value {
     let _ = WITH_SOURCE_DEFAULTS;
@@ -108,6 +161,14 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
     match ty {
         Some("object") => conform_object(inst, schema, fixes),
         Some("array") => {
+            if let Value::Object(o) = inst.clone() {
+                if o.values().all(Value::is_null) && nullable(schema) {
+                    *inst = Value::Null;
+                } else {
+                    *inst = Value::Array(vec![Value::Object(o)]);
+                }
+                *fixes += 1;
+            }
             if let Some(items) = schema.get("items") {
                 if let Value::Array(arr) = inst {
                     for item in arr.iter_mut() {
@@ -118,6 +179,21 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
         }
         Some("string") => {
             match inst.clone() {
+                Value::Null if !nullable(schema) => {
+                    *inst = default_for(schema);
+                    *fixes += 1;
+                }
+                Value::Object(o) if !nullable(schema) => {
+                    let s = o
+                        .get("document")
+                        .or_else(|| o.get("name"))
+                        .or_else(|| o.get("file_id"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
+                    *inst = Value::String(s);
+                    *fixes += 1;
+                }
                 Value::Number(n) => {
                     *inst = Value::String(n.to_string());
                     *fixes += 1;
@@ -127,28 +203,29 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
                     *fixes += 1;
                 }
                 Value::String(s) => {
-                    // Empty string on an enum field is a missing value, not a
-                    // member — null it out when the schema allows, else fall
-                    // back to the catch-all "other" member (model emitted
-                    // "" for facility_parties[].role → schema_violation).
-                    if s.trim().is_empty() && schema.get("enum").is_some() {
+                    if schema.get("enum").is_some() {
+                        if !s.trim().is_empty() {
+                            if let Some(fixed) = enum_fix(schema, &s) {
+                                if fixed != s {
+                                    *inst = Value::String(fixed);
+                                    *fixes += 1;
+                                }
+                                return;
+                            }
+                        }
+                        // Unrecognised or empty enum value: null it out when
+                        // nullable, else fall back to a catch-all enum member.
                         if nullable(schema) {
                             *inst = Value::Null;
                             *fixes += 1;
                             return;
                         }
-                        if enum_fix(schema, "other").is_some() {
-                            *inst = Value::String("other".to_string());
+                        let fallback = default_enum(schema);
+                        if fallback != Value::String(s) {
+                            *inst = fallback;
                             *fixes += 1;
-                            return;
                         }
-                    }
-                    if let Some(fixed) = enum_fix(schema, &s) {
-                        if fixed != s {
-                            *inst = Value::String(fixed);
-                            *fixes += 1;
-                            return;
-                        }
+                        return;
                     }
                     // Decimal-string fields: strip £/commas/whitespace so
                     // "£25,750,000" satisfies the exact-decimal pattern.
@@ -160,7 +237,18 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
                         if !cleaned.is_empty() && cleaned != s && cleaned.parse::<f64>().is_ok() {
                             *inst = Value::String(cleaned);
                             *fixes += 1;
+                            return;
                         }
+                    }
+                    if s.trim().is_empty()
+                        && !nullable(schema)
+                        && schema
+                            .get("minLength")
+                            .and_then(Value::as_u64)
+                            .is_some_and(|m| m >= 1)
+                    {
+                        *inst = Value::String("unknown".to_string());
+                        *fixes += 1;
                     }
                 }
                 _ => {}
@@ -179,11 +267,35 @@ fn conform_node(inst: &mut Value, schema: &Value, fixes: &mut usize) {
 }
 
 fn conform_object(inst: &mut Value, schema: &Value, fixes: &mut usize) {
-    // Scalar/array where an object is required → wrap if it's a WithSource.
+    // Scalar/array/null where an object is required → wrap if it's a WithSource.
     if !inst.is_object() {
-        if is_with_source(schema) && !inst.is_null() {
-            let inner = std::mem::replace(inst, Value::Null);
-            *inst = with_source_wrapper(inner);
+        if is_with_source(schema) {
+            if inst.is_null() {
+                *inst = with_source_empty();
+            } else {
+                let inner = std::mem::replace(inst, Value::Null);
+                *inst = with_source_wrapper(inner);
+            }
+            *fixes += 1;
+        } else if let Value::Number(n) = inst.clone() {
+            let props = schema.get("properties").and_then(Value::as_object);
+            let mut o = Map::new();
+            if props.is_some_and(|p| p.contains_key("amount")) {
+                o.insert("amount".to_string(), Value::from(n));
+                if props.is_some_and(|p| p.contains_key("currency")) {
+                    o.insert("currency".to_string(), Value::String("GBP".to_string()));
+                }
+            } else if props.is_some_and(|p| p.contains_key("value")) {
+                o.insert("value".to_string(), Value::from(n.clone()));
+                if props.is_some_and(|p| p.contains_key("display")) {
+                    o.insert("display".to_string(), Value::String(format!("{n}%")));
+                }
+            } else if props.is_some_and(|p| p.contains_key("months")) {
+                o.insert("months".to_string(), Value::from(n));
+            } else {
+                return;
+            }
+            *inst = Value::Object(o);
             *fixes += 1;
         } else {
             return;
@@ -205,6 +317,81 @@ fn conform_object(inst: &mut Value, schema: &Value, fixes: &mut usize) {
     let Some(obj) = inst.as_object_mut() else {
         return;
     };
+
+    // Map prompt-style aliases onto the canonical JSON Schema field names
+    // before filling required defaults:
+    // - evidence entries: `{ document, page, quote }` → `{ file_id, pdf_page, document_type, quote }`
+    // - canonical documents: `{ name, role }` → `{ id, file_id, file_name, document_type, status }`
+    if props.contains_key("file_id")
+        && props.contains_key("pdf_page")
+        && props.contains_key("quote")
+    {
+        if !obj.contains_key("file_id")
+            || obj
+                .get("file_id")
+                .and_then(Value::as_str)
+                .is_some_and(|s| s.trim().is_empty())
+        {
+            if let Some(doc_name) = obj
+                .get("document")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .map(str::to_string)
+            {
+                obj.insert("file_id".to_string(), Value::String(doc_name));
+                *fixes += 1;
+            }
+        }
+        if !obj.contains_key("pdf_page") || obj.get("pdf_page").is_some_and(Value::is_null) {
+            if let Some(p) = obj.get("page").and_then(|v| {
+                v.as_u64().or_else(|| {
+                    v.as_str().and_then(|s| {
+                        s.chars()
+                            .filter(char::is_ascii_digit)
+                            .collect::<String>()
+                            .parse::<u64>()
+                            .ok()
+                    })
+                })
+            }) {
+                if p >= 1 {
+                    obj.insert("pdf_page".to_string(), Value::from(p));
+                    *fixes += 1;
+                }
+            }
+        }
+    }
+    if props.contains_key("file_id")
+        && props.contains_key("file_name")
+        && props.contains_key("document_type")
+        && props.contains_key("status")
+    {
+        let name = obj
+            .get("name")
+            .or_else(|| obj.get("file_name"))
+            .and_then(Value::as_str)
+            .filter(|s| !s.trim().is_empty())
+            .map(str::to_string);
+        if let Some(n) = name {
+            for k in ["id", "file_id", "file_name"] {
+                if !obj.contains_key(k)
+                    || obj
+                        .get(k)
+                        .and_then(Value::as_str)
+                        .is_some_and(|s| s.trim().is_empty())
+                {
+                    obj.insert(k.to_string(), Value::String(n.clone()));
+                    *fixes += 1;
+                }
+            }
+        }
+        if !obj.contains_key("document_type") {
+            if let Some(role) = obj.get("role").and_then(Value::as_str).map(str::to_string) {
+                obj.insert("document_type".to_string(), Value::String(role));
+                *fixes += 1;
+            }
+        }
+    }
 
     // Fill missing required keys.
     for key in &required {
@@ -301,6 +488,66 @@ mod tests {
         assert_eq!(
             doc["canonical_deal"]["facilities"][0]["commitment"]["amount"],
             "25750000"
+        );
+    }
+
+    #[test]
+    fn maps_evidence_aliases_and_validates_missing_details() {
+        let mut doc = json!({
+            "canonical_deal": {
+                "schema_version": "1",
+                "facilities": [{
+                    "id": "fac_1",
+                    "name": "Senior Loan",
+                    "instrument_type": "debt_facility",
+                    "role": "senior_debt",
+                    "status": "candidate",
+                    "disposition": "requested",
+                    "commitment": {"amount": "10000000", "currency": "gbp"},
+                    "evidence": [{"document": "im.pdf", "page": "5", "quote": "£10m senior"}]
+                }],
+                "documents": [{"name": "im.pdf", "role": "information_memorandum"}],
+                "focus_facility_id": "fac_1",
+                "focus_resolution_status": "resolved",
+                "candidate_facility_ids": ["fac_1"]
+            },
+            "details": {
+                "address": {
+                    "source": "im.pdf",
+                    "source_type": "extracted",
+                    "scope": null,
+                    "value": {
+                        "full_address": "Frankfurt am Main",
+                        "region": "Hesse"
+                    }
+                }
+            },
+            "kpis": {},
+            "classification": {
+                "capital_position": "debt",
+                "loan_type": {"category": "bridge"},
+                "loan_rank": {"category": "senior"}
+            }
+        });
+        conform_document(&mut doc);
+        assert_eq!(
+            doc["canonical_deal"]["facilities"][0]["evidence"][0]["file_id"],
+            "im.pdf"
+        );
+        assert_eq!(
+            doc["canonical_deal"]["facilities"][0]["evidence"][0]["pdf_page"],
+            5
+        );
+        assert_eq!(doc["canonical_deal"]["documents"][0]["file_id"], "im.pdf");
+        assert_eq!(doc["details"]["address"]["value"]["region"], Value::Null);
+        let issues = crate::validate::validate(&doc);
+        let scope_errs: Vec<_> = issues
+            .iter()
+            .filter(|i| i.path.ends_with("/scope") || i.path.ends_with("/source_type"))
+            .collect();
+        assert!(
+            scope_errs.is_empty(),
+            "unexpected scope/source_type errors: {scope_errs:?}"
         );
     }
 }

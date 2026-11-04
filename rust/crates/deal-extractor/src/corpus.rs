@@ -126,6 +126,103 @@ impl Corpus {
             .iter()
             .find(|p| p.doc_name == doc_name && p.page_label == page_label)
     }
+
+    /// Whole-corpus render with non-subject fenced regions masked — the
+    /// deterministic ground-truth view for verify/recall.
+    #[must_use]
+    pub fn render_subject_only(&self) -> String {
+        subject_only_text(&self.render())
+    }
+}
+
+/// Byte spans the TS scope-gatekeeper fenced as NON-subject content:
+///
+/// * `<SCOPE_FENCE scope="..." subject_deal="false"> ... </SCOPE_FENCE_*>`
+///   — dedicated non-subject pages (catchment, market context, sponsor CV)
+/// * `<TABLE_FENCE role="..." subject_related="false"> ... </TABLE_FENCE>`
+///   — market/context tables that are NOT the subject's tenancy schedule
+///   or valuation
+/// * `[EXCLUDED_NON_SUBJECT_CONTEXT: ...]` — an inline line marker the
+///   gatekeeper substitutes for a verified non-subject line on a mixed page
+///
+/// Everything inside these spans is readable context for the agent but is
+/// not evidence for subject-deal fields — deterministic passes (verify
+/// ground-check, recall unaccounted-figure scan) must not treat figures
+/// inside them as subject-deal figures.
+///
+/// Returns `(start, end)` byte spans over `text`.
+#[must_use]
+pub fn non_subject_spans(text: &str) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
+    let mut pos = 0usize;
+    while let Some(off) = text[pos..].find('<') {
+        let start = pos + off;
+        let rest = &text[start..];
+        let (flag, close) = if rest.starts_with("<SCOPE_FENCE") {
+            ("subject_deal=\"false\"", "</SCOPE_FENCE_")
+        } else if rest.starts_with("<TABLE_FENCE") {
+            ("subject_related=\"false\"", "</TABLE_FENCE>")
+        } else {
+            pos = start + 1;
+            continue;
+        };
+        let Some(hdr_end) = rest.find('>') else { break };
+        let header = &rest[..hdr_end];
+        if header.contains(flag) {
+            // Unterminated fence: mask to end of text — safer to drop the
+            // tail than treat fenced non-subject content as subject.
+            let end = rest
+                .find(close)
+                .map(|c| {
+                    // The SCOPE close tag carries a scope suffix
+                    // (</SCOPE_FENCE_CATCHMENT_DEMOGRAPHICS>) — scan from the
+                    // close-tag start to its '>' for both fence kinds.
+                    let tag_start = start + c;
+                    match text[tag_start..].find('>') {
+                        Some(gt) => tag_start + gt + 1,
+                        None => text.len(),
+                    }
+                })
+                .unwrap_or(text.len());
+            spans.push((start, end));
+            pos = end;
+        } else {
+            pos = start + hdr_end + 1;
+        }
+    }
+    // Inline excluded-line markers: the marker wraps the original line
+    // (`[EXCLUDED_NON_SUBJECT_CONTEXT: <original text>]`) — mask the whole line.
+    let mut line_start = 0usize;
+    for line in text.split_inclusive('\n') {
+        if line.contains("EXCLUDED_NON_SUBJECT_CONTEXT") {
+            spans.push((line_start, line_start + line.len()));
+        }
+        line_start += line.len();
+    }
+    spans.sort_unstable();
+    spans
+}
+
+/// `text` with every non-subject fenced span replaced by spaces — byte
+/// offsets are preserved so callers can map positions back to the original.
+#[must_use]
+pub fn subject_only_text(text: &str) -> String {
+    let spans = non_subject_spans(text);
+    if spans.is_empty() {
+        return text.to_string();
+    }
+    // Replace every non-newline byte inside a non-subject span with a space —
+    // the string keeps the same length so byte offsets stay valid.
+    let mut bytes = text.as_bytes().to_vec();
+    for (s, e) in spans {
+        for b in &mut bytes[s..e.min(bytes.len())] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    }
+    // Only ASCII spaces were written; the result is still valid UTF-8.
+    String::from_utf8(bytes).unwrap_or_else(|_| text.to_string())
 }
 
 #[cfg(test)]
@@ -180,5 +277,51 @@ mod tests {
         let docs = c.documents();
         assert_eq!(docs.len(), 2);
         assert_eq!(docs[0].pages, 2);
+    }
+
+    #[test]
+    fn scope_fence_masks_non_subject_page() {
+        let text = "Subject value £10m\n\
+                    <SCOPE_FENCE scope=\"catchment_demographics\" subject_deal=\"false\">\n\
+                    [DO NOT EXTRACT — context]\n\
+                    Catchment population 42,000\n\
+                    </SCOPE_FENCE_CATCHMENT_DEMOGRAPHICS>\n\
+                    Subject rent £500,000";
+        let masked = subject_only_text(text);
+        assert_eq!(masked.len(), text.len());
+        assert!(masked.contains("£10m"));
+        assert!(masked.contains("£500,000"));
+        assert!(!masked.contains("42,000"));
+        assert!(!masked.contains("SCOPE_FENCE"));
+    }
+
+    #[test]
+    fn table_fence_masks_only_non_subject_tables() {
+        let text = "<TABLE_FENCE role=\"market_comparable\" subject_related=\"false\">\n\
+                    Comp sale £2,000,000\n\
+                    </TABLE_FENCE>\n\
+                    <TABLE_FENCE role=\"sources_and_uses\" subject_related=\"true\">\n\
+                    Total £5,000,000\n\
+                    </TABLE_FENCE>";
+        let masked = subject_only_text(text);
+        assert!(!masked.contains("2,000,000"));
+        assert!(masked.contains("5,000,000"));
+    }
+
+    #[test]
+    fn excluded_line_marker_masks_that_line() {
+        let text = "Passing rent £100,000\n\
+                    [EXCLUDED_NON_SUBJECT_CONTEXT: Regional comp £9,999,999]\n\
+                    Passing yield 6%";
+        let masked = subject_only_text(text);
+        assert!(masked.contains("£100,000"));
+        assert!(!masked.contains("9,999,999"));
+        assert!(masked.contains("6%"));
+    }
+
+    #[test]
+    fn unfenced_text_is_untouched() {
+        let text = "Everything £1,234 here stays";
+        assert_eq!(subject_only_text(text), text);
     }
 }

@@ -140,26 +140,36 @@ pub fn tie_checks(doc: &Value) -> Vec<Tie> {
                 .and_then(|d| d.get("residential_units"))
                 .and_then(|u| Some(u.get("value").unwrap_or(u)))
                 .and_then(Value::as_array);
-            let has_sale_prices = units.is_some_and(|us| us.iter().any(|u| {
-                u.get("expected_gdv").or_else(|| u.get("price")).is_some_and(|v| !v.is_null())
-            }));
-            let has_rents = units.is_some_and(|us| us.iter().any(|u| {
-                u.get("expected_rent_pcm").or_else(|| u.get("rent_pcm")).is_some_and(|v| !v.is_null())
-            }));
+            let has_sale_prices = units.is_some_and(|us| {
+                us.iter().any(|u| {
+                    u.get("expected_gdv")
+                        .or_else(|| u.get("price"))
+                        .is_some_and(|v| !v.is_null())
+                })
+            });
+            let has_rents = units.is_some_and(|us| {
+                us.iter().any(|u| {
+                    u.get("expected_rent_pcm")
+                        .or_else(|| u.get("rent_pcm"))
+                        .is_some_and(|v| !v.is_null())
+                })
+            });
             let stabilised = doc
                 .get("canonical_deal")
                 .and_then(|c| c.get("valuations"))
                 .and_then(Value::as_array)
-                .is_some_and(|vs| vs.iter().any(|v| {
-                    v.get("value_type").and_then(Value::as_str) == Some("stabilised_value")
-                }));
+                .is_some_and(|vs| {
+                    vs.iter().any(|v| {
+                        v.get("value_type").and_then(Value::as_str) == Some("stabilised_value")
+                    })
+                });
             let sales_scheme = has_sale_prices && !has_rents && !stabilised;
             let investment_like = !sales_scheme;
             if !investment_like {
                 // Sales GDV — a NOI/cap tie would misfire and burn a fix call.
             } else {
-            let ok = (implied - stated).abs() <= 0.25;
-            out.push(Tie {
+                let ok = (implied - stated).abs() <= 0.25;
+                out.push(Tie {
                 id: "cap_vs_noi_value",
                 status: if ok { "pass" } else { "fail" },
                 detail: format!("stated cap {stated:.2}% vs implied {implied:.2}% (NOI {noi:.0} ÷ GDV {gdv:.0} net of {:.1}% costs)", pc * 100.0),

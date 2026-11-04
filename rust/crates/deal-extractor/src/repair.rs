@@ -276,6 +276,45 @@ async fn run_tool_loop(
     ))
 }
 
+/// Is an issue worth sending to the LLM repair tool loop?
+///
+/// Domain-invariant errors (`code != "schema_violation"`) always are.
+/// For `schema_violation`, filter out cosmetic provenance/envelope errors
+/// (`evidence/`, `canonical_deal/documents/`, `WithSource` metadata keys,
+/// `details/classification`) — the LLM cannot invent missing `file_id`s and
+/// sending 200+ envelope errors drowns the real semantic issues and causes
+/// the round to be discarded when `next_errors >= best_errors`.
+fn is_repairable_issue(i: &Issue) -> bool {
+    if i.severity != Severity::Error {
+        return false;
+    }
+    if i.code != "schema_violation" {
+        return true;
+    }
+    let p = i.path.as_str();
+    if p.contains("/evidence")
+        || p.starts_with("/canonical_deal/documents")
+        || p.starts_with("/details/classification")
+        || p == "/details/schema_version"
+        || p.ends_with("/scope")
+        || p.ends_with("/source")
+        || p.ends_with("/source_type")
+        || p.ends_with("/notes")
+        || p.ends_with("/evidence_text")
+    {
+        return false;
+    }
+    true
+}
+
+fn repairable_issues(issues: &[Issue]) -> Vec<Issue> {
+    issues
+        .iter()
+        .filter(|i| is_repairable_issue(i))
+        .cloned()
+        .collect()
+}
+
 /// The repair loop: validate → if issues, repair with tools → re-validate.
 /// Keeps the best candidate; stops early when the issue count stops falling.
 /// Returns the best document and the remaining issues.
@@ -286,7 +325,8 @@ pub async fn repair_loop(
     max_rounds: usize,
 ) -> (Value, Vec<Issue>, usize) {
     let mut issues = validate::validate(&candidate);
-    let mut best_errors = validate::error_count(&issues);
+    let mut actionable = repairable_issues(&issues);
+    let mut best_errors = actionable.len();
     let mut rounds_used = 0;
 
     for _ in 0..max_rounds {
@@ -294,22 +334,27 @@ pub async fn repair_loop(
             break;
         }
         rounds_used += 1;
-        eprintln!("[repair] round {rounds_used} — {best_errors} errors, calling LLM...");
-        match repair_round(ex, corpus, &candidate, &issues).await {
+        eprintln!(
+            "[repair] round {rounds_used} — {best_errors} actionable errors ({} total), calling LLM...",
+            validate::error_count(&issues)
+        );
+        match repair_round(ex, corpus, &candidate, &actionable).await {
             Ok(mut next) => {
                 // Mechanical conformance before scoring — don't let shape
                 // errors count for (or against) the model's repair.
                 crate::conform::conform_document(&mut next);
                 let next_issues = validate::validate(&next);
-                let next_errors = validate::error_count(&next_issues);
+                let next_actionable = repairable_issues(&next_issues);
+                let next_errors = next_actionable.len();
                 eprintln!(
-                    "[repair] round {rounds_used} done — {next_errors} errors (was {best_errors})"
+                    "[repair] round {rounds_used} done — {next_errors} actionable errors (was {best_errors})"
                 );
                 if next_errors >= best_errors {
                     break;
                 }
                 candidate = next;
                 issues = next_issues;
+                actionable = next_actionable;
                 best_errors = next_errors;
             }
             Err(e) => {
@@ -331,6 +376,9 @@ const PRESERVED_ARRAYS: &[&str] = &[
     "phases",
     "capital_events",
     "capital_snapshots",
+    "parties",
+    "guarantees",
+    "security",
 ];
 
 /// Restore canonical arrays the repair shrank, a dropped focus id, and

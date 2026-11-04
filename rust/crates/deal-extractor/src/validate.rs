@@ -360,6 +360,11 @@ fn enums_and_formats(cd: &Value, out: &mut Vec<Issue>) {
         "preferred_equity",
         "shareholder_loan",
         "vendor_finance",
+        "revolving_credit",
+        "convertible_loan",
+        "guarantee",
+        "security_package",
+        "other",
     ];
     const STATUSES: &[&str] = &["candidate", "active", "repaid", "cancelled", "superseded"];
     const DISPOSITIONS: &[&str] = &["requested", "existing", "repaid", "proposed"];
@@ -368,7 +373,7 @@ fn enums_and_formats(cd: &Value, out: &mut Vec<Issue>) {
         let path = format!("canonical_deal.facilities[{i}]");
         if let Some(lt) = f.get("loan_type").and_then(|v| v.as_str()) {
             if !lt.is_empty() && !LOAN_TYPES.contains(&lt) {
-                out.push(Issue::error(
+                out.push(Issue::warn(
                     "bad_loan_type",
                     format!("{path}.loan_type"),
                     format!(
@@ -477,7 +482,13 @@ fn projection(doc: &Value, cd: &Value, out: &mut Vec<Issue>) {
     if let Some(gd) = details_amount(doc, "gross_debt") {
         let in_scope: f64 = facilities(cd)
             .iter()
-            .filter(|f| f.get("instrument_type").and_then(|v| v.as_str()) == Some("debt_facility"))
+            .filter(|f| {
+                crate::contract::DEBT_INSTRUMENT_TYPES.contains(
+                    &f.get("instrument_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(""),
+                )
+            })
             .filter(|f| {
                 let disp = f.get("disposition").and_then(|v| v.as_str());
                 let scope = f.get("scope_level").and_then(|v| v.as_str());
@@ -530,9 +541,13 @@ fn completeness(doc: &Value, cd: &Value, out: &mut Vec<Issue>) {
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let looks_debt = capital_position == "debt"
-        || facilities(cd)
-            .iter()
-            .any(|f| f.get("instrument_type").and_then(|v| v.as_str()) == Some("debt_facility"));
+        || facilities(cd).iter().any(|f| {
+            crate::contract::DEBT_INSTRUMENT_TYPES.contains(
+                &f.get("instrument_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(""),
+            )
+        });
     if looks_debt {
         let lt = doc
             .get("classification")

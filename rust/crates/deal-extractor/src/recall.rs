@@ -269,7 +269,11 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
         if page.page_label == "error" {
             continue;
         }
-        for line in page.text.lines() {
+        // Figures inside <SCOPE_FENCE>/<TABLE_FENCE> non-subject spans and
+        // EXCLUDED_NON_SUBJECT_CONTEXT lines are market/context evidence —
+        // not gaps in the subject-deal extraction.
+        let text = crate::corpus::subject_only_text(&page.text);
+        for line in text.lines() {
             for p in parse_figures(line) {
                 let prefix = &line[..p.start];
                 // Only the first figure after a label counts: a figure with
@@ -330,7 +334,11 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
                     // Percent-scale tolerance: the decimal half-step ×100 is
                     // far too wide (stated 0.045 vs implied 4.515% sat inside
                     // it and the flag never fired). ±0.01pp.
-                    (p.value * 100.0, (p.tol * 100.0).min(0.01), FigureKind::Percent)
+                    (
+                        p.value * 100.0,
+                        (p.tol * 100.0).min(0.01),
+                        FigureKind::Percent,
+                    )
                 } else {
                     (p.value, p.tol, p.kind)
                 };
@@ -384,7 +392,10 @@ fn labelled_figures(corpus: &Corpus) -> Vec<UnaccountedFigure> {
 #[must_use]
 pub(crate) fn corpus_has_amount(corpus: &Corpus, value: f64) -> bool {
     for page in &corpus.pages {
-        for line in page.text.lines() {
+        // Skip non-subject fenced spans — a market-comp figure is not
+        // evidence for a subject-deal amount.
+        let text = crate::corpus::subject_only_text(&page.text);
+        for line in text.lines() {
             for p in parse_figures(line) {
                 if p.kind == FigureKind::Money
                     && (p.value - value).abs() <= p.tol.max(value * REL_TOL)
@@ -678,7 +689,8 @@ mod extra_tests {
     #[test]
     fn xlsx_cap_rate_fraction_is_a_recall_candidate() {
         let c = Corpus::from_pages(vec![crate::documents::DocPage {
-            doc_name: "model.xlsx".into(), page_label: "1".into(),
+            doc_name: "model.xlsx".into(),
+            page_label: "1".into(),
             text: "Yield Summary\tCapitalisation Rate\t0.045\nResidential\tParking".into(),
         }]);
         let got = unaccounted_figures(&json!({}), &c);

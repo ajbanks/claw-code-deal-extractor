@@ -247,7 +247,10 @@ pub async fn verify_extracted_numbers(
     corpus: &Corpus,
     cheap_model: &Extractor,
 ) -> (usize, usize, Vec<String>) {
-    let corpus_text = corpus.render();
+    // Ground-check against subject-deal text only — a figure that appears
+    // solely inside a non-subject fence (market comps, catchment context)
+    // is not verification for a subject field.
+    let corpus_text = corpus.render_subject_only();
     let checkable = collect_checkable(document);
 
     // Cheap pass 1: which figures are missing from the corpus text? Plus:

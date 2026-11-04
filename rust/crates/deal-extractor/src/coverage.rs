@@ -36,6 +36,8 @@ const FIELD_SPECS: &[(&str, &[&str], &str)] = &[
     ("canonical_deal.phases", &["phase"], "scheme phases with unit_count and status"),
     ("canonical_deal.facility_parties", &["lender", "borrower", "spv"], "borrower and lender parties per facility"),
     ("canonical_deal.valuations", &["valuation", "valuer", "report"], "valuation entries (value, basis, valuer, date)"),
+    ("canonical_deal.guarantees", &["guarantor", "personal guarantee", "corporate guarantee", "performance bond", "indemnity in favour"], "stated guarantees (guarantor, beneficiary, cap, trigger)"),
+    ("canonical_deal.security", &["first legal charge", "legal charge over", "debenture", "security package", "fixed charge over"], "the security package (type, ranking, secured asset)"),
     ("details.finance_costs", &["finance cost", "rolled interest", "interest over the term"], "stated finance/interest total over the loan term (e.g. \"Finance costs £749,659\")"),
     ("details.loan_including_interest", &["incl. interest", "including interest", "rolled interest"], "the all-in loan figure incl. rolled interest (e.g. \"loan including interest £5,699,659\")"),
 ];
@@ -261,7 +263,11 @@ pub(crate) fn merge_patch_guarded(
             if let Some(issue) = new_issues
                 .iter()
                 .find(|i| i.path.starts_with(path.as_str()) && !baseline_errors.contains(&i.path))
-                .or_else(|| new_issues.iter().find(|i| !baseline_errors.contains(&i.path)))
+                .or_else(|| {
+                    new_issues
+                        .iter()
+                        .find(|i| !baseline_errors.contains(&i.path))
+                })
             {
                 reasons.push(format!("{path}: {} {}", issue.code, issue.message));
             }
@@ -397,7 +403,10 @@ mod extra_tests {
             json!({"id":"pa_1","reference":"LUT/2024/1234","description":"183 dwellings","status":"granted"}),
         )]);
         let (merged, rejected, reasons) = merge_patch_guarded(&mut doc, &obj, |_| None, false);
-        assert!(rejected.is_empty(), "rejected={rejected:?} reasons={reasons:?}");
+        assert!(
+            rejected.is_empty(),
+            "rejected={rejected:?} reasons={reasons:?}"
+        );
         assert!(merged.contains(&"canonical_deal.planning_applications[0]".to_string()));
     }
 }
