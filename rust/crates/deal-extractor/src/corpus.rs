@@ -215,7 +215,8 @@ pub fn subject_only_text(text: &str) -> String {
     // the string keeps the same length so byte offsets stay valid.
     let mut bytes = text.as_bytes().to_vec();
     for (s, e) in spans {
-        for b in &mut bytes[s..e.min(bytes.len())] {
+        let end = e.min(bytes.len());
+        for b in &mut bytes[s..end] {
             if *b != b'\n' {
                 *b = b' ';
             }

@@ -14,32 +14,190 @@ use crate::corpus::Corpus;
 use crate::validate::{Issue, Severity};
 
 /// High-value fields where an empty value plus corpus evidence should
-/// trigger a targeted fill. Each entry: document path, keywords that count
-/// as evidence, and a hint about what to extract.
-const FIELD_SPECS: &[(&str, &[&str], &str)] = &[
-    ("details.sponsor_principals", &["director", "shareholder", "track record"], "every named principal/director/shareholder with a per-person track_record list"),
-    ("details.sponsor_track_record", &["track record", "previous projects", "delivered"], "the sponsor's delivered-scheme track record"),
-    ("details.residential_units", &["unit mix", "bedroom", "apartments", "units"], "the per-type unit schedule (bedrooms, quantity, area, GDV)"),
-    ("details.gross_internal_area", &["gia", "sq ft", "sqft"], "gross internal area as { value, unit }"),
-    ("details.net_internal_area", &["nia", "net internal"], "net internal area as { value, unit }"),
-    ("details.market_value", &["market value", "valuation"], "the current market value (day-1 / existing value), distinct from GDV"),
-    ("details.gross_development_value", &["gdv", "gross development value"], "the scheme GDV"),
-    ("details.total_development_cost", &["total cost", "development cost", "build cost"], "total development cost"),
-    ("details.address", &["street", "postcode"], "the site address incl. line1, city, postcode"),
-    ("details.exit_plan", &["exit", "sale", "dispose", "refinanc"], "the asset-level exit (unit sales / disposal), not facility repayment"),
-    ("details.tenure", &["freehold", "leasehold", "tenure"], "tenure type and length"),
-    ("details.purchase_price", &["price", "asking", "offers in excess"], "purchase price / asking price"),
-    ("details.planning_status", &["planning", "consent", "prior approval"], "planning status description"),
-    ("details.commercial_units", &["tenant", "lease", "rent", "occupier"], "the commercial tenancy schedule"),
-    ("details.developer_equity", &["equity", "sponsor", "inject"], "sponsor/developer equity contribution"),
-    ("canonical_deal.planning_applications", &["planning", "application ref", "prior approval", "pacbsd", "ful"], "every planning application referenced (ref, status, local authority)"),
-    ("canonical_deal.phases", &["phase"], "scheme phases with unit_count and status"),
-    ("canonical_deal.facility_parties", &["lender", "borrower", "spv"], "borrower and lender parties per facility"),
-    ("canonical_deal.valuations", &["valuation", "valuer", "report"], "valuation entries (value, basis, valuer, date)"),
-    ("canonical_deal.guarantees", &["guarantor", "personal guarantee", "corporate guarantee", "performance bond", "indemnity in favour"], "stated guarantees (guarantor, beneficiary, cap, trigger)"),
-    ("canonical_deal.security", &["first legal charge", "legal charge over", "debenture", "security package", "fixed charge over"], "the security package (type, ranking, secured asset)"),
-    ("details.finance_costs", &["finance cost", "rolled interest", "interest over the term"], "stated finance/interest total over the loan term (e.g. \"Finance costs £749,659\")"),
-    ("details.loan_including_interest", &["incl. interest", "including interest", "rolled interest"], "the all-in loan figure incl. rolled interest (e.g. \"loan including interest £5,699,659\")"),
+/// trigger a targeted fill.
+///
+/// Presence classes, from observing what UK property-finance packs actually
+/// carry (broker teasers, IMs, term sheets, valuation reports, appraisals):
+///
+/// - **Core** (`min_keywords: 1`, no gating): near-universal — site address,
+///   tenure, areas, the valuation basis. One keyword hit is worth chasing.
+/// - **Conditional** (`min_keywords: 2`, optional deal-type/asset gating):
+///   legitimately absent in large classes of packs — principals are rarely
+///   named (the sponsor *company* is), exits are implicit, equity structure
+///   is confidential, planning history and guarantees exist only when the
+///   pack documents them. A single weak keyword ("exit", "equity", "lease")
+///   matches almost any corpus; two distinct keywords mean the pack really
+///   discusses the topic.
+///
+/// `deal_kinds` restricts a spec to `classification.project_type.category`
+/// values (empty = all); `unless_asset_classes` skips the spec when
+/// `classification.asset_class_primary` contains a listed substring (e.g. a
+/// residential unit schedule on an industrial open-storage pack).
+struct FieldSpec {
+    path: &'static str,
+    keywords: &'static [&'static str],
+    hint: &'static str,
+    min_keywords: usize,
+    deal_kinds: &'static [&'static str],
+    unless_asset_classes: &'static [&'static str],
+}
+
+const fn core(
+    path: &'static str,
+    keywords: &'static [&'static str],
+    hint: &'static str,
+) -> FieldSpec {
+    FieldSpec {
+        path,
+        keywords,
+        hint,
+        min_keywords: 1,
+        deal_kinds: &[],
+        unless_asset_classes: &[],
+    }
+}
+
+const fn conditional(
+    path: &'static str,
+    keywords: &'static [&'static str],
+    hint: &'static str,
+    deal_kinds: &'static [&'static str],
+    unless_asset_classes: &'static [&'static str],
+) -> FieldSpec {
+    FieldSpec {
+        path,
+        keywords,
+        hint,
+        min_keywords: 2,
+        deal_kinds,
+        unless_asset_classes,
+    }
+}
+
+const DEV: &[&str] = &["development"];
+const NON_RESI_CLASSES: &[&str] = &[
+    "industrial",
+    "logistics",
+    "warehouse",
+    "office",
+    "retail",
+    "self-storage",
+    "open storage",
+    "storage",
+    "data centre",
+    "data center",
+    "leisure",
+    "hotel",
+];
+const RESI_CLASSES: &[&str] = &["residential", "student", "pbsa", "btr", "co-living", "care"];
+
+const FIELD_SPECS: &[FieldSpec] = &[
+    conditional("details.sponsor_principals",
+        &["director", "shareholder", "principal", "shareholding", "owned by"],
+        "every named principal/director/shareholder with a per-person track_record list",
+        &[], &[]),
+    conditional("details.sponsor_track_record",
+        &["track record", "previous projects", "delivered", "completed schemes", "experience delivering"],
+        "the sponsor's delivered-scheme track record",
+        &[], &[]),
+    // A residential unit schedule exists only on resi/mixed schemes — on
+    // industrial/storage deals "units" meant lettable storage space and the
+    // field was chased on every run (International House IOS).
+    FieldSpec {
+        path: "details.residential_units",
+        keywords: &["unit mix", "bedroom", "apartments", "dwellings", "flat", "studio"],
+        hint: "the per-type unit schedule (bedrooms, quantity, area, GDV)",
+        min_keywords: 1,
+        deal_kinds: &[],
+        unless_asset_classes: NON_RESI_CLASSES,
+    },
+    core("details.gross_internal_area", &["gia", "sq ft", "sqft", "sq m"], "gross internal area as { value, unit }"),
+    core("details.net_internal_area", &["nia", "net internal"], "net internal area as { value, unit }"),
+    // Development packs quote site/purchase/residual values — "market value"
+    // is a standing-investment concept and needs real evidence to chase.
+    conditional("details.market_value",
+        &["market value", "day-one value", "existing value", "current value", "existing use value", "open market value"],
+        "the current market value (day-1 / existing value), distinct from GDV",
+        &[], &[]),
+    FieldSpec {
+        path: "details.gross_development_value",
+        keywords: &["gdv", "gross development value"],
+        hint: "the scheme GDV",
+        min_keywords: 1,
+        deal_kinds: DEV,
+        unless_asset_classes: &[],
+    },
+    FieldSpec {
+        path: "details.total_development_cost",
+        keywords: &["total cost", "development cost", "build cost", "construction cost", "tdc"],
+        hint: "total development cost",
+        min_keywords: 1,
+        deal_kinds: DEV,
+        unless_asset_classes: &[],
+    },
+    core("details.address", &["street", "postcode"], "the site address incl. line1, city, postcode"),
+    // Most packs never state an exit strategy — it is implied (unit sales,
+    // refinance). Generic "exit"/"sale" matched every corpus.
+    conditional("details.exit_plan",
+        &["exit strategy", "exit route", "exit via", "disposal strategy", "forward sale", "sell-down", "sale programme", "unit sales"],
+        "the asset-level exit (unit sales / disposal), not facility repayment",
+        &[], &[]),
+    core("details.tenure", &["freehold", "leasehold", "tenure"], "tenure type and length"),
+    // Acquisitions state a price; refinances and already-owned sites do not.
+    conditional("details.purchase_price",
+        &["purchase price", "asking price", "guide price", "offers in excess", "acquisition price"],
+        "purchase price / asking price",
+        &[], &[]),
+    FieldSpec {
+        path: "details.planning_status",
+        keywords: &["planning", "consent", "prior approval"],
+        hint: "planning status description",
+        min_keywords: 1,
+        deal_kinds: DEV,
+        unless_asset_classes: &[],
+    },
+    // Pure resi packs mention tenants/leases only incidentally (ASTs) — an
+    // occupational tenancy schedule needs two distinct tenancy signals.
+    conditional("details.commercial_units",
+        &["tenant", "lease", "occupier", "tenancy", "letting", "rent passing", "rental income"],
+        "the commercial tenancy schedule",
+        &[], RESI_CLASSES),
+    // Equity structure is confidential or implied in most packs — the
+    // resolver derives implied equity downstream; only chase real quotes.
+    conditional("details.developer_equity",
+        &["developer equity", "sponsor equity", "equity contribution", "equity injection", "cash equity"],
+        "sponsor/developer equity contribution",
+        &[], &[]),
+    conditional("canonical_deal.planning_applications",
+        &["planning application", "application ref", "planning ref", "lpa ref", "application number", "planning consent"],
+        "every planning application referenced (ref, status, local authority)",
+        DEV, &[]),
+    conditional("canonical_deal.phases",
+        &["phase 1", "phase one", "phase 2", "phase two", "phases", "phased"],
+        "scheme phases with unit_count and status",
+        &[], &[]),
+    conditional("canonical_deal.facility_parties",
+        &["lender", "borrower", "facility agent", "security trustee"],
+        "borrower and lender parties per facility",
+        &[], &[]),
+    core("canonical_deal.valuations", &["valuation", "valuer", "valued at"], "valuation entries (value, basis, valuer, date)"),
+    conditional("canonical_deal.guarantees",
+        &["guarantor", "personal guarantee", "corporate guarantee", "performance bond", "letter of credit", "indemnity in favour"],
+        "stated guarantees (guarantor, beneficiary, cap, trigger)",
+        &[], &[]),
+    conditional("canonical_deal.security",
+        &["first legal charge", "legal charge", "debenture", "security package", "fixed charge", "charge over"],
+        "the security package (type, ranking, secured asset)",
+        &[], &[]),
+    // Finance-cost totals live on appraisals/term sheets only.
+    conditional("details.finance_costs",
+        &["finance cost", "rolled interest", "interest over the term", "total interest"],
+        "stated finance/interest total over the loan term (e.g. \"Finance costs £749,659\")",
+        &[], &[]),
+    conditional("details.loan_including_interest",
+        &["incl. interest", "including interest", "gross loan", "all-in loan"],
+        "the all-in loan figure incl. rolled interest (e.g. \"loan including interest £5,699,659\")",
+        &[], &[]),
 ];
 
 const MAX_ISSUES: usize = 12;
@@ -76,19 +234,54 @@ fn field_is_empty(doc: &Value, path: &str) -> bool {
 #[must_use]
 pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
     let mut issues = Vec::new();
-    for (path, keywords, hint) in FIELD_SPECS {
+    let project_type = doc
+        .pointer("/classification/project_type/category")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let asset_class = doc
+        .pointer("/classification/asset_class_primary")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    for spec in FIELD_SPECS {
         if issues.len() >= MAX_ISSUES {
             break;
         }
-        if !field_is_empty(doc, path) {
+        // Deal-type gating: GDV/TDC/planning fields only exist on
+        // development deals; asset-class gating: a resi unit schedule does
+        // not exist on an industrial pack. An unknown/absent classification
+        // never suppresses a spec.
+        if !spec.deal_kinds.is_empty()
+            && !project_type.is_empty()
+            && !spec.deal_kinds.iter().any(|k| project_type.contains(k))
+        {
+            continue;
+        }
+        if spec
+            .unless_asset_classes
+            .iter()
+            .any(|c| asset_class.contains(c))
+        {
+            continue;
+        }
+        if !field_is_empty(doc, spec.path) {
             continue;
         }
         // Evidence = keyword hits; keep the strongest snippets inline so the
-        // fill call can extract without needing document tools.
+        // fill call can extract without needing document tools. Conditional
+        // fields need `min_keywords` DISTINCT keywords to match — a single
+        // generic term ("exit", "lease") appears in nearly every pack and
+        // was firing a gap on fields the source never carried.
         let mut hits = Vec::new();
         let mut doc_names: Vec<String> = Vec::new();
-        for kw in *keywords {
-            for hit in corpus.search(kw, 3) {
+        let mut keywords_matched = 0usize;
+        for kw in spec.keywords {
+            let kw_hits = corpus.search(kw, 3);
+            if !kw_hits.is_empty() {
+                keywords_matched += 1;
+            }
+            for hit in kw_hits {
                 if !doc_names.contains(&hit.doc_name) {
                     doc_names.push(hit.doc_name.clone());
                 }
@@ -99,18 +292,23 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
                     hit.snippet.trim()
                 ));
             }
-            if !doc_names.is_empty() && hits.len() >= 4 {
+            if keywords_matched >= spec.min_keywords && hits.len() >= 4 {
                 break;
             }
         }
-        if doc_names.is_empty() {
+        // The bar: `min_keywords` distinct keywords, OR (for conditional
+        // specs) a distinctive phrase repeated — "exit strategy" appearing
+        // three times is evidence even if no other keyword matches.
+        if doc_names.is_empty() || (keywords_matched < spec.min_keywords && hits.len() < 3) {
             continue;
         }
         issues.push(Issue {
             code: "missing_with_evidence",
-            path: (*path).to_string(),
+            path: spec.path.to_string(),
             message: format!(
-                "{path} — extract {hint}. Evidence:\n{}",
+                "{} — extract {}. Evidence:\n{}",
+                spec.path,
+                spec.hint,
                 hits.iter().take(4).cloned().collect::<Vec<_>>().join("\n"),
             ),
             severity: Severity::Error,
@@ -159,6 +357,46 @@ mod tests {
         let c = corpus_with("unrelated prose with no keywords at all");
         let issues = coverage_issues(&doc, &c);
         assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn conditional_field_needs_two_keywords_or_a_repeated_phrase() {
+        // Generic single-keyword mention — "equity" language alone must not
+        // chase developer_equity on a pack that never states it.
+        let doc = json!({ "details": {}, "classification": { "project_type": { "category": "development" } } });
+        let weak = corpus_with("the investor equity tranche is priced to yield");
+        assert!(!coverage_issues(&doc, &weak)
+            .iter()
+            .any(|i| i.path == "details.developer_equity"));
+        // Two distinct keywords = the pack really discusses it.
+        let strong = corpus_with("developer equity contribution funds the equity injection");
+        assert!(coverage_issues(&doc, &strong)
+            .iter()
+            .any(|i| i.path == "details.developer_equity"));
+    }
+
+    #[test]
+    fn asset_class_gate_skips_residential_units_on_industrial_deals() {
+        let doc = json!({
+            "details": {},
+            "classification": { "asset_class_primary": "industrial open storage" },
+        });
+        let c = corpus_with("the unit mix includes studio apartments and one-bed flats");
+        assert!(!coverage_issues(&doc, &c)
+            .iter()
+            .any(|i| i.path == "details.residential_units"));
+    }
+
+    #[test]
+    fn deal_kind_gate_skips_gdv_on_non_development_deals() {
+        let doc = json!({
+            "details": {},
+            "classification": { "project_type": { "category": "hold" } },
+        });
+        let c = corpus_with("GDV commentary and gross development value estimates");
+        assert!(!coverage_issues(&doc, &c)
+            .iter()
+            .any(|i| i.path == "details.gross_development_value"));
     }
 }
 

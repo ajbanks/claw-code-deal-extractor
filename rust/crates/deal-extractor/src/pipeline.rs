@@ -258,8 +258,20 @@ pub async fn run_multi_pass(
         }
         disagreements.sort();
         disagreements.dedup();
+        // A disagreement confined to classification labels is resolved by
+        // majority vote — three independent reads already answered it, so a
+        // fourth LLM call (adjudication) adds cost without new evidence.
+        // Facility-graph divergence still adjudicates: which facilities
+        // exist is an evidence question, not a popularity contest.
         let mut chosen = if disagreements.is_empty() {
             votes[0].clone()
+        } else if let Some(merged) = majority_classification(&votes, &disagreements) {
+            eprintln!(
+                "[pipeline] pass A votes disagree — majority-resolved: {}",
+                disagreements.join("; ")
+            );
+            recall.pass_a_disagreements = disagreements;
+            merged
         } else {
             recall.pass_a_disagreements = disagreements;
             eprintln!(
@@ -1285,6 +1297,73 @@ pub fn pass_a_disagreements(a: &Value, b: &Value) -> Vec<String> {
     out
 }
 
+/// Classification fields the disagreement check tracks, mapped to their
+/// `classification.*` paths.
+const CLASSIFICATION_FIELDS: &[(&str, &[&str])] = &[
+    ("capital_position", &["capital_position"]),
+    ("loan_type", &["loan_type", "category"]),
+    ("project_type", &["project_type", "category"]),
+];
+
+/// Resolve a pass-A disagreement deterministically when every contested
+/// point is a classification label and each contested label has a strict
+/// majority across the votes (2-of-3, or 2-of-2 on a truncated vote set a
+/// missing value cannot break). Returns votes[0] with its classification
+/// overwritten by the majority values; `None` when a facility graph
+/// disagreement exists or a field splits the votes — adjudication stays.
+fn majority_classification(votes: &[Value], disagreements: &[String]) -> Option<Value> {
+    if votes.len() < 2 {
+        return None;
+    }
+    if !disagreements.iter().all(|d| d.starts_with("classification.")) {
+        return None;
+    }
+    let needed = votes.len() / 2 + 1;
+    let mut chosen = votes[0].clone();
+    for (_label, path) in CLASSIFICATION_FIELDS {
+        let value_of = |v: &Value| -> Option<String> {
+            let mut cur = v.get("classification")?;
+            for seg in *path {
+                cur = cur.get(*seg)?;
+            }
+            cur.as_str().map(str::to_string)
+        };
+        let mut counts: Vec<(Option<String>, usize)> = Vec::new();
+        for v in votes {
+            let val = value_of(v);
+            match counts.iter_mut().find(|(c, _)| *c == val) {
+                Some((_, n)) => *n += 1,
+                None => counts.push((val, 1)),
+            }
+        }
+        if counts.len() <= 1 {
+            continue; // unanimous — keep votes[0]'s value
+        }
+        let (winner, n) = counts.into_iter().max_by_key(|(_, n)| *n)?;
+        if n < needed {
+            return None; // split vote — adjudicate
+        }
+        // Write the majority value into the chosen classification,
+        // creating/removing the `category` envelope as needed.
+        let mut cur = chosen
+            .as_object_mut()?
+            .entry("classification")
+            .or_insert_with(|| json!({}));
+        for seg in &path[..path.len() - 1] {
+            cur = cur
+                .as_object_mut()?
+                .entry(*seg)
+                .or_insert_with(|| json!({}));
+        }
+        let leaf = path[path.len() - 1];
+        match winner {
+            Some(w) => cur.as_object_mut()?.insert(leaf.to_string(), json!(w)),
+            None => cur.as_object_mut()?.remove(leaf),
+        };
+    }
+    Some(chosen)
+}
+
 /// One pass-B sub-pass: shared header (context + sourced-value rules) plus
 /// the pass-specific section. Returns the parsed JSON.
 fn pass_b_prompt(header_args: &PassBContext, section: &str, keys: &str) -> String {
@@ -2231,5 +2310,47 @@ mod extra_tests {
             chosen["facilities"][1]["commitment"]["amount"],
             "35810099.96",
         );
+    }
+
+    #[test]
+    fn majority_classification_resolves_label_only_disagreements() {
+        let votes = vec![
+            json!({"classification": {"capital_position": "debt", "loan_type": {"category": "development"}}}),
+            json!({"classification": {"capital_position": "equity", "loan_type": {"category": "development"}}}),
+            json!({"classification": {"capital_position": "debt", "loan_type": {"category": "investment_term"}}}),
+        ];
+        let disagreements = vec![
+            "classification.capital_position differs: debt vs equity".to_string(),
+            "classification.loan_type development only in vote 3".to_string(),
+        ];
+        let merged = majority_classification(&votes, &disagreements).unwrap();
+        assert_eq!(merged["classification"]["capital_position"], "debt");
+        assert_eq!(merged["classification"]["loan_type"]["category"], "development");
+    }
+
+    #[test]
+    fn majority_classification_defers_facility_and_split_votes() {
+        // A facility-graph disagreement must still adjudicate.
+        let votes = vec![
+            json!({"classification": {"capital_position": "debt"}}),
+            json!({"classification": {"capital_position": "debt"}}),
+            json!({"classification": {"capital_position": "debt"}}),
+        ];
+        assert!(majority_classification(
+            &votes,
+            &["facility dev_facility 35810099 only in vote 2".to_string()],
+        )
+        .is_none());
+        // A three-way classification split has no majority — adjudicate.
+        let split = vec![
+            json!({"classification": {"capital_position": "debt"}}),
+            json!({"classification": {"capital_position": "equity"}}),
+            json!({"classification": {"capital_position": "other"}}),
+        ];
+        assert!(majority_classification(
+            &split,
+            &["classification.capital_position differs: debt vs equity".to_string()],
+        )
+        .is_none());
     }
 }
