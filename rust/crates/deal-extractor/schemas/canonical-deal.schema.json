@@ -468,6 +468,118 @@
               "null"
             ]
           },
+          "enforcement": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "default",
+                  "enforcement",
+                  "receivership",
+                  "administration",
+                  null
+                ]
+              },
+              "default_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "default_rate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "enforcement_costs": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "enforcement_costs_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "expected_recovery": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "recovery_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "enforcement_months": {
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "default_date",
+              "default_rate",
+              "enforcement_costs",
+              "enforcement_costs_pct",
+              "expected_recovery",
+              "recovery_date",
+              "enforcement_months"
+            ]
+          },
           "loan_components": {
             "type": [
               "object",

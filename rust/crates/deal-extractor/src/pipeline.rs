@@ -399,16 +399,10 @@ pub async fn run_multi_pass(
         chosen
     };
     let classification = pass_a.get("classification").cloned().unwrap_or(json!(null));
-    let doc_annotations = pass_a
-        .get("document_annotations")
-        .cloned()
-        .unwrap_or(json!([]));
-    let facilities = pass_a.get("facilities").cloned().unwrap_or(json!([]));
-    let capital_events = pass_a.get("capital_events").cloned().unwrap_or(json!([]));
-    let capital_snapshots = pass_a
-        .get("capital_snapshots")
-        .cloned()
-        .unwrap_or(json!([]));
+    let doc_annotations = array_field(Some(&pass_a), "document_annotations");
+    let facilities = array_field(Some(&pass_a), "facilities");
+    let capital_events = array_field(Some(&pass_a), "capital_events");
+    let capital_snapshots = array_field(Some(&pass_a), "capital_snapshots");
     let focus_facility_id = pass_a
         .get("focus_facility_id")
         .cloned()
@@ -417,10 +411,7 @@ pub async fn run_multi_pass(
         .get("focus_resolution_status")
         .cloned()
         .unwrap_or(json!("unresolved"));
-    let candidate_facility_ids = pass_a
-        .get("candidate_facility_ids")
-        .cloned()
-        .unwrap_or(json!([]));
+    let candidate_facility_ids = array_field(Some(&pass_a), "candidate_facility_ids");
     pass_times.push(("structure", t.elapsed().as_millis() as u64));
     eprintln!(
         "[pipeline] pass A done — {} facilities, focus={}, {:.1}s",
@@ -447,15 +438,15 @@ pub async fn run_multi_pass(
     .await
     .map_err(|e| format!("pass B (details): {e}"))?;
     recall.pass_retries.extend(b_notes);
-    let valuations = pass_b.get("valuations").cloned().unwrap_or(json!([]));
-    let phases = pass_b.get("phases").cloned().unwrap_or(json!([]));
-    let mut details = pass_b.get("details").cloned().unwrap_or(json!({}));
+    let valuations = array_field(Some(&pass_b), "valuations");
+    let phases = array_field(Some(&pass_b), "phases");
+    let mut details = object_field(Some(&pass_b), "details");
     if let Some(d_obj) = details.as_object_mut() {
         d_obj
             .entry("schema_version".to_string())
             .or_insert_with(|| json!("1"));
     }
-    let mut kpis = pass_b.get("kpis").cloned().unwrap_or(json!({}));
+    let mut kpis = object_field(Some(&pass_b), "kpis");
     pass_times.push(("details", t.elapsed().as_millis() as u64));
     eprintln!(
         "[pipeline] pass B done — {} valuations, {} phases, {:.1}s",
@@ -483,9 +474,9 @@ pub async fn run_multi_pass(
             "facility_parties": [],
             "capital_events": capital_events,
             "capital_snapshots": capital_snapshots,
-            "parties": pass_a.get("parties").cloned().unwrap_or(json!([])),
-            "guarantees": pass_a.get("guarantees").cloned().unwrap_or(json!([])),
-            "security": pass_a.get("security").cloned().unwrap_or(json!([])),
+            "parties": array_field(Some(&pass_a), "parties"),
+            "guarantees": array_field(Some(&pass_a), "guarantees"),
+            "security": array_field(Some(&pass_a), "security"),
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
@@ -493,7 +484,7 @@ pub async fn run_multi_pass(
             "conflicts": [],
             "validation_issues": [],
             "deal_scope": null,
-            "documents": doc_annotations,
+            "documents": document_records(corpus, &doc_annotations),
             "assets": [],
             "phases": phases,
             "planning_applications": [],
@@ -585,11 +576,15 @@ pub async fn run_multi_pass(
                             }
                         }
                         // Canonical arrays the escalation produced that Luna lacked.
+                        // `esc` is a merged pass-B result — its canonical arrays
+                        // sit at top level ({"valuations","phases",…}), NOT under
+                        // a "canonical_deal" key; reading one there made this a
+                        // dead branch and dropped escalated phases/valuations.
                         if let (Some(cd), Some(ecd)) = (
                             final_doc
                                 .get_mut("canonical_deal")
                                 .and_then(|v| v.as_object_mut()),
-                            esc.get("canonical_deal").and_then(|v| v.as_object()),
+                            esc.as_object(),
                         ) {
                             for k in [
                                 "valuations",
@@ -1461,6 +1456,109 @@ async fn run_pass_b(
     Ok((merged, notes))
 }
 
+/// Map a pass-A document-annotation role onto the canonical DocumentType
+/// enum. Values already in the enum pass through; anything unrecognised
+/// becomes "other" — a wrong type is worse than an unclassified one.
+fn annotation_document_type(role: &str) -> String {
+    const VALID: &[&str] = &[
+        "investment_memorandum", "brochure", "teaser", "hotel_operator_pack",
+        "developer_cv", "development_appraisal", "asset_liability_statement",
+        "valuation_report", "monitoring_surveyor_report", "building_survey",
+        "environmental_report", "titledocuments", "lease_tenancy_agreement",
+        "planning_documents", "structure_chart", "financial_model", "rent_roll",
+        "construction_contract_cost_plan", "agency_market_report",
+        "comparable_evidence_schedule", "facility_agreement", "term_sheet",
+        "intercreditor_agreement", "guarantee_agreement", "security_agreement",
+        "acquisition_agreement", "jv_agreement", "offering_memorandum",
+        "mandate", "other",
+    ];
+    match role {
+        "information_memorandum" | "im" | "investment_brochure" => {
+            "investment_memorandum".to_string()
+        }
+        "cash_flow_model" => "financial_model".to_string(),
+        "planning_document" => "planning_documents".to_string(),
+        "legal_document" => "other".to_string(),
+        r if VALID.contains(&r) => r.to_string(),
+        _ => "other".to_string(),
+    }
+}
+
+/// `canonical_deal.documents` records built deterministically from the
+/// corpus — the pass-A `{name, role}` annotations only classify each
+/// document; emitting them raw violated the document_record schema
+/// (no id/file_id/document_type/status) and left `document_type` /
+/// `document_date` empty for downstream pack-as-at mining. Annotations that
+/// match no corpus document name are dropped — records describe the
+/// documents actually supplied, never hallucinated ones.
+fn document_records(corpus: &Corpus, annotations: &Value) -> Value {
+    let anns: Vec<&Value> = annotations
+        .as_array()
+        .map(|a| a.iter().collect())
+        .unwrap_or_default();
+    let role_for = |doc_name: &str, used: &mut Vec<usize>| -> Option<String> {
+        let want = doc_name.to_lowercase();
+        let mut best: Option<usize> = None;
+        for (i, a) in anns.iter().enumerate() {
+            if used.contains(&i) {
+                continue;
+            }
+            let Some(name) = a.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let n = name.to_lowercase();
+            if n == want || n.contains(&want) || want.contains(&n) {
+                best = Some(i);
+                if n == want {
+                    break;
+                }
+            }
+        }
+        let i = best?;
+        used.push(i);
+        anns[i]
+            .get("role")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    };
+    let mut used: Vec<usize> = Vec::new();
+    let mut records: Vec<Value> = Vec::new();
+    for (i, d) in corpus.documents().iter().enumerate() {
+        let role = role_for(&d.name, &mut used).unwrap_or_else(|| "other".to_string());
+        records.push(json!({
+            "id": format!("doc_{}", i + 1),
+            "file_id": d.name,
+            "file_name": d.name,
+            "document_type": annotation_document_type(&role),
+            "document_date": null,
+            "document_version": null,
+            "author_party_id": null,
+            "client_party_id": null,
+            "page_count": d.pages,
+            "sheet_names": null,
+            "status": "parsed",
+        }));
+    }
+    Value::Array(records)
+}
+
+/// `unwrap_or` only covers a missing key — a sub-pass that emits
+/// `"phases": null` would otherwise push a literal null into the canonical
+/// document and nothing downstream can recover the entities.
+fn array_field(v: Option<&Value>, key: &str) -> Value {
+    v.and_then(|x| x.get(key))
+        .filter(|x| x.is_array())
+        .cloned()
+        .unwrap_or_else(|_| json!([]))
+}
+
+fn object_field(v: Option<&Value>, key: &str) -> Value {
+    v.and_then(|x| x.get(key))
+        .filter(|x| x.is_object())
+        .cloned()
+        .unwrap_or_else(|_| json!({}))
+}
+
 /// Merge the three pass-B sub-pass results into one
 /// {"valuations","phases","details","kpis"} value. Canonical arrays and KPIs
 /// come from economics; `details` is the union where, for a key several
@@ -1469,9 +1567,9 @@ async fn run_pass_b(
 fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&Value>) -> Value {
     let passes = [econ, income, parties];
     let mut merged = json!({
-        "valuations": econ.and_then(|v| v.get("valuations")).cloned().unwrap_or(json!([])),
-        "phases": econ.and_then(|v| v.get("phases")).cloned().unwrap_or(json!([])),
-        "kpis": econ.and_then(|v| v.get("kpis")).cloned().unwrap_or(json!({})),
+        "valuations": array_field(econ, "valuations"),
+        "phases": array_field(econ, "phases"),
+        "kpis": object_field(econ, "kpis"),
     });
     let mut details = serde_json::Map::new();
     let mut keys: Vec<String> = Vec::new();
@@ -2126,6 +2224,45 @@ mod tests {
         let parties = json!({"details": {"address": {"value": {"line1": "x"}, "source": "p.pdf"}}});
         let m = merge_pass_b(Some(&econ), None, Some(&parties));
         assert_eq!(m["details"]["address"]["value"]["line1"], "x");
+    }
+
+    #[test]
+    fn document_records_build_canonical_records_from_annotations() {
+        let corpus = Corpus::from_pages(vec![
+            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "1".into(), text: "x".into() },
+            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "2".into(), text: "y".into() },
+            crate::documents::DocPage { doc_name: "model.xlsx".into(), page_label: "Sheet1".into(), text: "z".into() },
+        ]);
+        let anns = json!([
+            { "name": "IM.pdf", "role": "information_memorandum" },
+            { "name": "model.xlsx", "role": "cash_flow_model" },
+            { "name": "ghost.pdf", "role": "teaser" },
+        ]);
+        let recs = document_records(&corpus, &anns);
+        let arr = recs.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["document_type"], "investment_memorandum");
+        assert_eq!(arr[0]["page_count"], 2);
+        assert_eq!(arr[0]["status"], "parsed");
+        assert_eq!(arr[1]["document_type"], "financial_model");
+        // No record without the document_record required envelope.
+        for r in arr {
+            for k in ["id", "file_id", "document_type", "status"] {
+                assert!(r.get(k).is_some(), "missing {k}");
+            }
+        }
+    }
+
+    #[test]
+    fn pass_b_merge_null_fields_become_empty_containers() {
+        // A sub-pass emitting explicit nulls ("phases": null) must not push a
+        // literal null into the canonical document — downstream readers treat
+        // null as "no entities at all" and can't recover phase-scoped values.
+        let econ = json!({"valuations": null, "phases": null, "kpis": null, "details": {"market_value": {"value": {"amount": "1"}, "source": "e.pdf"}}});
+        let m = merge_pass_b(Some(&econ), None, None);
+        assert_eq!(m["valuations"], json!([]));
+        assert_eq!(m["phases"], json!([]));
+        assert_eq!(m["kpis"], json!({}));
     }
 
     #[test]
