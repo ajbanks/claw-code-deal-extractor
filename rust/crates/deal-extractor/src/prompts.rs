@@ -82,6 +82,7 @@ Every named entity with a stake in the deal: { id, name, entity_type (company | 
 - When the borrower is an SPV, also emit the sponsor/development group behind it — structure charts, "on behalf of", shareholder/parent mentions, promoter credits all count. The SPV alone is not the sponsor; the operating group it sits under is.
 - A contractor, selling agent, broker or valuer gets its own role — never sponsor/developer, even when its brochure dominates the pack (a contractor CV enclosed for capability does not make the contractor the sponsor).
 - Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
+- "borrower" means the entity the document names in a legal borrowing capacity (facility request, security grant, covenant). An entity evidenced only in the ownership/investment structure is a shareholder/sponsor candidate, NOT the borrower — emit it without the borrower role when the document never states it borrows.
 
 ## GUARANTEES & SECURITY
 - guarantees: every stated guarantee — { id, facility_id, guarantor_party_id (the party guaranteeing — emit a matching parties entry), beneficiary_party_id (usually the lender party), guarantee_category (personal_guarantee | corporate_guarantee | limited_recourse | unlimited | performance_bond | letter_of_credit | other), cap_amount: { amount, currency } | null, duration, burn_off, trigger, covered_obligations, termination_conditions, evidence_assertion_ids: [], evidence }.
@@ -92,6 +93,7 @@ Every named entity with a stake in the deal: { id, name, entity_type (company | 
 For each: { id, value_type (market_value|gross_development_value|residual_value|purchase_price|ninety_day_sale_value|day_1_value|unclassified), amount: {amount,currency}, phase_id, valuation_basis, sale_period_days, scenario, evidence }.
 - Market value ≠ GDV. Market value is the current asset value; GDV is post-construction gross development value.
 - GDV ≠ 90-day sale value (a forced-sale discount).
+- GDV / completed-asset value ≠ residual land value — residual prices the site (GDV less margin and non-land costs); different bases, extract each under its own value_type, never merge or compare them.
 - Phase-specific GDV ≠ full-scheme GDV — keep as separate valuations with different phase_id.
 - A valuation report's "finance rate"/"LTV" is NOT the loan interest rate.
 
@@ -99,7 +101,7 @@ For each: { id, value_type (market_value|gross_development_value|residual_value|
 For each: { id, name, sequence, status, unit_count }.
 
 ## CLASSIFICATION
-- capital_position: "debt" or "equity"
+- capital_position: "debt" or "equity" — classify by what the pack REQUESTS, not by whether terms are agreed. A development appraisal / scheme document seeking finance is a DEBT application even when no lender, rate or commitment is named — the reader is a lender being asked to lend, not an investor being invited to subscribe. "equity" only when the reader is invited to buy shares/units/fund interests (equity raise, JV, syndicated investment).
 - asset_class_primary: e.g. "residential", "retail", "commercial", "mixed"
 - project_type: { category: "development" | "acquisition" | "refinance" | "hold" }
 - loan_type: { category: "bridge" | "development" | "investment_term" } — from the focus facility
@@ -180,7 +182,7 @@ Return JSON:
 }
 
 ## CLASSIFICATION
-- capital_position: "debt" or "equity" — "debt" if the ask is for a loan/facility; "equity" if the reader is invited to subscribe equity shares/units/fund interests (an equity raise, JV, or syndicated investment — even if the underlying vehicle borrows). An equity IM that mentions the project's senior mortgage does NOT make it a debt deal — classify by what the READER is buying.
+- capital_position: "debt" or "equity" — "debt" if the ask is for a loan/facility; "equity" if the reader is invited to subscribe equity shares/units/fund interests (an equity raise, JV, or syndicated investment — even if the underlying vehicle borrows). An equity IM that mentions the project's senior mortgage does NOT make it a debt deal — classify by what the READER is buying. Conversely, a development appraisal seeking finance is a DEBT application even when no lender, rate or commitment is stated — the applicant requesting a facility is debt regardless of whether terms are agreed.
 - asset_class_primary: e.g. "residential", "retail", "commercial", "mixed"
 - project_type: { "category": "development" | "acquisition" | "refinance" | "hold" }
 - loan_type: { "category": "bridge" | "development" | "investment_term" } — bridge = short-term ≤12mo; development = construction financing; investment_term = stabilised asset
@@ -240,6 +242,7 @@ Every named entity with a stake in the deal:
 - Emit the borrower SPV AND every entity on a structure chart, with its stated role — "X is the investment manager of Y", "SSRE – Cell 1", parent groups, shareholding chains all count. The SPV alone is not the sponsor; the operating group behind it is.
 - A contractor, selling agent, broker or valuer gets its own role — NEVER sponsor or developer, even when its brochure dominates the pack ("Deep Group brochure – Contractor" → contractor). A contractor CV enclosed for capability does not make the contractor the sponsor.
 - Assign ONLY the roles the document itself states — a company named in a brochure is not "developer" unless the document says so. Shareholders and directors are not a corporate parent.
+- "borrower" means the entity the document names in a legal borrowing capacity (facility request, security grant, covenant). An entity evidenced only in the ownership/investment structure is a shareholder/sponsor candidate, NOT the borrower — emit it without the borrower role when the document never states it borrows.
 
 ## GUARANTEES & SECURITY
 - guarantees: every stated guarantee — { id, facility_id, guarantor_party_id, beneficiary_party_id, guarantee_category (personal_guarantee|corporate_guarantee|limited_recourse|unlimited|performance_bond|letter_of_credit|other), cap_amount: { amount, currency } | null, duration, burn_off, trigger, covered_obligations, termination_conditions, evidence_assertion_ids: [], evidence }.
@@ -283,6 +286,7 @@ value_type: market_value | gross_development_value | residual_value | purchase_p
 
 RULES:
 - Market value ≠ GDV. Market value = current asset value; GDV = post-construction value.
+- GDV / capitalised completed value ≠ residual land value — a residual figure prices the SITE (GDV less margin and non-land costs), the others price the completed ASSET; they are different bases and must never be merged, averaged or "corrected" toward each other.
 - Phase-specific GDV ≠ full-scheme GDV — keep as separate valuations.
 - `amount` is a DECIMAL STRING ("32500000"), NEVER millions shorthand.
 
@@ -291,7 +295,7 @@ For each: { id, name, sequence, status, unit_count }.
 
 ## DETAILS
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):
-- deal_type: "debt" or "equity"
+- deal_type: "debt" or "equity" — classify by what the pack requests, never by whether a commitment exists: a funding application with no stated loan is still "debt"
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
 - total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency + disposal/selling costs). Disposal fees (sales agent/legal on exit) ARE part of TDC even when the model's own subtotal excludes them — a line labelled "LTC (excl. Finance Costs)" can omit a separate DISPOSAL FEES section; cross-check TDC ≈ TOTAL COSTS − finance costs and prefer the model's TOTAL COSTS minus its FINANCE FEES section when they disagree.
@@ -348,7 +352,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - address: { line1, paon, property_name, street_name, city, postcode, country, region, saon, full_address }
 - agent_details: { name, email, phone } — the selling/marketing agent or named contact in the pack's contact block (e.g. "Morgan Williams", contact footers). Always extract when stated.
 - document_date: the pack/publication date the document states (e.g. "April 2024" particulars, a dated report, an "as at" date). Preserve the stated precision — month-year when no day is given.
-- borrower_details: { name, type, track_record, email, phone, corporate_structure } — `corporate_structure` names the sponsor/parent GROUP behind a borrower SPV whenever the pack identifies one (structure chart, shareholder list, "X Ltd, a Strawberry Star company"). An SPV borrower alone leaves the sponsor invisible downstream — always populate it when a parent group is named.
+- borrower_details: { name, type, track_record, email, phone, corporate_structure } — `corporate_structure` names the sponsor/parent GROUP behind a borrower SPV whenever the pack identifies one (structure chart, shareholder list, "X Ltd, a Strawberry Star company"). An SPV borrower alone leaves the sponsor invisible downstream — always populate it when a parent group is named. `name` is the LEGAL borrower only: when the pack evidences an entity in the ownership structure but never states it borrows, leave borrower_details.name null and note the candidate in notes — an ownership-chart entity is not the obligor.
 - sponsor_principals: [{ name, role, company, shareholding_pct, shareholding_company, director_of, track_record: [{ name, description }] }] — extract EVERY named principal/director/shareholder of the SPONSOR / borrower group from developer CVs, bios and structure charts; include a per-person track_record entry for each stated project or role. A principal must belong to the sponsor/borrower entity — staff of the contractor, selling agent, broker or another third party named in the pack are NOT sponsor principals. `company` must be the sponsor's own group company (e.g. the entity named as sponsor/developer/parent of the borrower SPV), never the contractor's company. Where a shareholding is stated, record `shareholding_company` (the company the shares are held in — often the borrower SPV) and `shareholding_pct`; record each directorship in `director_of` (list of company names). A person can direct a group company while holding shares in the SPV — keep the two distinct.
 - planning_status
 - construction_timelines: { start_date, completion_date, duration_months }
