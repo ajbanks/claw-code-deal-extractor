@@ -1549,14 +1549,14 @@ fn array_field(v: Option<&Value>, key: &str) -> Value {
     v.and_then(|x| x.get(key))
         .filter(|x| x.is_array())
         .cloned()
-        .unwrap_or_else(|_| json!([]))
+        .unwrap_or_else(|| json!([]))
 }
 
 fn object_field(v: Option<&Value>, key: &str) -> Value {
     v.and_then(|x| x.get(key))
         .filter(|x| x.is_object())
         .cloned()
-        .unwrap_or_else(|_| json!({}))
+        .unwrap_or_else(|| json!({}))
 }
 
 /// Merge the three pass-B sub-pass results into one
