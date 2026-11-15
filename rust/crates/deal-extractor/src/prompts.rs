@@ -81,7 +81,7 @@ Emit canonical_deal.exit_sequence only when source documents explicitly establis
 - version: "exit-sequence-v1".
 - Each step has a stable id, contiguous order starting at 1, exact subject_id copied from canonical_deal.assets/facilities/phases, predecessor_step_id (null for step 1; otherwise the preceding step id), kind, trigger and expected_timing.
 - Trigger kind is date, event or condition. Preserve the source trigger wording. Timing basis is contractual only for a stated contractual date/term, modelled only when a source model states it, and assumed only when a real assumption record already exists. Do not invent dates or durations.
-- source_evidence is required for every step and must cite the exact source span using { document: "<exact corpus filename>", page: <page number or null>, quote: "<verbatim source text>" }. For spreadsheets, also cite sheet_name and cell_ids/cell when available. Never fabricate source_assertion_ids or assumption_refs: the TypeScript evidence bridge assigns assertion IDs after joining these anchors to the durable assertion journal. Emit source_assertion_ids: [] and assumption_refs: []. If assumed timing has no existing assumption record, omit the sequence rather than invent an ID.
+- source_evidence is required for every step and must cite the exact source span using { file_id: "<exact corpus filename>", pdf_page: <numeric page>, quote: "<verbatim source text>" } or, for spreadsheets, { file_id, sheet_name: "<exact sheet>", cell_ids: ["<exact cell reference>"], quote }. Never use a sheet-only locator. Never fabricate source_assertion_ids or assumption_refs: the TypeScript evidence bridge assigns assertion IDs after joining these anchors to the durable assertion journal. Emit source_assertion_ids: [] and assumption_refs: []. If assumed timing has no existing assumption record, omit the sequence rather than invent an ID.
 - The step subject and source span must support that step. Preserve primary, interim and fallback order as separate linked steps. If the source states alternatives without their order, omit the sequence and leave them in exit_plan prose.
 
 ## PARTIES
@@ -300,6 +300,11 @@ RULES:
 
 ## PHASES
 For each: { id, name, sequence, status, unit_count }.
+
+## ORDERED EXIT SEQUENCE
+Extract `exit_sequence` only when the source explicitly states at least two ordered exit or repayment steps (for example, refinance at practical completion followed by unit sales, or a stated primary exit followed by a fallback). A single exit-plan sentence or unordered alternatives are not enough.
+Return `exit_sequence` as null when the evidence does not establish an order. Otherwise return `{ "version": "exit-sequence-v1", "steps": [...] }`. Each step must include stable `id`, contiguous integer `order` starting at 1, `kind` (`refinance|sale|disposal|repayment`), exact `subject_id` from the canonical facility IDs in CONTEXT or a phase ID you emit in this response, `predecessor_step_id` (null for step 1; preceding step ID thereafter), `trigger` (`date|event|condition` plus source wording), and `expected_timing` (`value` plus `basis`: contractual only for a stated contractual term/date, modelled only when a source model states it, or assumed only with an existing assumption record).
+Every step requires `source_evidence` with exact `file_id` as the corpus filename, numeric `pdf_page` plus verbatim `quote`, OR both `sheet_name` and exact nonempty `cell_ids` plus quote for spreadsheets. Do not cite only a sheet name or only a page label. Emit `source_assertion_ids: []` and `assumption_refs: []`; the TypeScript bridge assigns assertion IDs after exact source matching. Never invent IDs, dates, ordering, or timing. If the sequence cannot be supported or anchored, return null.
 
 ## DETAILS
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):

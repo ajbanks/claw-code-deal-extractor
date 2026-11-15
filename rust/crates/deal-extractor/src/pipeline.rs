@@ -7,6 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::conform;
+use crate::contract;
 use crate::corpus::Corpus;
 use crate::coverage;
 use crate::extract::Extractor;
@@ -480,6 +481,7 @@ pub async fn run_multi_pass(
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
+            "exit_sequence": canonical_exit_sequence(&pass_b),
             "assertions": [],
             "conflicts": [],
             "validation_issues": [],
@@ -1374,6 +1376,21 @@ fn pass_b_prompt(header_args: &PassBContext, section: &str, keys: &str) -> Strin
     prompt
 }
 
+fn pass_b_economics_prompt(context: &PassBContext<'_>) -> String {
+    let mut prompt = pass_b_prompt(
+        context,
+        prompts::PASS_B_ECONOMICS,
+        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"exit_sequence\": null | { \"version\": \"exit-sequence-v1\", \"steps\": [...] } }",
+    );
+    let schema = contract::profile_schema()
+        .pointer("/properties/canonical_deal/properties/exit_sequence")
+        .cloned()
+        .unwrap_or(Value::Null);
+    prompt.push_str("\n\nCANONICAL EXIT SEQUENCE JSON SCHEMA (follow this shape):\n");
+    prompt.push_str(&serde_json::to_string_pretty(&schema).unwrap_or_else(|_| "null".to_string()));
+    prompt
+}
+
 struct PassBContext<'a> {
     focus_summary: &'a str,
     classification_summary: &'a str,
@@ -1389,10 +1406,10 @@ fn details_value_empty(v: &Value) -> bool {
 }
 
 /// Pass B, split into three concurrent focused calls on one extractor:
-/// economics (valuations/phases/economics details/KPIs), income (tenancy
+/// economics (valuations/phases/economics details/KPIs/exit sequence), income (tenancy
 /// schedule, rents, yields, lease metrics) and parties (narrative +
 /// descriptive fields). The sub-pass results merge into one
-/// {"valuations","phases","details","kpis"} value; a failing sub-pass is
+/// {"valuations","phases","details","kpis","exit_sequence"} value; a failing sub-pass is
 /// recorded in the notes and the others still merge — only all three failing
 /// fails the pass. Returns the merged value plus retry/failure notes.
 async fn run_pass_b(
@@ -1408,11 +1425,7 @@ async fn run_pass_b(
         guidance,
     };
     let corpus_text = corpus.render();
-    let econ_prompt = pass_b_prompt(
-        &ctx,
-        prompts::PASS_B_ECONOMICS,
-        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...} }",
-    );
+    let econ_prompt = pass_b_economics_prompt(&ctx);
     let income_prompt = pass_b_prompt(&ctx, prompts::PASS_B_INCOME, "{ \"details\": {...} }");
     let parties_prompt = pass_b_prompt(&ctx, prompts::PASS_B_PARTIES, "{ \"details\": {...} }");
 
@@ -1570,6 +1583,7 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
         "valuations": array_field(econ, "valuations"),
         "phases": array_field(econ, "phases"),
         "kpis": object_field(econ, "kpis"),
+        "exit_sequence": econ.and_then(|value| value.get("exit_sequence")).cloned().unwrap_or(Value::Null),
     });
     let mut details = serde_json::Map::new();
     let mut keys: Vec<String> = Vec::new();
@@ -1598,6 +1612,10 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
     merged
 }
 
+fn canonical_exit_sequence(pass_b: &Value) -> Value {
+    pass_b.get("exit_sequence").cloned().unwrap_or(Value::Null)
+}
+
 fn format_classification_summary(classification: &Value) -> String {
     let cp = classification
         .get("capital_position")
@@ -1620,8 +1638,23 @@ fn format_classification_summary(classification: &Value) -> String {
 
 fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
     let fid = focus_id.as_str().unwrap_or("none");
+    let facility_ids = facilities
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|facility| {
+            let id = facility.get("id")?.as_str()?;
+            let name = facility.get("name").and_then(Value::as_str).unwrap_or(id);
+            Some(format!("{id} ({name})"))
+        })
+        .collect::<Vec<_>>();
+    let ids_context = if facility_ids.is_empty() {
+        "Canonical facility IDs: none".to_string()
+    } else {
+        format!("Canonical facility IDs: {}", facility_ids.join(", "))
+    };
     if fid == "none" {
-        return "No focus facility resolved".into();
+        return format!("No focus facility resolved. {ids_context}");
     }
     let facility = facilities.as_array().and_then(|a| {
         a.iter()
@@ -1641,9 +1674,9 @@ fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
                 .and_then(|v| v.as_str())
                 .unwrap_or("GBP");
             let role = f.get("role").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("{name} ({role}) — {ccy} {amt}")
+            format!("focus_facility_id={fid}: {name} ({role}) — {ccy} {amt}. {ids_context}")
         }
-        None => format!("focus_facility_id={fid} (not found in facilities)"),
+        None => format!("focus_facility_id={fid} (not found in facilities). {ids_context}"),
     }
 }
 
@@ -2008,6 +2041,97 @@ mod tests {
             page_label: "1".into(),
             text: text.into(),
         }])
+    }
+
+    #[test]
+    fn pass_b_exit_sequence_fixture_is_detected_prompted_and_merged_with_exact_anchors() {
+        let corpus = corpus_with(
+            "The facility agreement provides that the bridge shall be refinanced at practical completion, followed by sale of completed units under the agreed sales program.",
+        );
+        let empty_document = json!({"canonical_deal": {"exit_sequence": null}});
+        let issues = coverage::coverage_issues(&empty_document, &corpus);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.path == "canonical_deal.exit_sequence"));
+        let unordered =
+            corpus_with("The borrower may refinance or sell the property as alternative exits.");
+        assert!(!coverage::coverage_issues(&empty_document, &unordered)
+            .iter()
+            .any(|issue| issue.path == "canonical_deal.exit_sequence"));
+        assert!(prompts::PASS_B_ECONOMICS.contains("ORDERED EXIT SEQUENCE"));
+        assert!(
+            prompts::PASS_B_ECONOMICS.contains("both `sheet_name` and exact nonempty `cell_ids`")
+        );
+        let focus_context = format_focus_summary(
+            &json!("bridge_facility"),
+            &json!([fac("bridge_facility", "1000000")]),
+        );
+        assert!(focus_context.contains("bridge_facility"));
+        let context = PassBContext {
+            focus_summary: &focus_context,
+            classification_summary: "debt / development",
+            guidance: "",
+        };
+        let prompt = pass_b_economics_prompt(&context);
+        assert!(prompt.contains("\"exit_sequence\": null |"));
+        assert!(prompt.contains("CANONICAL EXIT SEQUENCE JSON SCHEMA"));
+        assert!(prompt.contains("source_evidence"));
+
+        // Representative evidence-grounded response for this fixture narrative.
+        // The model prompt requires these exact typed fields and evidence anchors;
+        // merge_pass_b must carry them intact into the assembled canonical deal.
+        let generated = json!({
+          "phases": [{"id": "phase_1", "name": "Completed units", "sequence": 1, "status": "proposed", "unit_count": 2}],
+          "exit_sequence": {
+            "version": "exit-sequence-v1",
+            "steps": [
+                {"id": "refinance_at_pc", "order": 1, "kind": "refinance", "subject_id": "bridge_facility",
+                 "predecessor_step_id": null,
+                 "trigger": {"kind": "event", "value": "practical completion"},
+                 "expected_timing": {"value": "at practical completion", "basis": "contractual"},
+                 "source_assertion_ids": [], "assumption_refs": [],
+                 "source_evidence": [{"file_id": "pack.pdf", "pdf_page": 8, "quote": "The bridge facility will be refinanced at practical completion"}]},
+                {"id": "unit_sales", "order": 2, "kind": "sale", "subject_id": "phase_1",
+                 "predecessor_step_id": "refinance_at_pc",
+                 "trigger": {"kind": "event", "value": "completion"},
+                 "expected_timing": {"value": "following practical completion under the agreed sales program", "basis": "contractual"},
+                 "source_assertion_ids": [], "assumption_refs": [],
+                 "source_evidence": [{"file_id": "pack.pdf", "pdf_page": 8, "quote": "followed by sale of completed units under the agreed sales program"}]}
+            ]
+        }});
+        let merged = merge_pass_b(Some(&generated), None, None);
+        let canonical_sequence = canonical_exit_sequence(&merged);
+        assert_eq!(canonical_sequence["steps"].as_array().unwrap().len(), 2);
+        assert_eq!(canonical_sequence["steps"][0]["order"], 1);
+        assert_eq!(
+            canonical_sequence["steps"][1]["predecessor_step_id"],
+            "refinance_at_pc"
+        );
+        assert_eq!(
+            canonical_sequence["steps"][0]["source_evidence"][0]["pdf_page"],
+            8
+        );
+        assert_eq!(
+            canonical_sequence["steps"][1]["source_evidence"][0]["quote"],
+            "followed by sale of completed units under the agreed sales program"
+        );
+        let mut assembled = json!({
+            "canonical_deal": {
+                "facilities": [{"id": "bridge_facility"}],
+                "phases": merged["phases"],
+                "documents": [{"id": "pack.pdf", "file_id": "pack.pdf", "file_name": "pack.pdf"}],
+                "exit_sequence": canonical_sequence,
+            },
+        });
+        crate::conform::conform_document(&mut assembled);
+        let sequence_errors: Vec<_> = crate::validate::validate(&assembled)
+            .into_iter()
+            .filter(|issue| {
+                issue.severity == crate::validate::Severity::Error
+                    && issue.code.starts_with("exit_sequence_")
+            })
+            .collect();
+        assert!(sequence_errors.is_empty(), "{sequence_errors:?}");
     }
 
     #[test]

@@ -190,7 +190,7 @@ const FIELD_SPECS: &[FieldSpec] = &[
         "the security package (type, ranking, secured asset)",
         &[], &[]),
     conditional("canonical_deal.exit_sequence",
-        &["followed by", "fallback exit", "sale fallback", "refinance at practical completion", "refinanced at completion", "primary exit and", "interim refinance"],
+        &["followed by", "fallback exit", "sale fallback", "refinance at practical completion", "refinanced at practical completion", "refinanced at completion", "primary exit and", "interim refinance", "unit sales", "sale of completed units", "subsequently sold"],
         "the explicitly ordered primary/interim/fallback exit steps with source evidence anchors",
         &[], &[]),
     // Finance-cost totals live on appraisals/term sheets only.
