@@ -148,10 +148,8 @@ fn exit_sequence(cd: &Value, out: &mut Vec<Issue>) {
                 out.push(Issue::error("exit_sequence_source_document_unknown", format!("{evidence_path}.file_id"), "Source evidence must identify one of the extracted documents."));
             }
             let has_page = anchor.get("pdf_page").and_then(Value::as_u64).is_some_and(|page| page > 0);
-            let has_sheet_cell = anchor.get("sheet_name").and_then(Value::as_str).is_some_and(|sheet| !sheet.trim().is_empty())
+            let has_cell = anchor.get("sheet_name").and_then(Value::as_str).is_some_and(|sheet| !sheet.trim().is_empty())
                 && anchor.get("cell_ids").and_then(Value::as_array).is_some_and(|cells| !cells.is_empty());
-            let has_cell = has_sheet_cell
-                || anchor.get("table_id").and_then(Value::as_str).is_some_and(|table| !table.trim().is_empty());
             if !has_page && !has_cell { out.push(Issue::error("exit_sequence_source_locator_missing", evidence_path.clone(), "Source anchor needs a PDF page or spreadsheet sheet/cell/table locator.")); }
             if !anchor.get("quote").and_then(Value::as_str).is_some_and(|quote| !quote.trim().is_empty()) {
                 out.push(Issue::error("exit_sequence_source_quote_missing", format!("{evidence_path}.quote"), "Source anchor needs a non-empty verbatim quote."));
@@ -806,6 +804,11 @@ mod tests {
         document["canonical_deal"]["exit_sequence"]["steps"][0]["source_evidence"][0]["cell_ids"] = json!(["Exit!B12"]);
         let errors: Vec<_> = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
         assert!(!errors.iter().any(|issue| issue.code == "exit_sequence_source_locator_missing"));
+
+        document["canonical_deal"]["exit_sequence"]["steps"][0]["source_evidence"][0].as_object_mut().unwrap().remove("sheet_name");
+        document["canonical_deal"]["exit_sequence"]["steps"][0]["source_evidence"][0]["table_id"] = json!("exit-table");
+        let errors: Vec<_> = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
+        assert!(errors.iter().any(|issue| issue.code == "exit_sequence_source_locator_missing"));
     }
 
     #[test]
