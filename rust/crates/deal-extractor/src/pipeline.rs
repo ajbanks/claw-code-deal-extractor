@@ -1312,7 +1312,10 @@ fn majority_classification(votes: &[Value], disagreements: &[String]) -> Option<
     if votes.len() < 2 {
         return None;
     }
-    if !disagreements.iter().all(|d| d.starts_with("classification.")) {
+    if !disagreements
+        .iter()
+        .all(|d| d.starts_with("classification."))
+    {
         return None;
     }
     let needed = votes.len() / 2 + 1;
@@ -1474,16 +1477,36 @@ async fn run_pass_b(
 /// becomes "other" — a wrong type is worse than an unclassified one.
 fn annotation_document_type(role: &str) -> String {
     const VALID: &[&str] = &[
-        "investment_memorandum", "brochure", "teaser", "hotel_operator_pack",
-        "developer_cv", "development_appraisal", "asset_liability_statement",
-        "valuation_report", "monitoring_surveyor_report", "building_survey",
-        "environmental_report", "titledocuments", "lease_tenancy_agreement",
-        "planning_documents", "structure_chart", "financial_model", "rent_roll",
-        "construction_contract_cost_plan", "agency_market_report",
-        "comparable_evidence_schedule", "facility_agreement", "term_sheet",
-        "intercreditor_agreement", "guarantee_agreement", "security_agreement",
-        "acquisition_agreement", "jv_agreement", "offering_memorandum",
-        "mandate", "other",
+        "investment_memorandum",
+        "brochure",
+        "teaser",
+        "hotel_operator_pack",
+        "developer_cv",
+        "development_appraisal",
+        "asset_liability_statement",
+        "valuation_report",
+        "monitoring_surveyor_report",
+        "building_survey",
+        "environmental_report",
+        "titledocuments",
+        "lease_tenancy_agreement",
+        "planning_documents",
+        "structure_chart",
+        "financial_model",
+        "rent_roll",
+        "construction_contract_cost_plan",
+        "agency_market_report",
+        "comparable_evidence_schedule",
+        "facility_agreement",
+        "term_sheet",
+        "intercreditor_agreement",
+        "guarantee_agreement",
+        "security_agreement",
+        "acquisition_agreement",
+        "jv_agreement",
+        "offering_memorandum",
+        "mandate",
+        "other",
     ];
     match role {
         "information_memorandum" | "im" | "investment_brochure" => {
@@ -2353,9 +2376,21 @@ mod tests {
     #[test]
     fn document_records_build_canonical_records_from_annotations() {
         let corpus = Corpus::from_pages(vec![
-            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "1".into(), text: "x".into() },
-            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "2".into(), text: "y".into() },
-            crate::documents::DocPage { doc_name: "model.xlsx".into(), page_label: "Sheet1".into(), text: "z".into() },
+            crate::documents::DocPage {
+                doc_name: "IM.pdf".into(),
+                page_label: "1".into(),
+                text: "x".into(),
+            },
+            crate::documents::DocPage {
+                doc_name: "IM.pdf".into(),
+                page_label: "2".into(),
+                text: "y".into(),
+            },
+            crate::documents::DocPage {
+                doc_name: "model.xlsx".into(),
+                page_label: "Sheet1".into(),
+                text: "z".into(),
+            },
         ]);
         let anns = json!([
             { "name": "IM.pdf", "role": "information_memorandum" },
@@ -2586,7 +2621,10 @@ mod extra_tests {
         ];
         let merged = majority_classification(&votes, &disagreements).unwrap();
         assert_eq!(merged["classification"]["capital_position"], "debt");
-        assert_eq!(merged["classification"]["loan_type"]["category"], "development");
+        assert_eq!(
+            merged["classification"]["loan_type"]["category"],
+            "development"
+        );
     }
 
     #[test]

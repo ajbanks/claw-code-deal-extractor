@@ -396,10 +396,19 @@ pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<S
                 restored.push(format!("canonical_deal.{key}"));
             }
         }
-        if let Some(previous_sequence) = p_cd.get("exit_sequence").filter(|sequence| !sequence.is_null()) {
-            let previous_steps = previous_sequence.get("steps").and_then(Value::as_array).map_or(0, Vec::len);
-            let next_steps = n_cd.get("exit_sequence").and_then(|sequence| sequence.get("steps"))
-                .and_then(Value::as_array).map_or(0, Vec::len);
+        if let Some(previous_sequence) = p_cd
+            .get("exit_sequence")
+            .filter(|sequence| !sequence.is_null())
+        {
+            let previous_steps = previous_sequence
+                .get("steps")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len);
+            let next_steps = n_cd
+                .get("exit_sequence")
+                .and_then(|sequence| sequence.get("steps"))
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len);
             if previous_steps > 0 && next_steps < previous_steps {
                 n_cd["exit_sequence"] = previous_sequence.clone();
                 restored.push("canonical_deal.exit_sequence".into());
@@ -471,7 +480,10 @@ mod restore_tests {
             {"id": "refi", "order": 1}
         ]}}});
         let restored = restore_dropped_structure(&prev, &mut next);
-        assert_eq!(next["canonical_deal"]["exit_sequence"], prev["canonical_deal"]["exit_sequence"]);
+        assert_eq!(
+            next["canonical_deal"]["exit_sequence"],
+            prev["canonical_deal"]["exit_sequence"]
+        );
         assert!(restored.contains(&"canonical_deal.exit_sequence".to_string()));
     }
 
