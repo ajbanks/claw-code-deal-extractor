@@ -36,6 +36,9 @@ const CD_ACTIVE_FIELDS: &[&str] = &[
     "planning_applications",
     "valuations",
     "construction_budgets",
+    "developer_equity_schedule",
+    "funding_order",
+    "funding_order_evidence",
     "parties",
     "security",
     "guarantees",
@@ -255,6 +258,8 @@ mod tests {
         assert!(cd.contains_key("focus_facility_id"));
         assert!(cd.contains_key("phases"));
         assert!(cd.contains_key("valuations"));
+        assert!(cd.contains_key("developer_equity_schedule"));
+        assert!(cd.contains_key("funding_order"));
         // TS-internal fields the agent emits empty.
         assert!(cd.contains_key("assertions"));
         // Truly internal fields stay out of the profile.
@@ -268,5 +273,6 @@ mod tests {
         assert!(c.contains("facilities"));
         assert!(c.contains("focus_facility_id"));
         assert!(c.contains("loan_amount"));
+        assert!(c.contains("cashflow_schedule"));
     }
 }

@@ -168,6 +168,14 @@ const FIELD_SPECS: &[FieldSpec] = &[
         &["developer equity", "sponsor equity", "equity contribution", "equity injection", "cash equity"],
         "sponsor/developer equity contribution",
         &[], &[]),
+    conditional("canonical_deal.developer_equity_schedule",
+        &["equity injection schedule", "equity drawdown schedule", "equity contribution timing", "equity cash flow"],
+        "only explicitly stated dated developer equity injections, with exact source anchors",
+        &[], &[]),
+    conditional("canonical_deal.funding_order",
+        &["equity first", "senior first", "funding priority", "pro rata funding", "drawdown priority", "funding waterfall"],
+        "the complete explicitly stated priority order of actual funding sources and evidence locators",
+        &[], &[]),
     conditional("canonical_deal.planning_applications",
         &["planning application", "application ref", "planning ref", "lpa ref", "application number", "planning consent"],
         "every planning application referenced (ref, status, local authority)",
@@ -311,6 +319,61 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
                 spec.hint,
                 hits.iter().take(4).cloned().collect::<Vec<_>>().join("\n"),
             ),
+            severity: Severity::Error,
+        });
+    }
+    // Budget-level schedules are nested per construction budget, so they
+    // cannot be represented by one static FIELD_SPEC. Only request a missing
+    // schedule when distinct timing and cost-profile language occurs in the
+    // source; a generic construction duration is not a dated cash-use curve.
+    let budgets = doc
+        .pointer("/canonical_deal/construction_budgets")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    for (index, budget) in budgets.iter().enumerate() {
+        if issues.len() >= MAX_ISSUES {
+            break;
+        }
+        if budget
+            .get("cashflow_schedule")
+            .is_some_and(|v| !v.is_null())
+        {
+            continue;
+        }
+        let timing_terms = [
+            "monthly spend",
+            "cash flow profile",
+            "cashflow profile",
+            "cost phasing",
+            "drawdown profile",
+            "monthly cost schedule",
+        ];
+        let matched: Vec<&str> = timing_terms
+            .iter()
+            .copied()
+            .filter(|term| !corpus.search(term, 1).is_empty())
+            .collect();
+        if matched.len() < 2 {
+            continue;
+        }
+        let hits = matched
+            .iter()
+            .filter_map(|term| {
+                corpus.search(term, 1).first().map(|hit| {
+                    format!(
+                        "{} ({}): {}",
+                        hit.doc_name,
+                        hit.page_label,
+                        hit.snippet.trim()
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        issues.push(Issue {
+            code: "missing_with_evidence",
+            path: format!("canonical_deal.construction_budgets[{index}].cashflow_schedule"),
+            message: format!("Source language may contain a dated construction-use schedule for budget {}. Extract only explicit dates and exact amounts, and mark coverage exhaustive only if the source says the schedule is complete. Evidence:\n{}", budget.get("id").and_then(Value::as_str).unwrap_or("(unnamed)"), hits.join("\n")),
             severity: Severity::Error,
         });
     }
@@ -646,5 +709,23 @@ mod extra_tests {
             "rejected={rejected:?} reasons={reasons:?}"
         );
         assert!(merged.contains(&"canonical_deal.planning_applications[0]".to_string()));
+    }
+
+    #[test]
+    fn dated_schedule_coverage_requires_cost_timing_and_not_generic_duration() {
+        let doc = json!({"canonical_deal":{"construction_budgets":[{"id":"budget-1","cashflow_schedule":null}]}});
+        let timed = corpus_with(
+            "Complete monthly spend cash flow profile is shown for the construction budget.",
+        );
+        let issues = coverage_issues(&doc, &timed);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.path == "canonical_deal.construction_budgets[0].cashflow_schedule"));
+
+        let duration_only = corpus_with("Construction lasts 18 months.");
+        let issues = coverage_issues(&doc, &duration_only);
+        assert!(!issues
+            .iter()
+            .any(|issue| issue.path.ends_with("cashflow_schedule")));
     }
 }

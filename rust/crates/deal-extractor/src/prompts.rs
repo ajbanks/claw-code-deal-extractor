@@ -76,6 +76,13 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 ## CAPITAL SNAPSHOTS
 A project-level snapshot listing each facility's role: { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
+## DATED CONSTRUCTION FUNDING (SOURCE-ONLY)
+- For a construction budget, emit `cashflow_schedule` only when the source gives dated cash-use amounts. Preserve each exact decimal amount as a string, source date and currency. `evidence` must point to the schedule/table and quote the text that identifies its scope and dates.
+- Set `schedule_coverage` to `exhaustive` only when the source explicitly identifies the schedule as complete for the stated budget and period. A partial extract, illustrative curve, missing periods, or unclear scope is `partial` or `unknown`; never extrapolate, interpolate, allocate a total evenly, or infer dates from construction duration.
+- `developer_equity_schedule` is only dated equity actually stated as committed/injected in the source. It is not the difference between costs and debt. Preserve exact dates, amounts, currencies and source locators. Use `exhaustive` only where the source explicitly establishes the whole equity timing schedule; otherwise use `partial`/`unknown` or null.
+- `funding_order` is the explicit order of funding sources only when a document states the priority (for example, equity-first, senior-first, or pro-rata). Use exact IDs of the corresponding `canonical_deal.facilities` entries and the literal `developer_equity` identifier when applicable. `funding_order_evidence` must cite the exact supporting source span. Never infer priority from market convention, facility ranking alone, or a balanced sources-and-uses table. If the order or complete source set is unclear, emit null and leave underwriting unresolved.
+- Do not emit assumed draws, equity, balancing sources, or a synthetic schedule. The TypeScript underwriting engine independently validates totals and evidence before using these records.
+
 ## PARTIES
 Every named entity with a stake in the deal: { id, name, entity_type (company | person | trust | partnership | fund | other), roles, address | null, jurisdiction | null, company_number | null, evidence_assertion_ids: [], evidence }.
 - roles from: borrower | lender | sponsor | investment_manager | parent | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | selling_agent | broker | contractor | architect | other.
@@ -234,6 +241,9 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 
 ## CAPITAL SNAPSHOTS
 { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
+
+## DATED FUNDING FIELDS
+For `construction_budgets[].cashflow_schedule` and `developer_equity_schedule`, copy only dated amounts explicitly shown in source; amounts are exact decimal strings and every schedule needs source evidence. Mark coverage `exhaustive` only when the source explicitly says it is complete for the stated cost/equity scope and period; otherwise use `partial` or `unknown`. Never synthesize a curve or infer missing dates. Emit `funding_order` and `funding_order_evidence` only for an explicitly stated complete order of actual funding sources, using exact facility IDs plus `developer_equity` as applicable; never infer order from ranking or a balanced residual.
 
 ## PARTIES
 Every named entity with a stake in the deal:

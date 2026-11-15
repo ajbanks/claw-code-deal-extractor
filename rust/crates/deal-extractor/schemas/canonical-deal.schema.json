@@ -5186,6 +5186,233 @@
                 "quote"
               ]
             }
+          },
+          "cashflow_schedule": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "schedule_coverage": {
+                "type": "string",
+                "enum": [
+                  "exhaustive",
+                  "partial",
+                  "unknown"
+                ]
+              },
+              "scheduled": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "object",
+                      "properties": {
+                        "amount": {
+                          "minLength": 1,
+                          "description": "Exact decimal string as stated; do not round or calculate.",
+                          "type": "string"
+                        },
+                        "currency": {
+                          "minLength": 3,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amount",
+                        "currency"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "amount"
+                  ]
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file_id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "enum": [
+                        "investment_memorandum",
+                        "brochure",
+                        "teaser",
+                        "hotel_operator_pack",
+                        "developer_cv",
+                        "development_appraisal",
+                        "asset_liability_statement",
+                        "valuation_report",
+                        "monitoring_surveyor_report",
+                        "building_survey",
+                        "environmental_report",
+                        "titledocuments",
+                        "lease_tenancy_agreement",
+                        "planning_documents",
+                        "structure_chart",
+                        "financial_model",
+                        "rent_roll",
+                        "construction_contract_cost_plan",
+                        "agency_market_report",
+                        "comparable_evidence_schedule",
+                        "facility_agreement",
+                        "term_sheet",
+                        "intercreditor_agreement",
+                        "guarantee_agreement",
+                        "security_agreement",
+                        "acquisition_agreement",
+                        "jv_agreement",
+                        "offering_memorandum",
+                        "mandate",
+                        "other"
+                      ]
+                    },
+                    "pdf_page": {
+                      "minimum": 1,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sheet_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "table": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "row": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "column": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "quote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "span_start": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "span_end": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bbox": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "table_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cell_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "page_artifact_hash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "parser_version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evidence_role": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "direct",
+                        "supporting",
+                        "derived",
+                        null
+                      ]
+                    },
+                    "derived_from_assertion_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "file_id",
+                    "document_type",
+                    "pdf_page",
+                    "sheet_name",
+                    "section",
+                    "table",
+                    "row",
+                    "column",
+                    "quote"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "schedule_coverage",
+              "scheduled",
+              "evidence"
+            ]
           }
         },
         "required": [
@@ -13090,6 +13317,415 @@
           "tiers",
           "evidence_assertion_ids",
           "evidence"
+        ]
+      }
+    },
+    "developer_equity_schedule": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "schedule_coverage": {
+          "type": "string",
+          "enum": [
+            "exhaustive",
+            "partial",
+            "unknown"
+          ]
+        },
+        "scheduled": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "amount": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "minLength": 1,
+                    "description": "Exact decimal string as stated; do not round or calculate.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "minLength": 3,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              }
+            },
+            "required": [
+              "date",
+              "amount"
+            ]
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "document_type": {
+                "type": "string",
+                "enum": [
+                  "investment_memorandum",
+                  "brochure",
+                  "teaser",
+                  "hotel_operator_pack",
+                  "developer_cv",
+                  "development_appraisal",
+                  "asset_liability_statement",
+                  "valuation_report",
+                  "monitoring_surveyor_report",
+                  "building_survey",
+                  "environmental_report",
+                  "titledocuments",
+                  "lease_tenancy_agreement",
+                  "planning_documents",
+                  "structure_chart",
+                  "financial_model",
+                  "rent_roll",
+                  "construction_contract_cost_plan",
+                  "agency_market_report",
+                  "comparable_evidence_schedule",
+                  "facility_agreement",
+                  "term_sheet",
+                  "intercreditor_agreement",
+                  "guarantee_agreement",
+                  "security_agreement",
+                  "acquisition_agreement",
+                  "jv_agreement",
+                  "offering_memorandum",
+                  "mandate",
+                  "other"
+                ]
+              },
+              "pdf_page": {
+                "minimum": 1,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sheet_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "section": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "table": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "row": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "column": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "quote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "span_start": {
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "span_end": {
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "bbox": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "number"
+                }
+              },
+              "table_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cell_ids": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "page_artifact_hash": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "parser_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence_role": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "direct",
+                  "supporting",
+                  "derived",
+                  null
+                ]
+              },
+              "derived_from_assertion_ids": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "file_id",
+              "document_type",
+              "pdf_page",
+              "sheet_name",
+              "section",
+              "table",
+              "row",
+              "column",
+              "quote"
+            ]
+          }
+        }
+      },
+      "required": [
+        "schedule_coverage",
+        "scheduled",
+        "evidence"
+      ]
+    },
+    "funding_order": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "funding_order_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "investment_memorandum",
+              "brochure",
+              "teaser",
+              "hotel_operator_pack",
+              "developer_cv",
+              "development_appraisal",
+              "asset_liability_statement",
+              "valuation_report",
+              "monitoring_surveyor_report",
+              "building_survey",
+              "environmental_report",
+              "titledocuments",
+              "lease_tenancy_agreement",
+              "planning_documents",
+              "structure_chart",
+              "financial_model",
+              "rent_roll",
+              "construction_contract_cost_plan",
+              "agency_market_report",
+              "comparable_evidence_schedule",
+              "facility_agreement",
+              "term_sheet",
+              "intercreditor_agreement",
+              "guarantee_agreement",
+              "security_agreement",
+              "acquisition_agreement",
+              "jv_agreement",
+              "offering_memorandum",
+              "mandate",
+              "other"
+            ]
+          },
+          "pdf_page": {
+            "minimum": 1,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sheet_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "table": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "row": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "column": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "span_start": {
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "span_end": {
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "bbox": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "table_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cell_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "page_artifact_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parser_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence_role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "direct",
+              "supporting",
+              "derived",
+              null
+            ]
+          },
+          "derived_from_assertion_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "file_id",
+          "document_type",
+          "pdf_page",
+          "sheet_name",
+          "section",
+          "table",
+          "row",
+          "column",
+          "quote"
         ]
       }
     }
