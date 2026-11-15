@@ -855,9 +855,31 @@ mod tests {
         d["canonical_deal"]["developer_equity_schedule"] = dated_schedule();
         d["canonical_deal"]["funding_order"] = json!(["fac-1", "developer_equity"]);
         d["canonical_deal"]["funding_order_evidence"] = dated_schedule()["evidence"].clone();
-        assert!(!validate(&d)
+        let issues = validate(&d);
+        let funding_schema_errors = issues
             .iter()
-            .any(|issue| issue.severity == Severity::Error));
+            .filter(|issue| {
+                issue.code == "schema_violation"
+                    && (issue.path.contains("cashflow_schedule")
+                        || issue.path.contains("developer_equity_schedule")
+                        || issue.path.contains("funding_order"))
+            })
+            .map(|issue| format!("{} {}: {}", issue.code, issue.path, issue.message))
+            .collect::<Vec<_>>();
+        assert!(
+            funding_schema_errors.is_empty(),
+            "unexpected funding schema errors: {funding_schema_errors:#?}"
+        );
+        let domain_errors = issues
+            .into_iter()
+            .filter(|issue| issue.code != "schema_violation")
+            .filter(|issue| issue.severity == Severity::Error)
+            .map(|issue| format!("{} {}: {}", issue.code, issue.path, issue.message))
+            .collect::<Vec<_>>();
+        assert!(
+            domain_errors.is_empty(),
+            "unexpected domain errors: {domain_errors:#?}"
+        );
     }
 
     #[test]
