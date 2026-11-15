@@ -148,8 +148,9 @@ fn exit_sequence(cd: &Value, out: &mut Vec<Issue>) {
                 out.push(Issue::error("exit_sequence_source_document_unknown", format!("{evidence_path}.file_id"), "Source evidence must identify one of the extracted documents."));
             }
             let has_page = anchor.get("pdf_page").and_then(Value::as_u64).is_some_and(|page| page > 0);
-            let has_cell = anchor.get("sheet_name").and_then(Value::as_str).is_some_and(|sheet| !sheet.trim().is_empty())
-                || anchor.get("cell_ids").and_then(Value::as_array).is_some_and(|cells| !cells.is_empty())
+            let has_sheet_cell = anchor.get("sheet_name").and_then(Value::as_str).is_some_and(|sheet| !sheet.trim().is_empty())
+                && anchor.get("cell_ids").and_then(Value::as_array).is_some_and(|cells| !cells.is_empty());
+            let has_cell = has_sheet_cell
                 || anchor.get("table_id").and_then(Value::as_str).is_some_and(|table| !table.trim().is_empty());
             if !has_page && !has_cell { out.push(Issue::error("exit_sequence_source_locator_missing", evidence_path.clone(), "Source anchor needs a PDF page or spreadsheet sheet/cell/table locator.")); }
             if !anchor.get("quote").and_then(Value::as_str).is_some_and(|quote| !quote.trim().is_empty()) {
@@ -785,6 +786,26 @@ mod tests {
         errors = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
         assert!(errors.iter().any(|issue| issue.code == "exit_sequence_predecessor_invalid"));
         assert!(errors.iter().any(|issue| issue.code == "exit_sequence_model_assertion_ids_forbidden"));
+    }
+
+    #[test]
+    fn exit_sequence_spreadsheet_anchor_requires_sheet_and_exact_cells() {
+        let mut document = valid_doc();
+        document["canonical_deal"]["assets"] = json!([{"id": "asset-1", "name": "Subject asset"}]);
+        document["canonical_deal"]["documents"] = json!([{"id": "doc-1", "file_id": "model.xlsx", "file_name": "model.xlsx"}]);
+        document["canonical_deal"]["exit_sequence"] = json!({"version": "exit-sequence-v1", "steps": [
+            {"id": "refinance", "order": 1, "kind": "refinance", "subject_id": "asset-1", "predecessor_step_id": null,
+             "trigger": {"kind": "event", "value": "practical completion"},
+             "expected_timing": {"value": "at practical completion", "basis": "contractual"},
+             "source_assertion_ids": [], "assumption_refs": [],
+             "source_evidence": [{"file_id": "model.xlsx", "sheet_name": "Exit", "quote": "Refinance on completion"}]}
+        ]});
+        let errors: Vec<_> = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
+        assert!(errors.iter().any(|issue| issue.code == "exit_sequence_source_locator_missing"));
+
+        document["canonical_deal"]["exit_sequence"]["steps"][0]["source_evidence"][0]["cell_ids"] = json!(["Exit!B12"]);
+        let errors: Vec<_> = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
+        assert!(!errors.iter().any(|issue| issue.code == "exit_sequence_source_locator_missing"));
     }
 
     #[test]
