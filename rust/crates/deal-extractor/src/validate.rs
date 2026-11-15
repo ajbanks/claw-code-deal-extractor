@@ -92,12 +92,96 @@ fn domain_issues(doc: &Value) -> Vec<Issue> {
     };
 
     referential_integrity(cd, &mut out);
+    exit_sequence(cd, &mut out);
     focus_semantics(cd, &mut out);
     lifecycle(cd, &mut out);
     enums_and_formats(cd, &mut out);
     projection(doc, cd, &mut out);
     completeness(doc, cd, &mut out);
     out
+}
+
+/// Validate sequence structure and extraction-time source anchors. Assertion
+/// IDs are assigned by the TypeScript assertion journal after this service
+/// returns, so Rust must never accept model-authored IDs as provenance.
+fn exit_sequence(cd: &Value, out: &mut Vec<Issue>) {
+    let Some(sequence) = cd.get("exit_sequence").filter(|value| !value.is_null()) else { return; };
+    let Some(steps) = sequence.get("steps").and_then(Value::as_array) else { return; };
+    let mut ids = std::collections::BTreeSet::new();
+    let mut orders = std::collections::BTreeSet::new();
+    let mut subjects = std::collections::BTreeSet::new();
+    for key in ["facilities", "assets", "phases", "units", "leases"] {
+        if let Some(rows) = cd.get(key).and_then(Value::as_array) {
+            subjects.extend(rows.iter().filter_map(|row| row.get("id").and_then(Value::as_str)));
+        }
+    }
+    let documents: std::collections::BTreeSet<&str> = cd.get("documents").and_then(Value::as_array).into_iter().flatten()
+        .flat_map(|document| [document.get("id"), document.get("file_id"), document.get("file_name"), document.get("name")])
+        .flatten().filter_map(Value::as_str).collect();
+    let mut step_ids_by_order = std::collections::BTreeMap::new();
+    for (index, step) in steps.iter().enumerate() {
+        let path = format!("canonical_deal.exit_sequence.steps[{index}]");
+        let Some(id) = step.get("id").and_then(Value::as_str).filter(|id| !id.trim().is_empty()) else {
+            out.push(Issue::error("exit_sequence_step_id_missing", format!("{path}.id"), "Exit step requires a non-empty stable ID."));
+            continue;
+        };
+        if !ids.insert(id) { out.push(Issue::error("exit_sequence_step_id_duplicate", format!("{path}.id"), "Exit sequence step IDs must be unique.")); }
+        let order = step.get("order").and_then(Value::as_u64);
+        if let Some(order) = order {
+            if !orders.insert(order) { out.push(Issue::error("exit_sequence_order_duplicate", format!("{path}.order"), "Exit sequence order values must be unique.")); }
+            step_ids_by_order.insert(order, id);
+            if order != (index + 1) as u64 { out.push(Issue::error("exit_sequence_order_not_contiguous", format!("{path}.order"), "Exit sequence order must be contiguous starting at 1.")); }
+        } else {
+            out.push(Issue::error("exit_sequence_order_invalid", format!("{path}.order"), "Exit sequence order must be a positive integer."));
+        }
+        if !step.get("subject_id").and_then(Value::as_str).is_some_and(|subject| subjects.contains(subject)) {
+            out.push(Issue::error("exit_sequence_subject_unknown", format!("{path}.subject_id"), "Exit step subject must match an exact canonical asset, facility, phase, unit or lease ID."));
+        }
+        let evidence = step.get("source_evidence").and_then(Value::as_array).cloned().unwrap_or_default();
+        if evidence.is_empty() {
+            out.push(Issue::error("exit_sequence_source_evidence_missing", format!("{path}.source_evidence"), "Every extracted exit step needs a source file/page-or-cell/quote anchor for the TypeScript assertion join."));
+        }
+        for (evidence_index, anchor) in evidence.iter().enumerate() {
+            let evidence_path = format!("{path}.source_evidence[{evidence_index}]");
+            let file_id = anchor.get("file_id").and_then(Value::as_str).filter(|file_id| !file_id.trim().is_empty());
+            if file_id.map_or(true, |file_id| !documents.contains(file_id)) {
+                out.push(Issue::error("exit_sequence_source_document_unknown", format!("{evidence_path}.file_id"), "Source evidence must identify one of the extracted documents."));
+            }
+            let has_page = anchor.get("pdf_page").and_then(Value::as_u64).is_some_and(|page| page > 0);
+            let has_cell = anchor.get("sheet_name").and_then(Value::as_str).is_some_and(|sheet| !sheet.trim().is_empty())
+                || anchor.get("cell_ids").and_then(Value::as_array).is_some_and(|cells| !cells.is_empty())
+                || anchor.get("table_id").and_then(Value::as_str).is_some_and(|table| !table.trim().is_empty());
+            if !has_page && !has_cell { out.push(Issue::error("exit_sequence_source_locator_missing", evidence_path.clone(), "Source anchor needs a PDF page or spreadsheet sheet/cell/table locator.")); }
+            if !anchor.get("quote").and_then(Value::as_str).is_some_and(|quote| !quote.trim().is_empty()) {
+                out.push(Issue::error("exit_sequence_source_quote_missing", format!("{evidence_path}.quote"), "Source anchor needs a non-empty verbatim quote."));
+            }
+        }
+        if step.get("expected_timing").and_then(|timing| timing.get("basis")).and_then(Value::as_str) == Some("assumed")
+            && step.get("assumption_refs").and_then(Value::as_array).map_or(true, |refs| refs.is_empty()) {
+            out.push(Issue::error("exit_sequence_assumption_missing", format!("{path}.assumption_refs"), "Assumed exit timing requires an existing assumption record; the extractor cannot invent an assumption ID."));
+        }
+        // Raw IDs from the model are not accepted as durable references.
+        if step.get("source_assertion_ids").and_then(Value::as_array).is_some_and(|refs| !refs.is_empty()) {
+            out.push(Issue::error("exit_sequence_model_assertion_ids_forbidden", format!("{path}.source_assertion_ids"), "Assertion IDs are assigned after extraction; cite source_evidence instead."));
+        }
+        if step.get("assumption_refs").and_then(Value::as_array).is_some_and(|refs| !refs.is_empty()) {
+            out.push(Issue::error("exit_sequence_model_assumption_ids_forbidden", format!("{path}.assumption_refs"), "Assumption IDs are assigned by underwriting state; the extractor cannot invent them."));
+        }
+    }
+    for (index, step) in steps.iter().enumerate() {
+        let order = step.get("order").and_then(Value::as_u64).unwrap_or(0);
+        let predecessor = step.get("predecessor_step_id");
+        if order == 1 {
+            if !predecessor.is_some_and(Value::is_null) { out.push(Issue::error("exit_sequence_first_predecessor", format!("canonical_deal.exit_sequence.steps[{index}].predecessor_step_id"), "First exit step must have a null predecessor.")); }
+        } else if let Some(predecessor_id) = predecessor.and_then(Value::as_str) {
+            let previous = step_ids_by_order.get(&(order - 1));
+            if previous.copied() != Some(predecessor_id) {
+                out.push(Issue::error("exit_sequence_predecessor_invalid", format!("canonical_deal.exit_sequence.steps[{index}].predecessor_step_id"), "Each later exit step must name the immediately preceding step."));
+            }
+        } else {
+            out.push(Issue::error("exit_sequence_predecessor_missing", format!("canonical_deal.exit_sequence.steps[{index}].predecessor_step_id"), "Every step after the first must name its predecessor."));
+        }
+    }
 }
 
 fn facilities(cd: &Value) -> &[Value] {
@@ -674,6 +758,33 @@ mod tests {
         }]);
         let issues = validate(&d);
         assert!(issues.iter().any(|i| i.code == "focus_has_drawn_event"));
+    }
+
+    #[test]
+    fn exit_sequence_requires_known_subjects_source_anchors_and_ordered_predecessors() {
+        let mut document = valid_doc();
+        document["canonical_deal"]["assets"] = json!([{"id": "asset-1", "name": "Subject asset"}]);
+        document["canonical_deal"]["documents"] = json!([{"id": "doc-1", "file_id": "im.pdf", "file_name": "im.pdf"}]);
+        document["canonical_deal"]["exit_sequence"] = json!({"version": "exit-sequence-v1", "steps": [
+            {"id": "refinance", "order": 1, "kind": "refinance", "subject_id": "asset-1", "predecessor_step_id": null,
+             "trigger": {"kind": "event", "value": "practical completion"},
+             "expected_timing": {"value": "at practical completion", "basis": "contractual"},
+             "source_assertion_ids": [], "assumption_refs": [],
+             "source_evidence": [{"file_id": "im.pdf", "pdf_page": 8, "quote": "The bridge will be refinanced at practical completion."}]},
+            {"id": "sale", "order": 2, "kind": "sale", "subject_id": "asset-1", "predecessor_step_id": "refinance",
+             "trigger": {"kind": "event", "value": "units complete"},
+             "expected_timing": {"value": "after refinance", "basis": "modelled"},
+             "source_assertion_ids": [], "assumption_refs": [],
+             "source_evidence": [{"file_id": "im.pdf", "pdf_page": 9, "quote": "The completed apartments will be sold."}]}
+        ]});
+        let mut errors: Vec<_> = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
+        assert!(errors.is_empty(), "unexpected domain errors: {errors:?}");
+
+        document["canonical_deal"]["exit_sequence"]["steps"][1]["predecessor_step_id"] = json!("missing");
+        document["canonical_deal"]["exit_sequence"]["steps"][1]["source_assertion_ids"] = json!(["model-invented-id"]);
+        errors = domain_issues(&document).into_iter().filter(|issue| issue.severity == Severity::Error).collect();
+        assert!(errors.iter().any(|issue| issue.code == "exit_sequence_predecessor_invalid"));
+        assert!(errors.iter().any(|issue| issue.code == "exit_sequence_model_assertion_ids_forbidden"));
     }
 
     #[test]

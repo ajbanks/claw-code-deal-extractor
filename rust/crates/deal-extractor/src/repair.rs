@@ -396,6 +396,15 @@ pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<S
                 restored.push(format!("canonical_deal.{key}"));
             }
         }
+        if let Some(previous_sequence) = p_cd.get("exit_sequence").filter(|sequence| !sequence.is_null()) {
+            let previous_steps = previous_sequence.get("steps").and_then(Value::as_array).map_or(0, Vec::len);
+            let next_steps = n_cd.get("exit_sequence").and_then(|sequence| sequence.get("steps"))
+                .and_then(Value::as_array).map_or(0, Vec::len);
+            if previous_steps > 0 && next_steps < previous_steps {
+                n_cd["exit_sequence"] = previous_sequence.clone();
+                restored.push("canonical_deal.exit_sequence".into());
+            }
+        }
         let had_focus = p_cd.get("focus_facility_id").is_some_and(|v| !v.is_null());
         let lost_focus = n_cd.get("focus_facility_id").map_or(true, Value::is_null);
         if had_focus && lost_focus {
@@ -451,6 +460,19 @@ mod restore_tests {
         );
         assert!(next["details"].get("loan_amount").is_some());
         assert_eq!(r.len(), 3);
+    }
+
+    #[test]
+    fn restores_exit_sequence_when_repair_drops_or_shrinks_steps() {
+        let prev = json!({"canonical_deal": {"exit_sequence": {"version": "exit-sequence-v1", "steps": [
+            {"id": "refi", "order": 1}, {"id": "sale", "order": 2}
+        ]}}});
+        let mut next = json!({"canonical_deal": {"exit_sequence": {"version": "exit-sequence-v1", "steps": [
+            {"id": "refi", "order": 1}
+        ]}}});
+        let restored = restore_dropped_structure(&prev, &mut next);
+        assert_eq!(next["canonical_deal"]["exit_sequence"], prev["canonical_deal"]["exit_sequence"]);
+        assert!(restored.contains(&"canonical_deal.exit_sequence".to_string()));
     }
 
     #[test]

@@ -39,6 +39,7 @@ const CD_ACTIVE_FIELDS: &[&str] = &[
     "parties",
     "security",
     "guarantees",
+    "exit_sequence",
 ];
 
 /// Details fields that must carry a real value when evidence exists. The

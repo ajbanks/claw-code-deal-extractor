@@ -282,6 +282,9 @@ pub struct CanonicalDeal {
     pub capital_events: Vec<CapitalEvent>,
     #[serde(default)]
     pub capital_snapshots: Vec<CapitalSnapshot>,
+    /// Ordered, source-anchored primary/interim/fallback exit plan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_sequence: Option<Value>,
 
     // ── Passthrough fields (declared in canonical-deal.schema.json; kept
     // opaque so the struct stays lossless when the schema evolves) ──

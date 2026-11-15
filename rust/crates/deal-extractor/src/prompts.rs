@@ -76,6 +76,14 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 ## CAPITAL SNAPSHOTS
 A project-level snapshot listing each facility's role: { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
+## ORDERED EXIT SEQUENCE
+Emit canonical_deal.exit_sequence only when source documents explicitly establish two or more ordered exit/repayment steps (for example, refinance at practical completion followed by unit sales, or a primary refinance with a stated sale fallback). Do not convert a single free-text exit_plan into an ordered sequence or infer order from generic deal convention.
+- version: "exit-sequence-v1".
+- Each step has a stable id, contiguous order starting at 1, exact subject_id copied from canonical_deal.assets/facilities/phases, predecessor_step_id (null for step 1; otherwise the preceding step id), kind, trigger and expected_timing.
+- Trigger kind is date, event or condition. Preserve the source trigger wording. Timing basis is contractual only for a stated contractual date/term, modelled only when a source model states it, and assumed only when a real assumption record already exists. Do not invent dates or durations.
+- source_evidence is required for every step and must cite the exact source span using { document: "<exact corpus filename>", page: <page number or null>, quote: "<verbatim source text>" }. For spreadsheets, also cite sheet_name and cell_ids/cell when available. Never fabricate source_assertion_ids or assumption_refs: the TypeScript evidence bridge assigns assertion IDs after joining these anchors to the durable assertion journal. Emit source_assertion_ids: [] and assumption_refs: []. If assumed timing has no existing assumption record, omit the sequence rather than invent an ID.
+- The step subject and source span must support that step. Preserve primary, interim and fallback order as separate linked steps. If the source states alternatives without their order, omit the sequence and leave them in exit_plan prose.
+
 ## PARTIES
 Every named entity with a stake in the deal: { id, name, entity_type (company | person | trust | partnership | fund | other), roles, address | null, jurisdiction | null, company_number | null, evidence_assertion_ids: [], evidence }.
 - roles from: borrower | lender | sponsor | investment_manager | parent | guarantor | security_trustee | facility_agent | vendor | purchaser | landlord | tenant | jv_member | developer | valuer | servicer | adviser | selling_agent | broker | contractor | architect | other.
