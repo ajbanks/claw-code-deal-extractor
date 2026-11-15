@@ -690,6 +690,14 @@ mod extra_tests {
     use super::*;
     use serde_json::json;
 
+    fn corpus_with(text: &str) -> Corpus {
+        Corpus::from_pages(vec![crate::documents::DocPage {
+            doc_name: "doc.pdf".to_string(),
+            page_label: "p1".to_string(),
+            text: text.to_string(),
+        }])
+    }
+
     #[test]
     fn planning_application_missing_nullable_keys_merges() {
         // Prod order: conform runs before merge, so baseline issues are
