@@ -197,6 +197,8 @@ Return JSON:
 - loan_rank: { "category": "senior" | "mezzanine" | "junior" | "whole_loan" } — "whole_loan" = one facility covering senior+mezzanine
 - operating_model: { "category": "income_property" | "development" | "trading" }
 
+For an equity acquisition with no focus debt facility, omit loan_type and loan_rank (or use null). A stabilised asset is not itself an investment-term loan.
+
 ## DOCUMENT ANNOTATIONS
 For each document: { "name": "<filename>", "role": "<role>" }
 Roles: information_memorandum, term_sheet, valuation_report, cash_flow_model, planning_document, brochure, legal_document, other.
@@ -346,6 +348,8 @@ Set value to null for KPIs not stated or not computable from the documents."#;
 pub const PASS_B_INCOME: &str = r#"## DETAILS
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):
 - commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), unit_break_penalty { amount, currency }, unit_break_notice_months, unit_extension_approach, unit_lease_notes (rent-free, exclusivity, other stated per-unit terms), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
+- unit_passing_rent must be a money object with a numeric amount and ISO currency, not a quoted string such as "£77,793". Preserve the original source literal in evidence.
+- A rent-review date and a break-option date are separate schedule columns. Do not copy a break date into the review field unless both columns expressly state it. The asset summary may use only the earliest expressly stated review date, with its unit attribution.
 - tenants: flat array of every distinct tenant name
 - key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
 - passing_rent_per_annum, passing_rent_per_area_unit, net_initial_yield, equivalent_yield, reversionary_yield, stabilised_yield, estimated_rental_value — stated asset-level income and yield figures
@@ -355,7 +359,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
 - Income totals are WHOLE-SCHEME: estimated_rental_value and net_operating_income cover every rental stream the schedule shows (residential + commercial + parking/ancillary). When the schedule states a count and a rate but no printed total, derive it (e.g. 208 spaces × £175/month × 12 = £436,800/yr) and note the derivation in notes. A stated opex % applies to the same whole-scheme gross.
 - epc_rating, tenure
-- year_built, last_refurbished"#;
+- year_built, last_refurbished — use a calendar year only when the source explicitly dates construction or completion. "Recently refurbished" or "just undergone refurbishment" does not establish a year; lease commencement dates are not works-completion dates. Retain the relative wording as evidence and leave the year null."#;
 
 /// Pass B sub-pass 3: parties, narrative and descriptive fields.
 /// Returns {"details": {...}} only.
