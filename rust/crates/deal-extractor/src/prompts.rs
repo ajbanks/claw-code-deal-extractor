@@ -143,6 +143,7 @@ pub const REPAIR_PROMPT: &str = r#"Your previous extraction violated one or more
 RULES:
 - Fix ONLY what is wrong. Keep everything that is already correct.
 - Do NOT sum unrelated facilities into loan_amount or gross_debt.
+- If validation says `debt_facility_missing`, repair the missing debt facility from the cited source pages. Keep an underlying loan commitment distinct from an investor's co-investment/subscription/participation amount, and distinct from total project cost or equity. Use the exact stated gross loan amount and quote its source; if the source names a facility but gives no amount, add the facility with a null commitment instead of inventing one.
 - Amounts are exact decimal strings in absolute units ("25750000"), never millions shorthand.
 - The focus facility is the NEW money being requested (disposition "requested"), not repaid/existing/proposed debt.
 - Return a JSON PATCH object, not the whole document:

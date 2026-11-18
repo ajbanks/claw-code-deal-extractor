@@ -770,6 +770,20 @@ fn completeness(doc: &Value, cd: &Value, out: &mut Vec<Issue>) {
             )
         });
     if looks_debt {
+        let has_debt_facility = facilities(cd).iter().any(|f| {
+            crate::contract::DEBT_INSTRUMENT_TYPES.contains(
+                &f.get("instrument_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(""),
+            )
+        });
+        if capital_position == "debt" && !has_debt_facility {
+            out.push(Issue::error(
+                "debt_facility_missing",
+                "canonical_deal.facilities",
+                "the deal is classified as debt, but canonical_deal.facilities[] has no debt facility. Read the source pages and add the evidenced facility with its stated commitment, term, role, disposition, and verbatim evidence. Keep co-investment subscriptions, participations, equity, and development costs separate from the underlying facility commitment; never substitute one of those amounts for the loan amount. If the amount truly is absent, retain a requested facility with a null commitment rather than omitting the debt instrument.",
+            ));
+        }
         let lt = doc
             .get("classification")
             .and_then(|c| c.get("loan_type"))
@@ -1026,6 +1040,31 @@ mod tests {
         assert!(issues
             .iter()
             .any(|i| i.code == "debt_deal_missing_loan_rank"));
+    }
+
+    #[test]
+    fn explicit_debt_structure_without_a_debt_facility_is_an_error() {
+        let mut d = valid_doc();
+        d["canonical_deal"]["facilities"] = json!([]);
+        d["canonical_deal"]["focus_facility_id"] = Value::Null;
+        d["canonical_deal"]["candidate_facility_ids"] = json!([]);
+        d["classification"]["capital_instrument"] = json!({"category":"whole_loan"});
+        d["details"]["debt_structure"] = json!({"value":"whole_loan"});
+        let issues = validate(&d);
+        assert!(issues.iter().any(|i| i.code == "debt_facility_missing"));
+    }
+
+    #[test]
+    fn equity_raise_without_a_debt_structure_does_not_require_a_loan_facility() {
+        let mut d = valid_doc();
+        d["canonical_deal"]["facilities"] = json!([]);
+        d["canonical_deal"]["focus_facility_id"] = Value::Null;
+        d["canonical_deal"]["candidate_facility_ids"] = json!([]);
+        d["classification"]["capital_position"] = json!("equity");
+        d["classification"]["capital_instrument"] = json!({"category":"ordinary_equity"});
+        d["details"]["debt_structure"] = Value::Null;
+        let issues = validate(&d);
+        assert!(!issues.iter().any(|i| i.code == "debt_facility_missing"));
     }
 
     #[test]
