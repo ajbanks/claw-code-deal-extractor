@@ -101,12 +101,255 @@
               "currency"
             ]
           },
+          "funding_commitment": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "requested",
+                  "proposed",
+                  "conditional",
+                  "committed",
+                  "withdrawn"
+                ]
+              },
+              "amount": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                    "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[a-zA-Z]{3}$",
+                    "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ]
+              },
+              "effective_from": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "expires_on": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file_id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "enum": [
+                        "investment_memorandum",
+                        "brochure",
+                        "teaser",
+                        "hotel_operator_pack",
+                        "developer_cv",
+                        "development_appraisal",
+                        "asset_liability_statement",
+                        "valuation_report",
+                        "monitoring_surveyor_report",
+                        "building_survey",
+                        "environmental_report",
+                        "titledocuments",
+                        "lease_tenancy_agreement",
+                        "planning_documents",
+                        "structure_chart",
+                        "financial_model",
+                        "rent_roll",
+                        "construction_contract_cost_plan",
+                        "agency_market_report",
+                        "comparable_evidence_schedule",
+                        "facility_agreement",
+                        "term_sheet",
+                        "intercreditor_agreement",
+                        "guarantee_agreement",
+                        "security_agreement",
+                        "acquisition_agreement",
+                        "jv_agreement",
+                        "offering_memorandum",
+                        "mandate",
+                        "other"
+                      ]
+                    },
+                    "pdf_page": {
+                      "minimum": 1,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sheet_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "table": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "row": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "column": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "quote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "span_start": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "span_end": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bbox": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "table_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cell_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "page_artifact_hash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "parser_version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evidence_role": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "direct",
+                        "supporting",
+                        "derived",
+                        null
+                      ]
+                    },
+                    "derived_from_assertion_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "file_id",
+                    "document_type",
+                    "pdf_page",
+                    "sheet_name",
+                    "section",
+                    "table",
+                    "row",
+                    "column",
+                    "quote"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "status",
+              "amount",
+              "effective_from",
+              "expires_on",
+              "evidence"
+            ]
+          },
           "drawdown": {
             "type": [
               "object",
               "null"
             ],
             "properties": {
+              "schedule_coverage": {
+                "description": "Exhaustive only if the source establishes the complete scheduled advances; an editable or illustrative spend curve is not an evidenced draw schedule.",
+                "type": "string",
+                "enum": [
+                  "exhaustive",
+                  "partial",
+                  "unknown"
+                ]
+              },
               "committed": {
                 "type": [
                   "object",
@@ -296,6 +539,32 @@
                     "null"
                   ]
                 },
+                "all_in_rate": {
+                  "description": "Explicitly stated all-in floating rate, distinct from the spread over a reference index",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "index_rate": {
+                  "description": "Dated numeric reference-index fixing, never an index name or margin",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "day_count": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "ACT/365",
+                    "ACT/360",
+                    "30/360",
+                    null
+                  ]
+                },
                 "reference_rate": {
                   "type": [
                     "string",
@@ -327,6 +596,29 @@
                     "capitalised",
                     "retained",
                     "split"
+                  ]
+                },
+                "payment_allocation": {
+                  "description": "Explicit shares of the coupon, summing to 100. Never infer from a description of split interest or confuse with separate coupon rates.",
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cash_pay_pct": {
+                      "minimum": 0,
+                      "maximum": 100,
+                      "type": "number"
+                    },
+                    "capitalised_pct": {
+                      "minimum": 0,
+                      "maximum": 100,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "cash_pay_pct",
+                    "capitalised_pct"
                   ]
                 },
                 "default_margin": {
@@ -661,11 +953,171 @@
                   "currency"
                 ]
               },
+              "retained_interest_reserve": {
+                "description": "Explicitly documented borrower-owned segregated interest reserve and dated coupon payments. Do not populate for lender-owned discounts, non-refundable deductions or an unspecified retained-interest description.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "object",
+                    "properties": {
+                      "amount": {
+                        "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                        "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "pattern": "^[a-zA-Z]{3}$",
+                        "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "currency"
+                    ]
+                  },
+                  "funding": {
+                    "type": "string",
+                    "enum": [
+                      "deducted_from_first_advance"
+                    ]
+                  },
+                  "account_holder": {
+                    "type": "string",
+                    "enum": [
+                      "borrower_segregated"
+                    ]
+                  },
+                  "surplus_treatment": {
+                    "type": "string",
+                    "enum": [
+                      "refund_at_settlement"
+                    ]
+                  },
+                  "release_coverage": {
+                    "type": "string",
+                    "enum": [
+                      "exhaustive",
+                      "partial",
+                      "unknown"
+                    ]
+                  },
+                  "releases": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "object",
+                          "properties": {
+                            "amount": {
+                              "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                              "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                              "type": "string"
+                            },
+                            "currency": {
+                              "pattern": "^[a-zA-Z]{3}$",
+                              "description": "ISO-4217 3-letter currency code (e.g. gbp, usd, eur). Null only when the source omits it.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "currency"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "amount"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "amount",
+                  "funding",
+                  "account_holder",
+                  "surplus_treatment",
+                  "release_coverage",
+                  "releases"
+                ]
+              },
               "fees": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
+                    "id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "payment_date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "capitalisation": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "principal_treatment": {
+                          "type": "string",
+                          "enum": [
+                            "additional_to_advance",
+                            "included_in_gross_facility"
+                          ]
+                        },
+                        "interest_treatment": {
+                          "type": "string",
+                          "enum": [
+                            "interest_bearing",
+                            "non_interest_bearing"
+                          ]
+                        },
+                        "repayment": {
+                          "type": "string",
+                          "enum": [
+                            "at_facility_settlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "principal_treatment",
+                        "interest_treatment",
+                        "repayment"
+                      ]
+                    },
+                    "recipient": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "lender",
+                        "third_party",
+                        null
+                      ]
+                    },
                     "label": {
                       "minLength": 1,
                       "type": "string"
@@ -709,6 +1161,40 @@
                       "required": [
                         "amount",
                         "currency"
+                      ]
+                    },
+                    "rate": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "value": {
+                          "pattern": "^-?\\d+(?:\\.\\d+)?$",
+                          "description": "Exact decimal amount represented as a string; never a JavaScript number.",
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string",
+                          "enum": [
+                            "percent",
+                            "fraction"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "enum": [
+                            "gross_facility",
+                            "drawn_principal",
+                            "undrawn_commitment",
+                            "unknown"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "unit",
+                        "basis"
                       ]
                     },
                     "treatment": {
@@ -910,6 +1396,19 @@
                     "evidence"
                   ]
                 }
+              },
+              "fees_coverage": {
+                "description": "Exhaustive only when the source explicitly establishes the complete applicable fee schedule. An itemised list alone is partial, never evidence that other fees are zero.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "exhaustive",
+                  "partial",
+                  "unknown",
+                  null
+                ]
               },
               "total_repayment_obligation": {
                 "type": [
@@ -1303,6 +1802,32 @@
                     "null"
                   ]
                 },
+                "all_in_rate": {
+                  "description": "Explicitly stated all-in floating rate, distinct from the spread over a reference index",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "index_rate": {
+                  "description": "Dated numeric reference-index fixing, never an index name or margin",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "day_count": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "ACT/365",
+                    "ACT/360",
+                    "30/360",
+                    null
+                  ]
+                },
                 "reference_rate": {
                   "type": [
                     "string",
@@ -1334,6 +1859,29 @@
                     "capitalised",
                     "retained",
                     "split"
+                  ]
+                },
+                "payment_allocation": {
+                  "description": "Explicit shares of the coupon, summing to 100. Never infer from a description of split interest or confuse with separate coupon rates.",
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cash_pay_pct": {
+                      "minimum": 0,
+                      "maximum": 100,
+                      "type": "number"
+                    },
+                    "capitalised_pct": {
+                      "minimum": 0,
+                      "maximum": 100,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "cash_pay_pct",
+                    "capitalised_pct"
                   ]
                 },
                 "default_margin": {
@@ -3302,6 +3850,35 @@
             "minLength": 1,
             "type": "string"
           },
+          "source_binding": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "enum": [
+                  "source-file-1"
+                ]
+              },
+              "deal_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "file_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "deal_id",
+              "file_id",
+              "sha256"
+            ]
+          },
           "file_name": {
             "type": [
               "string",
@@ -3353,6 +3930,19 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "execution_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "executed",
+              "draft",
+              "unsigned",
+              "unknown",
+              null
             ]
           },
           "supersedes_document_id": {
@@ -8313,6 +8903,14 @@
               "commercial",
               "parking",
               "storage",
+              "hotel_keys",
+              "student_beds",
+              "care_beds",
+              "serviced_accommodation",
+              "leisure",
+              "industrial",
+              "land",
+              "mixed",
               "other",
               null
             ]
@@ -12777,6 +13375,301 @@
           "evidence"
         ]
       }
+    },
+    "exit_sequence": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "exit-sequence-v1"
+          ]
+        },
+        "steps": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "order": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refinance",
+                  "sale",
+                  "disposal",
+                  "repayment"
+                ]
+              },
+              "subject_id": {
+                "minLength": 1,
+                "description": "Exact canonical deal entity ID.",
+                "type": "string"
+              },
+              "predecessor_step_id": {
+                "minLength": 1,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "trigger": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "date",
+                      "event",
+                      "condition"
+                    ]
+                  },
+                  "value": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "value"
+                ]
+              },
+              "expected_timing": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "contractual",
+                      "modelled",
+                      "assumed"
+                    ]
+                  }
+                },
+                "required": [
+                  "value",
+                  "basis"
+                ]
+              },
+              "source_assertion_ids": {
+                "type": "array",
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "source_evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file_id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "enum": [
+                        "investment_memorandum",
+                        "brochure",
+                        "teaser",
+                        "hotel_operator_pack",
+                        "developer_cv",
+                        "development_appraisal",
+                        "asset_liability_statement",
+                        "valuation_report",
+                        "monitoring_surveyor_report",
+                        "building_survey",
+                        "environmental_report",
+                        "titledocuments",
+                        "lease_tenancy_agreement",
+                        "planning_documents",
+                        "structure_chart",
+                        "financial_model",
+                        "rent_roll",
+                        "construction_contract_cost_plan",
+                        "agency_market_report",
+                        "comparable_evidence_schedule",
+                        "facility_agreement",
+                        "term_sheet",
+                        "intercreditor_agreement",
+                        "guarantee_agreement",
+                        "security_agreement",
+                        "acquisition_agreement",
+                        "jv_agreement",
+                        "offering_memorandum",
+                        "mandate",
+                        "other"
+                      ]
+                    },
+                    "pdf_page": {
+                      "minimum": 1,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sheet_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "table": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "row": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "column": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "quote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "span_start": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "span_end": {
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bbox": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "table_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cell_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "page_artifact_hash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "parser_version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evidence_role": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "direct",
+                        "supporting",
+                        "derived",
+                        null
+                      ]
+                    },
+                    "derived_from_assertion_ids": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "file_id",
+                    "document_type",
+                    "pdf_page",
+                    "sheet_name",
+                    "section",
+                    "table",
+                    "row",
+                    "column",
+                    "quote"
+                  ]
+                }
+              },
+              "assumption_refs": {
+                "type": "array",
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "order",
+              "kind",
+              "subject_id",
+              "predecessor_step_id",
+              "trigger",
+              "expected_timing",
+              "source_assertion_ids",
+              "assumption_refs"
+            ]
+          }
+        }
+      },
+      "required": [
+        "version",
+        "steps"
+      ]
     },
     "economic_rights": {
       "type": "array",

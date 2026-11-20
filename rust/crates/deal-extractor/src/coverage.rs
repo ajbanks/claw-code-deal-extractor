@@ -13,6 +13,63 @@ use serde_json::Value;
 use crate::corpus::Corpus;
 use crate::validate::{Issue, Severity};
 
+fn reconciled_non_residential_schedule(doc: &Value, corpus: &Corpus) -> bool {
+    let empty = doc.pointer("/details/residential_units/value").and_then(Value::as_array).is_some_and(|rows| rows.is_empty());
+    if !empty { return false; }
+    let primary = doc.pointer("/classification/asset_class_primary").and_then(Value::as_str).unwrap_or("");
+    let mut classes = primary.to_lowercase();
+    if let Some(secondary) = doc.pointer("/classification/asset_class_secondary").and_then(Value::as_str) { classes.push_str(&secondary.to_lowercase()); }
+    for class in doc.pointer("/classification/asset_classes").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str) { classes.push_str(&class.to_lowercase()); }
+    if classes.trim().is_empty() || RESI_CLASSES.iter().any(|c| classes.contains(c)) { return false; }
+    if doc.pointer("/classification/project_type/category").and_then(Value::as_str).is_some_and(|v| v.eq_ignore_ascii_case("development")) { return false; }
+    if let Some(assets) = doc.pointer("/canonical_deal/assets").and_then(Value::as_array).filter(|v| v.len() > 1) {
+        let occupied: std::collections::HashSet<&str> = ["/canonical_deal/demises", "/canonical_deal/units"].iter()
+            .flat_map(|path| doc.pointer(path).and_then(Value::as_array).into_iter().flatten())
+            .filter_map(|row| row.get("asset_id").and_then(Value::as_str)).collect();
+        if doc.pointer("/classification/transaction_structure/category").and_then(Value::as_str) != Some("single_asset")
+            || occupied.len() != 1 || !assets.iter().any(|a| a.get("id").and_then(Value::as_str).is_some_and(|id| occupied.contains(id))) { return false; }
+    }
+    let Some(total) = doc.pointer("/details/net_internal_area") else { return false; };
+    if total.get("source_type").and_then(Value::as_str) != Some("extracted") { return false; }
+    if total.get("scope").and_then(Value::as_str).is_some_and(|scope| !["asset", "deal", "project"].contains(&scope))
+        || total.pointer("/scope_ref/phase_id").is_some_and(|v| !v.is_null()) { return false; }
+    let source = total.get("source").and_then(Value::as_str).unwrap_or("");
+    let compact = |text: &str| text.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect::<String>();
+    let mut labels = std::collections::HashSet::new();
+    if corpus.pages.iter().filter(|p| p.doc_name == source).any(|p| !labels.insert(p.page_label.clone())) { return false; }
+    let located = |quote: &str| !source.is_empty() && quote.trim().len() > 5
+        && corpus.pages.iter().any(|p| p.doc_name == source && compact(&p.text).contains(&compact(quote)));
+    if !located(total.get("evidence_text").and_then(Value::as_str).unwrap_or("")) { return false; }
+    let Some(schedule) = doc.pointer("/details/commercial_units") else { return false; };
+    if schedule.get("source").and_then(Value::as_str) != Some(source)
+        || !located(schedule.get("evidence_text").and_then(Value::as_str).unwrap_or("")) { return false; }
+    let Some(rows) = schedule.get("value").and_then(Value::as_array).filter(|v| !v.is_empty()) else { return false; };
+    let number = |value: &Value| -> Option<f64> {
+        let value = value.get("value").unwrap_or(value);
+        value.as_f64().or_else(|| value.as_str().and_then(|s| {
+            let whole = s.split('.').next().unwrap_or("");
+            let groups: Vec<&str> = whole.split(',').collect();
+            let valid_groups = groups.len() == 1 || (!groups[0].is_empty() && groups[0].len() <= 3 && groups.iter().skip(1).all(|g| g.len() == 3));
+            (valid_groups && s.chars().all(|c| c.is_ascii_digit() || c == ',' || c == '.')).then(|| s.replace(',', "").parse::<f64>().ok()).flatten()
+        })).filter(|v| v.is_finite() && *v > 0.0)
+    };
+    let unit = |value: Option<&Value>| value.and_then(Value::as_str).unwrap_or("").to_lowercase().chars()
+        .filter(|c| !c.is_whitespace() && *c != '_' && *c != '.').collect::<String>();
+    let Some(total_cell) = total.get("value") else { return false; };
+    let Some(area) = number(total_cell) else { return false; };
+    let area_unit = unit(total_cell.get("unit"));
+    if !["sqft", "sqm"].contains(&area_unit.as_str()) { return false; }
+    let mut sum = 0.0;
+    for row in rows {
+        let use_name = row.get("use").or_else(|| row.get("unit_use")).or_else(|| row.get("unit_category")).and_then(Value::as_str).unwrap_or("").trim().to_lowercase();
+        if !["office", "retail", "shop", "commercial", "industrial", "warehouse", "logistics", "storage", "parking"].contains(&use_name.as_str()) { return false; }
+        let Some(cell) = row.get("unit_area").or_else(|| row.get("area")) else { return false; };
+        if unit(cell.get("unit").or_else(|| row.get("area_unit"))) != area_unit { return false; }
+        let Some(value) = number(cell) else { return false; }; sum += value;
+    }
+    (sum - area).abs() <= 1.0
+}
+
 /// High-value fields where an empty value plus corpus evidence should
 /// trigger a targeted fill.
 ///
@@ -197,6 +254,10 @@ const FIELD_SPECS: &[FieldSpec] = &[
         &["first legal charge", "legal charge", "debenture", "security package", "fixed charge", "charge over"],
         "the security package (type, ranking, secured asset)",
         &[], &[]),
+    conditional("canonical_deal.exit_sequence",
+        &["followed by", "fallback exit", "sale fallback", "refinance at practical completion", "refinanced at practical completion", "refinanced at completion", "primary exit and", "interim refinance", "unit sales", "sale of completed units", "subsequently sold"],
+        "the explicitly ordered primary/interim/fallback exit steps with source evidence anchors",
+        &[], &[]),
     // Finance-cost totals live on appraisals/term sheets only.
     conditional("details.finance_costs",
         &["finance cost", "rolled interest", "interest over the term", "total interest"],
@@ -253,6 +314,24 @@ pub fn coverage_issues(doc: &Value, corpus: &Corpus) -> Vec<Issue> {
         .unwrap_or("")
         .to_ascii_lowercase();
     for spec in FIELD_SPECS {
+        if spec.path == "details.residential_units" && reconciled_non_residential_schedule(doc, corpus) { continue; }
+        // An explicitly sourced empty subject schedule is a negative result,
+        // not permission to import residential rows from nearby schemes.
+        if spec.path == "details.residential_units"
+            && doc.pointer("/details/residential_units/value").and_then(Value::as_array).is_some_and(|rows| rows.is_empty())
+            && doc.pointer("/details/residential_units/source_type").and_then(Value::as_str) == Some("extracted")
+            && doc.pointer("/details/residential_units/evidence_text").and_then(Value::as_str).is_some_and(|text| !text.trim().is_empty())
+            && !asset_class.is_empty()
+            && !RESI_CLASSES.iter().any(|class| asset_class.contains(class))
+            && {
+                let source = doc.pointer("/details/residential_units/source").and_then(Value::as_str).unwrap_or("");
+                let quote = doc.pointer("/details/residential_units/evidence_text").and_then(Value::as_str).unwrap_or("");
+                let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+                !source.is_empty() && corpus.pages.iter().any(|page| page.doc_name == source && normalize(&page.text).contains(&normalize(quote)))
+            }
+        {
+            continue;
+        }
         if issues.len() >= MAX_ISSUES {
             break;
         }
@@ -401,6 +480,18 @@ mod tests {
         let paths: Vec<&str> = issues.iter().map(|i| i.path.as_str()).collect();
         assert!(paths.contains(&"details.residential_units"));
         assert!(paths.contains(&"details.gross_internal_area"));
+    }
+
+    #[test]
+    fn commercial_negative_schedule_requires_matching_subject_source() {
+        let quote = "The property comprises ground floor retail and separately accessed multi-let offices above.";
+        let doc = json!({"classification": {"asset_class_primary": "mixed_commercial"},
+            "details": {"residential_units": {"value": [], "source_type": "extracted", "source": "doc.pdf", "evidence_text": quote}}});
+        let c = corpus_with(&format!("{quote} Nearby residential apartments form part of a new scheme."));
+        assert!(!coverage_issues(&doc, &c).iter().any(|issue| issue.path == "details.residential_units"));
+        let mut unsupported = doc.clone();
+        unsupported["details"]["residential_units"]["source"] = json!("other.pdf");
+        assert!(coverage_issues(&unsupported, &c).iter().any(|issue| issue.path == "details.residential_units"));
     }
 
     #[test]
@@ -718,6 +809,23 @@ mod extra_tests {
         );
         assert!(merged.contains(&"canonical_deal.planning_applications[0]".to_string()));
     }
+    #[test]
+    fn complete_commercial_area_is_an_applicability_proof_not_a_keyword_veto() {
+        let mut doc = json!({"classification":{"asset_class_primary":"mixed","project_type":{"category":"acquisition"}},
+            "canonical_deal":{"assets":[{"id":"subject"}]},"details":{
+                "residential_units":{"value":[],"source_type":"unknown"},
+                "net_internal_area":{"value":{"value":1000,"unit":"sqft"},"source_type":"extracted","source":"doc.pdf","scope":"project","evidence_text":"Total 1,000 NIA"},
+                "commercial_units":{"source":"doc.pdf","evidence_text":"TENANCY SCHEDULE","value":[{"use":"Office","unit_area":{"value":400,"unit":"sqft"}},{"use":"Retail","unit_area":{"value":600,"unit":"sqft"}}]}}});
+        let corpus = Corpus::from_pages(vec![crate::documents::DocPage { doc_name: "doc.pdf".into(), page_label: "p1".into(), text: "TENANCY SCHEDULE\nTotal 1,000 NIA\nNearby residential apartments are in another scheme.".into() }]);
+        assert!(reconciled_non_residential_schedule(&doc, &corpus));
+        assert!(!coverage_issues(&doc, &corpus).iter().any(|i| i.path == "details.residential_units"));
+        doc["details"]["commercial_units"]["value"][1]["unit_area"]["value"] = json!(300);
+        assert!(!reconciled_non_residential_schedule(&doc, &corpus));
+        doc["details"]["commercial_units"]["value"][1]["unit_area"]["value"] = json!(600);
+        doc["details"]["commercial_units"]["value"][1]["use"] = json!("Residential");
+        assert!(!reconciled_non_residential_schedule(&doc, &corpus));
+    }
+
 
     #[test]
     fn dated_schedule_coverage_requires_cost_timing_and_not_generic_duration() {

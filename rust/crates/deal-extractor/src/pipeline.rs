@@ -7,6 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::conform;
+use crate::contract;
 use crate::corpus::Corpus;
 use crate::coverage;
 use crate::extract::Extractor;
@@ -480,6 +481,7 @@ pub async fn run_multi_pass(
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
+            "exit_sequence": canonical_exit_sequence(&pass_b),
             "assertions": array_field(Some(&pass_b), "assertions"),
             "conflicts": [],
             "validation_issues": [],
@@ -1310,7 +1312,10 @@ fn majority_classification(votes: &[Value], disagreements: &[String]) -> Option<
     if votes.len() < 2 {
         return None;
     }
-    if !disagreements.iter().all(|d| d.starts_with("classification.")) {
+    if !disagreements
+        .iter()
+        .all(|d| d.starts_with("classification."))
+    {
         return None;
     }
     let needed = votes.len() / 2 + 1;
@@ -1374,6 +1379,21 @@ fn pass_b_prompt(header_args: &PassBContext, section: &str, keys: &str) -> Strin
     prompt
 }
 
+fn pass_b_economics_prompt(context: &PassBContext<'_>) -> String {
+    let mut prompt = pass_b_prompt(
+        context,
+        prompts::PASS_B_ECONOMICS,
+        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"assertions\": [...], \"exit_sequence\": null | { \"version\": \"exit-sequence-v1\", \"steps\": [...] } }",
+    );
+    let schema = contract::profile_schema()
+        .pointer("/properties/canonical_deal/properties/exit_sequence")
+        .cloned()
+        .unwrap_or(Value::Null);
+    prompt.push_str("\n\nCANONICAL EXIT SEQUENCE JSON SCHEMA (follow this shape):\n");
+    prompt.push_str(&serde_json::to_string_pretty(&schema).unwrap_or_else(|_| "null".to_string()));
+    prompt
+}
+
 struct PassBContext<'a> {
     focus_summary: &'a str,
     classification_summary: &'a str,
@@ -1389,10 +1409,10 @@ fn details_value_empty(v: &Value) -> bool {
 }
 
 /// Pass B, split into three concurrent focused calls on one extractor:
-/// economics (valuations/phases/economics details/KPIs), income (tenancy
+/// economics (valuations/phases/economics details/KPIs/exit sequence), income (tenancy
 /// schedule, rents, yields, lease metrics) and parties (narrative +
 /// descriptive fields). The sub-pass results merge into one
-/// {"valuations","phases","details","kpis"} value; a failing sub-pass is
+/// {"valuations","phases","details","kpis","exit_sequence"} value; a failing sub-pass is
 /// recorded in the notes and the others still merge — only all three failing
 /// fails the pass. Returns the merged value plus retry/failure notes.
 async fn run_pass_b(
@@ -1408,11 +1428,7 @@ async fn run_pass_b(
         guidance,
     };
     let corpus_text = corpus.render();
-    let econ_prompt = pass_b_prompt(
-        &ctx,
-        prompts::PASS_B_ECONOMICS,
-        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"assertions\": [...] }",
-    );
+    let econ_prompt = pass_b_economics_prompt(&ctx);
     let income_prompt = pass_b_prompt(&ctx, prompts::PASS_B_INCOME, "{ \"details\": {...} }");
     let parties_prompt = pass_b_prompt(&ctx, prompts::PASS_B_PARTIES, "{ \"details\": {...} }");
 
@@ -1461,16 +1477,36 @@ async fn run_pass_b(
 /// becomes "other" — a wrong type is worse than an unclassified one.
 fn annotation_document_type(role: &str) -> String {
     const VALID: &[&str] = &[
-        "investment_memorandum", "brochure", "teaser", "hotel_operator_pack",
-        "developer_cv", "development_appraisal", "asset_liability_statement",
-        "valuation_report", "monitoring_surveyor_report", "building_survey",
-        "environmental_report", "titledocuments", "lease_tenancy_agreement",
-        "planning_documents", "structure_chart", "financial_model", "rent_roll",
-        "construction_contract_cost_plan", "agency_market_report",
-        "comparable_evidence_schedule", "facility_agreement", "term_sheet",
-        "intercreditor_agreement", "guarantee_agreement", "security_agreement",
-        "acquisition_agreement", "jv_agreement", "offering_memorandum",
-        "mandate", "other",
+        "investment_memorandum",
+        "brochure",
+        "teaser",
+        "hotel_operator_pack",
+        "developer_cv",
+        "development_appraisal",
+        "asset_liability_statement",
+        "valuation_report",
+        "monitoring_surveyor_report",
+        "building_survey",
+        "environmental_report",
+        "titledocuments",
+        "lease_tenancy_agreement",
+        "planning_documents",
+        "structure_chart",
+        "financial_model",
+        "rent_roll",
+        "construction_contract_cost_plan",
+        "agency_market_report",
+        "comparable_evidence_schedule",
+        "facility_agreement",
+        "term_sheet",
+        "intercreditor_agreement",
+        "guarantee_agreement",
+        "security_agreement",
+        "acquisition_agreement",
+        "jv_agreement",
+        "offering_memorandum",
+        "mandate",
+        "other",
     ];
     match role {
         "information_memorandum" | "im" | "investment_brochure" => {
@@ -1571,6 +1607,7 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
         "phases": array_field(econ, "phases"),
         "assertions": array_field(econ, "assertions"),
         "kpis": object_field(econ, "kpis"),
+        "exit_sequence": econ.and_then(|value| value.get("exit_sequence")).cloned().unwrap_or(Value::Null),
     });
     let mut details = serde_json::Map::new();
     let mut keys: Vec<String> = Vec::new();
@@ -1599,6 +1636,10 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
     merged
 }
 
+fn canonical_exit_sequence(pass_b: &Value) -> Value {
+    pass_b.get("exit_sequence").cloned().unwrap_or(Value::Null)
+}
+
 fn format_classification_summary(classification: &Value) -> String {
     let cp = classification
         .get("capital_position")
@@ -1621,8 +1662,23 @@ fn format_classification_summary(classification: &Value) -> String {
 
 fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
     let fid = focus_id.as_str().unwrap_or("none");
+    let facility_ids = facilities
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|facility| {
+            let id = facility.get("id")?.as_str()?;
+            let name = facility.get("name").and_then(Value::as_str).unwrap_or(id);
+            Some(format!("{id} ({name})"))
+        })
+        .collect::<Vec<_>>();
+    let ids_context = if facility_ids.is_empty() {
+        "Canonical facility IDs: none".to_string()
+    } else {
+        format!("Canonical facility IDs: {}", facility_ids.join(", "))
+    };
     if fid == "none" {
-        return "No focus facility resolved".into();
+        return format!("No focus facility resolved. {ids_context}");
     }
     let facility = facilities.as_array().and_then(|a| {
         a.iter()
@@ -1642,9 +1698,9 @@ fn format_focus_summary(focus_id: &Value, facilities: &Value) -> String {
                 .and_then(|v| v.as_str())
                 .unwrap_or("GBP");
             let role = f.get("role").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("{name} ({role}) — {ccy} {amt}")
+            format!("focus_facility_id={fid}: {name} ({role}) — {ccy} {amt}. {ids_context}")
         }
-        None => format!("focus_facility_id={fid} (not found in facilities)"),
+        None => format!("focus_facility_id={fid} (not found in facilities). {ids_context}"),
     }
 }
 
@@ -2012,6 +2068,97 @@ mod tests {
     }
 
     #[test]
+    fn pass_b_exit_sequence_fixture_is_detected_prompted_and_merged_with_exact_anchors() {
+        let corpus = corpus_with(
+            "The facility agreement provides that the bridge shall be refinanced at practical completion, followed by sale of completed units under the agreed sales program.",
+        );
+        let empty_document = json!({"canonical_deal": {"exit_sequence": null}});
+        let issues = coverage::coverage_issues(&empty_document, &corpus);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.path == "canonical_deal.exit_sequence"));
+        let unordered =
+            corpus_with("The borrower may refinance or sell the property as alternative exits.");
+        assert!(!coverage::coverage_issues(&empty_document, &unordered)
+            .iter()
+            .any(|issue| issue.path == "canonical_deal.exit_sequence"));
+        assert!(prompts::PASS_B_ECONOMICS.contains("ORDERED EXIT SEQUENCE"));
+        assert!(
+            prompts::PASS_B_ECONOMICS.contains("both `sheet_name` and exact nonempty `cell_ids`")
+        );
+        let focus_context = format_focus_summary(
+            &json!("bridge_facility"),
+            &json!([fac("bridge_facility", "1000000")]),
+        );
+        assert!(focus_context.contains("bridge_facility"));
+        let context = PassBContext {
+            focus_summary: &focus_context,
+            classification_summary: "debt / development",
+            guidance: "",
+        };
+        let prompt = pass_b_economics_prompt(&context);
+        assert!(prompt.contains("\"exit_sequence\": null |"));
+        assert!(prompt.contains("CANONICAL EXIT SEQUENCE JSON SCHEMA"));
+        assert!(prompt.contains("source_evidence"));
+
+        // Representative evidence-grounded response for this fixture narrative.
+        // The model prompt requires these exact typed fields and evidence anchors;
+        // merge_pass_b must carry them intact into the assembled canonical deal.
+        let generated = json!({
+          "phases": [{"id": "phase_1", "name": "Completed units", "sequence": 1, "status": "proposed", "unit_count": 2}],
+          "exit_sequence": {
+            "version": "exit-sequence-v1",
+            "steps": [
+                {"id": "refinance_at_pc", "order": 1, "kind": "refinance", "subject_id": "bridge_facility",
+                 "predecessor_step_id": null,
+                 "trigger": {"kind": "event", "value": "practical completion"},
+                 "expected_timing": {"value": "at practical completion", "basis": "contractual"},
+                 "source_assertion_ids": [], "assumption_refs": [],
+                 "source_evidence": [{"file_id": "pack.pdf", "pdf_page": 8, "quote": "The bridge facility will be refinanced at practical completion"}]},
+                {"id": "unit_sales", "order": 2, "kind": "sale", "subject_id": "phase_1",
+                 "predecessor_step_id": "refinance_at_pc",
+                 "trigger": {"kind": "event", "value": "completion"},
+                 "expected_timing": {"value": "following practical completion under the agreed sales program", "basis": "contractual"},
+                 "source_assertion_ids": [], "assumption_refs": [],
+                 "source_evidence": [{"file_id": "pack.pdf", "pdf_page": 8, "quote": "followed by sale of completed units under the agreed sales program"}]}
+            ]
+        }});
+        let merged = merge_pass_b(Some(&generated), None, None);
+        let canonical_sequence = canonical_exit_sequence(&merged);
+        assert_eq!(canonical_sequence["steps"].as_array().unwrap().len(), 2);
+        assert_eq!(canonical_sequence["steps"][0]["order"], 1);
+        assert_eq!(
+            canonical_sequence["steps"][1]["predecessor_step_id"],
+            "refinance_at_pc"
+        );
+        assert_eq!(
+            canonical_sequence["steps"][0]["source_evidence"][0]["pdf_page"],
+            8
+        );
+        assert_eq!(
+            canonical_sequence["steps"][1]["source_evidence"][0]["quote"],
+            "followed by sale of completed units under the agreed sales program"
+        );
+        let mut assembled = json!({
+            "canonical_deal": {
+                "facilities": [{"id": "bridge_facility"}],
+                "phases": merged["phases"],
+                "documents": [{"id": "pack.pdf", "file_id": "pack.pdf", "file_name": "pack.pdf"}],
+                "exit_sequence": canonical_sequence,
+            },
+        });
+        crate::conform::conform_document(&mut assembled);
+        let sequence_errors: Vec<_> = crate::validate::validate(&assembled)
+            .into_iter()
+            .filter(|issue| {
+                issue.severity == crate::validate::Severity::Error
+                    && issue.code.starts_with("exit_sequence_")
+            })
+            .collect();
+        assert!(sequence_errors.is_empty(), "{sequence_errors:?}");
+    }
+
+    #[test]
     fn adjudication_restores_evidenced_dropped_facility() {
         // Vote 2 found the £35.81m dev facility; the adjudicator dropped it.
         // Its commitment is stated in the pack → restore.
@@ -2230,9 +2377,21 @@ mod tests {
     #[test]
     fn document_records_build_canonical_records_from_annotations() {
         let corpus = Corpus::from_pages(vec![
-            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "1".into(), text: "x".into() },
-            crate::documents::DocPage { doc_name: "IM.pdf".into(), page_label: "2".into(), text: "y".into() },
-            crate::documents::DocPage { doc_name: "model.xlsx".into(), page_label: "Sheet1".into(), text: "z".into() },
+            crate::documents::DocPage {
+                doc_name: "IM.pdf".into(),
+                page_label: "1".into(),
+                text: "x".into(),
+            },
+            crate::documents::DocPage {
+                doc_name: "IM.pdf".into(),
+                page_label: "2".into(),
+                text: "y".into(),
+            },
+            crate::documents::DocPage {
+                doc_name: "model.xlsx".into(),
+                page_label: "Sheet1".into(),
+                text: "z".into(),
+            },
         ]);
         let anns = json!([
             { "name": "IM.pdf", "role": "information_memorandum" },
@@ -2463,7 +2622,10 @@ mod extra_tests {
         ];
         let merged = majority_classification(&votes, &disagreements).unwrap();
         assert_eq!(merged["classification"]["capital_position"], "debt");
-        assert_eq!(merged["classification"]["loan_type"]["category"], "development");
+        assert_eq!(
+            merged["classification"]["loan_type"]["category"],
+            "development"
+        );
     }
 
     #[test]

@@ -76,6 +76,13 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 ## CAPITAL SNAPSHOTS
 A project-level snapshot listing each facility's role: { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
+## ORDERED EXIT SEQUENCE
+Emit canonical_deal.exit_sequence only when source documents explicitly establish two or more ordered exit/repayment steps (for example, refinance at practical completion followed by unit sales, or a primary refinance with a stated sale fallback). Do not convert a single free-text exit_plan into an ordered sequence or infer order from generic deal convention.
+- version: "exit-sequence-v1".
+- Each step has a stable id, contiguous order starting at 1, exact subject_id copied from canonical_deal.assets/facilities/phases, predecessor_step_id (null for step 1; otherwise the preceding step id), kind, trigger and expected_timing.
+- Trigger kind is date, event or condition. Preserve the source trigger wording. Timing basis is contractual only for a stated contractual date/term, modelled only when a source model states it, and assumed only when a real assumption record already exists. Do not invent dates or durations.
+- source_evidence is required for every step and must cite the exact source span using { file_id: "<exact corpus filename>", pdf_page: <numeric page>, quote: "<verbatim source text>" } or, for spreadsheets, { file_id, sheet_name: "<exact sheet>", cell_ids: ["<exact cell reference>"], quote }. Never use a sheet-only locator. Never fabricate source_assertion_ids or assumption_refs: the TypeScript evidence bridge assigns assertion IDs after joining these anchors to the durable assertion journal. Emit source_assertion_ids: [] and assumption_refs: []. If assumed timing has no existing assumption record, omit the sequence rather than invent an ID.
+- The step subject and source span must support that step. Preserve primary, interim and fallback order as separate linked steps. If the source states alternatives without their order, omit the sequence and leave them in exit_plan prose.
 ## DATED CONSTRUCTION FUNDING (SOURCE-ONLY)
 - For a construction budget, emit `cashflow_schedule` only when the source gives dated cash-use amounts. Preserve each exact decimal amount as a string, source date and currency. `evidence` must point to the schedule/table and quote the text that identifies its scope and dates.
 - Set `schedule_coverage` to `exhaustive` only when the source explicitly identifies the schedule as complete for the stated budget and period. A partial extract, illustrative curve, missing periods, or unclear scope is `partial` or `unknown`; never extrapolate, interpolate, allocate a total evenly, or infer dates from construction duration.
@@ -142,6 +149,7 @@ pub const REPAIR_PROMPT: &str = r#"Your previous extraction violated one or more
 RULES:
 - Fix ONLY what is wrong. Keep everything that is already correct.
 - Do NOT sum unrelated facilities into loan_amount or gross_debt.
+- If validation says `debt_facility_missing`, repair the missing debt facility from the cited source pages. Keep an underlying loan commitment distinct from an investor's co-investment/subscription/participation amount, and distinct from total project cost or equity. Use the exact stated gross loan amount and quote its source; if the source names a facility but gives no amount, add the facility with a null commitment instead of inventing one.
 - Amounts are exact decimal strings in absolute units ("25750000"), never millions shorthand.
 - The focus facility is the NEW money being requested (disposition "requested"), not repaid/existing/proposed debt.
 - Return a JSON PATCH object, not the whole document:
@@ -195,6 +203,8 @@ Return JSON:
 - loan_type: { "category": "bridge" | "development" | "investment_term" } — bridge = short-term ≤12mo; development = construction financing; investment_term = stabilised asset
 - loan_rank: { "category": "senior" | "mezzanine" | "junior" | "whole_loan" } — "whole_loan" = one facility covering senior+mezzanine
 - operating_model: { "category": "income_property" | "development" | "trading" }
+
+For an equity acquisition with no focus debt facility, omit loan_type and loan_rank (or use null). A stabilised asset is not itself an investment-term loan.
 
 ## DOCUMENT ANNOTATIONS
 For each document: { "name": "<filename>", "role": "<role>" }
@@ -306,6 +316,11 @@ RULES:
 ## PHASES
 For each: { id, name, sequence, status, unit_count }.
 
+## ORDERED EXIT SEQUENCE
+Extract `exit_sequence` only when the source explicitly states at least two ordered exit or repayment steps (for example, refinance at practical completion followed by unit sales, or a stated primary exit followed by a fallback). A single exit-plan sentence or unordered alternatives are not enough.
+Return `exit_sequence` as null when the evidence does not establish an order. Otherwise return `{ "version": "exit-sequence-v1", "steps": [...] }`. Each step must include stable `id`, contiguous integer `order` starting at 1, `kind` (`refinance|sale|disposal|repayment`), exact `subject_id` from the canonical facility IDs in CONTEXT or a phase ID you emit in this response, `predecessor_step_id` (null for step 1; preceding step ID thereafter), `trigger` (`date|event|condition` plus source wording), and `expected_timing` (`value` plus `basis`: contractual only for a stated contractual term/date, modelled only when a source model states it, or assumed only with an existing assumption record).
+Every step requires `source_evidence` with exact `file_id` as the corpus filename, numeric `pdf_page` plus verbatim `quote`, OR both `sheet_name` and exact nonempty `cell_ids` plus quote for spreadsheets. Do not cite only a sheet name or only a page label. Emit `source_assertion_ids: []` and `assumption_refs: []`; the TypeScript bridge assigns assertion IDs after exact source matching. Never invent IDs, dates, ordering, or timing. If the sequence cannot be supported or anchored, return null.
+
 ## DETAILS
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):
 - deal_type: "debt" or "equity" — classify by what the pack requests, never by whether a commitment exists: a funding application with no stated loan is still "debt"
@@ -346,6 +361,8 @@ Set value to null for KPIs not stated or not computable from the documents."#;
 pub const PASS_B_INCOME: &str = r#"## DETAILS
 You MUST extract these fields (with value from the documents, NOT null unless truly absent):
 - commercial_units: FULL tenancy schedule when the documents contain one — for each let unit: unit_identifier, tenant_name, unit_area: { value, unit }, unit_passing_rent: { amount, currency }, unit_passing_rent_per_area_unit, unit_erv, unit_lease_start, unit_lease_expiry, unit_break_date (YYYY-MM-DD), unit_break_penalty { amount, currency }, unit_break_notice_months, unit_extension_approach, unit_lease_notes (rent-free, exclusivity, other stated per-unit terms), lease_type (e.g. FRI, IRI), epc_rating, rent_review_mechanism, rent_review_frequency, rent_review_next_due. Populate EVERY field the schedule states — tenant, rent and lease dates are the point of the schedule. For unlet/development units emit the unit with the fields that exist only.
+- unit_passing_rent must be a money object with a numeric amount and ISO currency, not a quoted string such as "£77,793". Preserve the original source literal in evidence.
+- A rent-review date and a break-option date are separate schedule columns. Do not copy a break date into the review field unless both columns expressly state it. The asset summary may use only the earliest expressly stated review date, with its unit attribution.
 - tenants: flat array of every distinct tenant name
 - key_tenant: { name, rent_percentage, credit_rating, track_record } — largest tenant by income share
 - passing_rent_per_annum, passing_rent_per_area_unit, net_initial_yield, equivalent_yield, reversionary_yield, stabilised_yield, estimated_rental_value — stated asset-level income and yield figures
@@ -355,7 +372,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - net_operating_income, ground_rent_per_annum, operating_costs — stated income/cost figures
 - Income totals are WHOLE-SCHEME: estimated_rental_value and net_operating_income cover every rental stream the schedule shows (residential + commercial + parking/ancillary). When the schedule states a count and a rate but no printed total, derive it (e.g. 208 spaces × £175/month × 12 = £436,800/yr) and note the derivation in notes. A stated opex % applies to the same whole-scheme gross.
 - epc_rating, tenure
-- year_built, last_refurbished"#;
+- year_built, last_refurbished — use a calendar year only when the source explicitly dates construction or completion. "Recently refurbished" or "just undergone refurbishment" does not establish a year; lease commencement dates are not works-completion dates. Retain the relative wording as evidence and leave the year null."#;
 
 /// Pass B sub-pass 3: parties, narrative and descriptive fields.
 /// Returns {"details": {...}} only.

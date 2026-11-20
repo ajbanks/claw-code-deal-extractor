@@ -42,6 +42,7 @@ const CD_ACTIVE_FIELDS: &[&str] = &[
     "parties",
     "security",
     "guarantees",
+    "exit_sequence",
     "assertions",
 ];
 
