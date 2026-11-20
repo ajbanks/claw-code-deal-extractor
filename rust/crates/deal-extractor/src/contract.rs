@@ -196,6 +196,13 @@ pub fn render_contract() -> String {
     out.push_str("canonical_deal fields (fill these; emit `conflicts`, `validation_issues`, `conflict_groups`, `relations`, `sections` as []):\n");
     if let Some(p) = cd.get("properties").and_then(|v| v.as_object()) {
         for key in CD_ACTIVE_FIELDS {
+            if *key == "assertions" {
+                // The full assertion schema is included in the JSON profile.
+                // Avoid dumping deeply nested evidence/scope fields into the
+                // textual prompt for every extraction pass.
+                out.push_str("  assertions: array — AtomicAssertion[]; include evidence, scope, and source identity\\n");
+                continue;
+            }
             if let Some(v) = p.get(*key) {
                 render_field(key, v, 1, &mut out);
             }
