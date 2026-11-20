@@ -284,10 +284,26 @@ pub async fn verify_extracted_numbers(
         Err(_) => return (checkable.len(), 0, flagged),
     };
 
+    // The verifier is not a general-purpose editor. Only paths explicitly
+    // flagged by deterministic checks may be changed by the model.
+    // Recheck the full document after applying corrections; the caller must
+    // not treat a model patch as independently verified source evidence.
+    let allowed: std::collections::BTreeSet<String> = mismatches
+        .iter()
+        .filter_map(|issue| {
+            let path = issue.split(" = ").next()?;
+            if let Some(rest) = path.strip_prefix("canonical_deal.facilities[") {
+                let idx = rest.split(']').next()?.parse::<usize>().ok()?;
+                return Some(format!("canonical_deal.facilities[{idx}].commitment"));
+            }
+            path.strip_prefix("details.")?;
+            Some(format!("{path}.value"))
+        })
+        .collect();
     let mut applied = 0usize;
     if let Some(fix_obj) = fixes.get("fixes").and_then(Value::as_object) {
         for (path, new_val) in fix_obj {
-            if apply_fix(document, path, new_val) {
+            if allowed.contains(path) && apply_fix(document, path, new_val) {
                 applied += 1;
             }
         }
@@ -298,9 +314,9 @@ pub async fn verify_extracted_numbers(
 /// Apply one correction patch at `path`, coercing the value to the target
 /// field's existing representation. Returns true if the patch was applied.
 fn apply_fix(document: &mut Value, path: &str, new_val: &Value) -> bool {
-    // Facility commitment fix: canonical_deal.facilities[N].commitment
+    // Facility commitment fix: accept only the exact amount path.
     if let Some(rest) = path.strip_prefix("canonical_deal.facilities[") {
-        let Some(idx_str) = rest.split(']').next() else {
+        let Some(idx_str) = rest.strip_suffix("].commitment") else {
             return false;
         };
         let Ok(idx) = idx_str.parse::<usize>() else {
@@ -334,12 +350,11 @@ fn apply_fix(document: &mut Value, path: &str, new_val: &Value) -> bool {
         }
         return false;
     }
-    // Detail field fix: details.<key>.value
+    // Detail field fix: only an exact value path is writable.
     let Some(key) = path
         .strip_prefix("details.")
         .and_then(|p| p.strip_suffix(".value"))
-        .map(str::to_string)
-        .or_else(|| path.strip_prefix("details.").map(str::to_string))
+        .filter(|key| !key.is_empty() && !key.contains('.'))
     else {
         return false;
     };
@@ -395,6 +410,21 @@ fn apply_fix(document: &mut Value, path: &str, new_val: &Value) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn patch_paths_cannot_target_unrelated_fields() {
+        let mut doc = json!({
+            "canonical_deal": {"facilities": [
+                {"commitment": {"amount": "25750000", "currency": "gbp"}}
+            ]},
+            "details": {"loan_amount": {"value": {"amount": 25750000.0}}}
+        });
+        assert!(!apply_fix(&mut doc, "canonical_deal.facilities[0].commitment.evil", &json!(100)));
+        assert!(!apply_fix(&mut doc, "details.loan_amount", &json!(100)));
+        assert!(!apply_fix(&mut doc, "details.loan_amount.notes", &json!(100)));
+        assert_eq!(doc["canonical_deal"]["facilities"][0]["commitment"]["amount"], "25750000");
+        assert_eq!(doc["details"]["loan_amount"]["value"]["amount"], 25750000.0);
+    }
 
     // ── figure_variants ──────────────────────────────────────────────
 
@@ -695,7 +725,7 @@ mod tests {
         });
         assert!(apply_fix(
             &mut doc,
-            "details.stabilised_yield",
+            "details.stabilised_yield.value",
             &json!("4.85")
         ));
         assert_eq!(doc["details"]["stabilised_yield"]["value"], json!(4.85));
