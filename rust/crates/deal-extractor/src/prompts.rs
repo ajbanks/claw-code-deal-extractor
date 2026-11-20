@@ -83,6 +83,12 @@ Emit canonical_deal.exit_sequence only when source documents explicitly establis
 - Trigger kind is date, event or condition. Preserve the source trigger wording. Timing basis is contractual only for a stated contractual date/term, modelled only when a source model states it, and assumed only when a real assumption record already exists. Do not invent dates or durations.
 - source_evidence is required for every step and must cite the exact source span using { file_id: "<exact corpus filename>", pdf_page: <numeric page>, quote: "<verbatim source text>" } or, for spreadsheets, { file_id, sheet_name: "<exact sheet>", cell_ids: ["<exact cell reference>"], quote }. Never use a sheet-only locator. Never fabricate source_assertion_ids or assumption_refs: the TypeScript evidence bridge assigns assertion IDs after joining these anchors to the durable assertion journal. Emit source_assertion_ids: [] and assumption_refs: []. If assumed timing has no existing assumption record, omit the sequence rather than invent an ID.
 - The step subject and source span must support that step. Preserve primary, interim and fallback order as separate linked steps. If the source states alternatives without their order, omit the sequence and leave them in exit_plan prose.
+## DATED CONSTRUCTION FUNDING (SOURCE-ONLY)
+- For a construction budget, emit `cashflow_schedule` only when the source gives dated cash-use amounts. Preserve each exact decimal amount as a string, source date and currency. `evidence` must point to the schedule/table and quote the text that identifies its scope and dates.
+- Set `schedule_coverage` to `exhaustive` only when the source explicitly identifies the schedule as complete for the stated budget and period. A partial extract, illustrative curve, missing periods, or unclear scope is `partial` or `unknown`; never extrapolate, interpolate, allocate a total evenly, or infer dates from construction duration.
+- `developer_equity_schedule` is only dated equity actually stated as committed/injected in the source. It is not the difference between costs and debt. Preserve exact dates, amounts, currencies and source locators. Use `exhaustive` only where the source explicitly establishes the whole equity timing schedule; otherwise use `partial`/`unknown` or null.
+- `funding_order` is the explicit order of funding sources only when a document states the priority (for example, equity-first, senior-first, or pro-rata). Use exact IDs of the corresponding `canonical_deal.facilities` entries and the literal `developer_equity` identifier when applicable. `funding_order_evidence` must cite the exact supporting source span. Never infer priority from market convention, facility ranking alone, or a balanced sources-and-uses table. If the order or complete source set is unclear, emit null and leave underwriting unresolved.
+- Do not emit assumed draws, equity, balancing sources, or a synthetic schedule. The TypeScript underwriting engine independently validates totals and evidence before using these records.
 
 ## PARTIES
 Every named entity with a stake in the deal: { id, name, entity_type (company | person | trust | partnership | fund | other), roles, address | null, jurisdiction | null, company_number | null, evidence_assertion_ids: [], evidence }.
@@ -246,6 +252,9 @@ Every repaid facility MUST have a fully_repaid or refinanced event.
 ## CAPITAL SNAPSHOTS
 { id, scope_level: "project", stage, as_of_date, positions: [{ facility_id, role }], evidence }.
 
+## DATED FUNDING FIELDS
+For `construction_budgets[].cashflow_schedule` and `developer_equity_schedule`, copy only dated amounts explicitly shown in source; amounts are exact decimal strings and every schedule needs source evidence. Mark coverage `exhaustive` only when the source explicitly says it is complete for the stated cost/equity scope and period; otherwise use `partial` or `unknown`. Never synthesize a curve or infer missing dates. Emit `funding_order` and `funding_order_evidence` only for an explicitly stated complete order of actual funding sources, using exact facility IDs plus `developer_equity` as applicable; never infer order from ranking or a balanced residual.
+
 ## PARTIES
 Every named entity with a stake in the deal:
 { "id": "<slug>", "name", "entity_type": "company" | "person", "roles": [], "jurisdiction", "company_number", "evidence": [{ "file_id", "quote" }] }
@@ -287,7 +296,10 @@ NOTE: These fields are computed deterministically — leave their value as null:
 /// Pass B sub-pass 1: valuations, phases, economics details, and KPIs.
 pub const TIE_FIX_PROMPT: &str = r#"These extracted figures do not reconcile with each other. For each failed check, read the documents and return corrected values ONLY for the listed fields where the extraction misread the source (wrong cell, gross vs net, phase vs full scheme). If the source itself states them inconsistently, change nothing. Scope mismatches ARE misreads: when a field mixes a single segment with the whole scheme (residential-only NOI vs rent including commercial/parking), correct it to the whole-scheme figure. Return {"fixes": {"details.<field>": <WithSource value>}}."#;
 
-pub const PASS_B_ECONOMICS: &str = r#"## SCOPE TAGGING
+pub const PASS_B_ECONOMICS: &str = r#"## SOURCE ASSERTIONS
+Alongside valuations, phases, details and KPIs, return `assertions` as an array of candidate AtomicAssertion records for material financial facts (loan request, existing commitment, outstanding balance, repayment, purchase price, valuation, costs). Use the canonical schema field names and required nullable keys. Set status="candidate", source_type="extracted" only for verbatim documented facts, and evidence[].quote to the exact document text. File identity must be the supplied document filename or an explicitly provided immutable file ID; do not invent IDs, pages or dates. If an assertion cannot be populated to the schema with a defensible source anchor, omit it. These are untrusted candidates until downstream validation and revision binding.
+
+## SCOPE TAGGING
 Every money field must carry `scope`: `deal` = the facility being underwritten; `project` = the whole scheme. details-level GDV, total_development_cost, total_investment_cost and construction_costs must be FULL-SCHEME figures. Phase-specific GDVs belong in canonical valuations with `phase_id`. If only a phase figure exists, still emit it but start `notes` with "Phase <n>:". A valuer's residual land value is `value_type: residual_value`; a 90-day value is `value_type: ninety_day_sale_value` with `sale_period_days: 90`; a 180-day value is `value_type: market_value` with `sale_period_days: 180`.
 
 ## VALUATIONS
@@ -315,7 +327,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
 - total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency + disposal/selling costs). Disposal fees (sales agent/legal on exit) ARE part of TDC even when the model's own subtotal excludes them — a line labelled "LTC (excl. Finance Costs)" can omit a separate DISPOSAL FEES section; cross-check TDC ≈ TOTAL COSTS − finance costs and prefer the model's TOTAL COSTS minus its FINANCE FEES section when they disagree.
-- total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. TIC is always ≥ TDC; if the document labels a figure "total geared costs" or "total costs including finance", it belongs here
+- total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. Do not assume TIC ≥ TDC without evidence that both amounts cover the same project perimeter, date, currency and that TIC explicitly includes all TDC components; if the document labels a figure "total geared costs" or "total costs including finance", it may belong here, subject to its stated scope
 - community_infrastructure_levy: { amount, currency } — CIL liability if stated (e.g. "CIL £426,678"); never fold CIL into planning_status text
 - sellable_area: { value: <number>, unit: "sqft" } — net sellable/saleable area (NSA) if the source states one; only when GIA/NIA are not stated
 - gross_development_value: { amount, currency } — full-scheme GDV

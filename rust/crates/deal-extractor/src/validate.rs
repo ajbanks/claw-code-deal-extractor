@@ -95,6 +95,7 @@ fn domain_issues(doc: &Value) -> Vec<Issue> {
     exit_sequence(cd, &mut out);
     focus_semantics(cd, &mut out);
     lifecycle(cd, &mut out);
+    dated_funding_contract(cd, &mut out);
     enums_and_formats(cd, &mut out);
     projection(doc, cd, &mut out);
     completeness(doc, cd, &mut out);
@@ -319,6 +320,198 @@ fn exit_sequence(cd: &Value, out: &mut Vec<Issue>) {
             ));
         }
     }
+}
+
+fn dated_funding_contract(cd: &Value, out: &mut Vec<Issue>) {
+    let validate_schedule = |schedule: &Value, path: &str, out: &mut Vec<Issue>| {
+        let coverage = schedule
+            .get("schedule_coverage")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let entries = schedule
+            .get("scheduled")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let evidence = schedule
+            .get("evidence")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        if coverage == "exhaustive" && entries.is_empty() {
+            out.push(Issue::error(
+                "dated_schedule_empty_exhaustive",
+                format!("{path}.scheduled"),
+                "An exhaustive dated schedule must contain at least one source-stated entry.",
+            ));
+        }
+        if !entries.is_empty() && evidence.is_empty() {
+            out.push(Issue::error(
+                "dated_schedule_evidence_missing",
+                format!("{path}.evidence"),
+                "Dated amounts require source locators; no dates or cash amounts may be inferred.",
+            ));
+        }
+        for (i, entry) in entries.iter().enumerate() {
+            let entry_path = format!("{path}.scheduled[{i}]");
+            let date = entry.get("date").and_then(Value::as_str).unwrap_or("");
+            if !valid_iso_date(date) {
+                out.push(Issue::error(
+                    "dated_schedule_date_invalid",
+                    format!("{entry_path}.date"),
+                    "Schedule dates must be valid ISO calendar dates (YYYY-MM-DD).",
+                ));
+            }
+            let amount = entry
+                .pointer("/amount/amount")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let currency = entry
+                .pointer("/amount/currency")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if !valid_nonnegative_decimal(amount)
+                || currency.len() != 3
+                || !currency.chars().all(|c| c.is_ascii_alphabetic())
+            {
+                out.push(Issue::error("dated_schedule_amount_invalid", format!("{entry_path}.amount"), "Schedule amount must be an exact non-negative decimal string with a three-letter currency; do not round or convert it."));
+            }
+        }
+        for (i, reference) in evidence.iter().enumerate() {
+            let evidence_path = format!("{path}.evidence[{i}]");
+            let quote = reference.get("quote").and_then(Value::as_str).unwrap_or("");
+            let page = reference
+                .get("pdf_page")
+                .and_then(Value::as_u64)
+                .is_some_and(|p| p > 0);
+            let sheet = reference
+                .get("sheet_name")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.trim().is_empty());
+            let cell = reference
+                .get("cell_ids")
+                .and_then(Value::as_array)
+                .is_some_and(|cells| !cells.is_empty());
+            let row_column = reference
+                .get("row")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.trim().is_empty())
+                && reference
+                    .get("column")
+                    .and_then(Value::as_str)
+                    .is_some_and(|s| !s.trim().is_empty());
+            if quote.trim().is_empty() || !(page || (sheet && (cell || row_column))) {
+                out.push(Issue::error("dated_schedule_evidence_locator_invalid", evidence_path, "Evidence must include a verbatim quote and exact PDF page or spreadsheet sheet/cell locator."));
+            }
+        }
+    };
+
+    if let Some(budgets) = cd.get("construction_budgets").and_then(Value::as_array) {
+        for (i, budget) in budgets.iter().enumerate() {
+            if let Some(schedule) = budget.get("cashflow_schedule").filter(|v| !v.is_null()) {
+                validate_schedule(
+                    schedule,
+                    &format!("canonical_deal.construction_budgets[{i}].cashflow_schedule"),
+                    out,
+                );
+            }
+        }
+    }
+    if let Some(schedule) = cd.get("developer_equity_schedule").filter(|v| !v.is_null()) {
+        validate_schedule(schedule, "canonical_deal.developer_equity_schedule", out);
+    }
+    if let Some(order) = cd.get("funding_order").and_then(Value::as_array) {
+        let ids = facility_ids(cd)
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut seen = std::collections::BTreeSet::new();
+        for (i, source) in order.iter().enumerate() {
+            let source = source.as_str().unwrap_or("");
+            if source.is_empty()
+                || !seen.insert(source)
+                || (source != "developer_equity" && !ids.contains(source))
+            {
+                out.push(Issue::error("funding_order_source_invalid", format!("canonical_deal.funding_order[{i}]"), "Funding order must use unique exact facility IDs or the literal developer_equity identifier."));
+            }
+        }
+        let refs = cd
+            .get("funding_order_evidence")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        if !order.is_empty() && refs.is_empty() {
+            out.push(Issue::error(
+                "funding_order_evidence_missing",
+                "canonical_deal.funding_order_evidence",
+                "An explicit funding order requires source evidence.",
+            ));
+        }
+        for (i, reference) in refs.iter().enumerate() {
+            let quote = reference.get("quote").and_then(Value::as_str).unwrap_or("");
+            let page = reference
+                .get("pdf_page")
+                .and_then(Value::as_u64)
+                .is_some_and(|p| p > 0);
+            let sheet_cell = reference
+                .get("sheet_name")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.trim().is_empty())
+                && (reference
+                    .get("cell_ids")
+                    .and_then(Value::as_array)
+                    .is_some_and(|v| !v.is_empty())
+                    || reference
+                        .get("row")
+                        .and_then(Value::as_str)
+                        .is_some_and(|s| !s.trim().is_empty()));
+            if quote.trim().is_empty() || !(page || sheet_cell) {
+                out.push(Issue::error("funding_order_evidence_locator_invalid", format!("canonical_deal.funding_order_evidence[{i}]"), "Funding priority evidence needs a verbatim quote and exact page or sheet/cell locator."));
+            }
+        }
+    }
+}
+
+fn valid_nonnegative_decimal(value: &str) -> bool {
+    let mut parts = value.split('.');
+    let whole = parts.next().unwrap_or("");
+    let fraction = parts.next();
+    !whole.is_empty()
+        && whole.chars().all(|c| c.is_ascii_digit())
+        && fraction.map_or(true, |f| {
+            !f.is_empty() && f.chars().all(|c| c.is_ascii_digit())
+        })
+        && parts.next().is_none()
+}
+
+fn valid_iso_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes[..4].iter().all(u8::is_ascii_digit)
+        || !bytes[5..7].iter().all(u8::is_ascii_digit)
+        || !bytes[8..].iter().all(u8::is_ascii_digit)
+    {
+        return false;
+    }
+    let (Ok(year), Ok(month), Ok(day)) = (
+        value[0..4].parse::<u32>(),
+        value[5..7].parse::<u32>(),
+        value[8..10].parse::<u32>(),
+    ) else {
+        return false;
+    };
+    if year == 0 || !(1..=12).contains(&month) {
+        return false;
+    }
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match month {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    (1..=days).contains(&day)
 }
 
 fn facilities(cd: &Value) -> &[Value] {
@@ -873,6 +1066,99 @@ mod tests {
             },
             "kpis": {"loan_to_value": {"value": 79.2}},
         })
+    }
+
+    fn dated_schedule() -> Value {
+        json!({
+            "schedule_coverage": "exhaustive",
+            "scheduled": [{"date":"2027-01-31", "amount":{"amount":"125000.00", "currency":"GBP"}}],
+            "evidence": [{"file_id":"model.xlsx", "document_type":"financial_model", "pdf_page":null,
+                "sheet_name":"Cash Flow", "section":null, "table":"Monthly costs", "row":"12", "column":"B",
+                "cell_ids":["B12"], "quote":"Complete construction cash flow: GBP 125000.00 on 31 January 2027."}],
+        })
+    }
+
+    #[test]
+    fn accepts_only_source_anchored_dated_funding_fields() {
+        let mut d = valid_doc();
+        d["canonical_deal"]["construction_budgets"] = json!([{
+            "id":"budget-1", "phase_id":null, "asset_id":null,
+            "total_development_cost":{"amount":"125000.00", "currency":"GBP"},
+            "total_investment_cost":null, "contingency":null, "profit":null, "profit_on_cost":null,
+            "lines":[], "evidence_assertion_ids":[], "evidence":[], "cashflow_schedule":dated_schedule()
+        }]);
+        d["canonical_deal"]["developer_equity_schedule"] = dated_schedule();
+        d["canonical_deal"]["funding_order"] = json!(["fac-1", "developer_equity"]);
+        d["canonical_deal"]["funding_order_evidence"] = dated_schedule()["evidence"].clone();
+        let issues = validate(&d);
+        let funding_schema_errors = issues
+            .iter()
+            .filter(|issue| {
+                issue.code == "schema_violation"
+                    && (issue.path.contains("cashflow_schedule")
+                        || issue.path.contains("developer_equity_schedule")
+                        || issue.path.contains("funding_order"))
+            })
+            .map(|issue| format!("{} {}: {}", issue.code, issue.path, issue.message))
+            .collect::<Vec<_>>();
+        assert!(
+            funding_schema_errors.is_empty(),
+            "unexpected funding schema errors: {funding_schema_errors:#?}"
+        );
+        let domain_errors = issues
+            .into_iter()
+            .filter(|issue| issue.code != "schema_violation")
+            .filter(|issue| issue.severity == Severity::Error)
+            .map(|issue| format!("{} {}: {}", issue.code, issue.path, issue.message))
+            .collect::<Vec<_>>();
+        assert!(
+            domain_errors.is_empty(),
+            "unexpected domain errors: {domain_errors:#?}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_schedule_dates_amounts_and_missing_evidence() {
+        let mut d = valid_doc();
+        let mut schedule = dated_schedule();
+        schedule["scheduled"][0]["date"] = json!("2027-02-30");
+        schedule["scheduled"][0]["amount"]["amount"] = json!(125000.0);
+        schedule["evidence"] = json!([]);
+        d["canonical_deal"]["developer_equity_schedule"] = schedule;
+        let issues = validate(&d);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "dated_schedule_date_invalid"));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "dated_schedule_amount_invalid"));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "dated_schedule_evidence_missing"));
+    }
+
+    #[test]
+    fn rejects_unknown_or_duplicate_funding_priority_ids() {
+        let mut d = valid_doc();
+        d["canonical_deal"]["funding_order"] = json!(["fac-1", "fac-1", "invented"]);
+        d["canonical_deal"]["funding_order_evidence"] = dated_schedule()["evidence"].clone();
+        let issues = validate(&d);
+        assert_eq!(
+            issues
+                .iter()
+                .filter(|issue| issue.code == "funding_order_source_invalid")
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn iso_schedule_date_validation_is_calendar_exact_and_non_panicking() {
+        assert!(valid_iso_date("2028-02-29"));
+        assert!(!valid_iso_date("2027-02-29"));
+        assert!(!valid_iso_date("2027-13-01"));
+        assert!(!valid_iso_date("2027-01-1x"));
+        assert!(!valid_iso_date("日023-01-01"));
     }
 
     #[test]

@@ -482,7 +482,7 @@ pub async fn run_multi_pass(
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
             "exit_sequence": canonical_exit_sequence(&pass_b),
-            "assertions": [],
+            "assertions": array_field(Some(&pass_b), "assertions"),
             "conflicts": [],
             "validation_issues": [],
             "deal_scope": null,
@@ -1383,7 +1383,7 @@ fn pass_b_economics_prompt(context: &PassBContext<'_>) -> String {
     let mut prompt = pass_b_prompt(
         context,
         prompts::PASS_B_ECONOMICS,
-        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"exit_sequence\": null | { \"version\": \"exit-sequence-v1\", \"steps\": [...] } }",
+        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"assertions\": [...], \"exit_sequence\": null | { \"version\": \"exit-sequence-v1\", \"steps\": [...] } }",
     );
     let schema = contract::profile_schema()
         .pointer("/properties/canonical_deal/properties/exit_sequence")
@@ -1605,6 +1605,7 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
     let mut merged = json!({
         "valuations": array_field(econ, "valuations"),
         "phases": array_field(econ, "phases"),
+        "assertions": array_field(econ, "assertions"),
         "kpis": object_field(econ, "kpis"),
         "exit_sequence": econ.and_then(|value| value.get("exit_sequence")).cloned().unwrap_or(Value::Null),
     });
