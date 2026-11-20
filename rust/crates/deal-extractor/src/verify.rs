@@ -725,7 +725,7 @@ mod tests {
         });
         assert!(apply_fix(
             &mut doc,
-            "details.stabilised_yield",
+            "details.stabilised_yield.value",
             &json!("4.85")
         ));
         assert_eq!(doc["details"]["stabilised_yield"]["value"], json!(4.85));
