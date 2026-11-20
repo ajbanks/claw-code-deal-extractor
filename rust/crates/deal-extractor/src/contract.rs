@@ -17,8 +17,8 @@ pub const DEBT_INSTRUMENT_TYPES: &[&str] =
     &["debt_facility", "revolving_credit", "convertible_loan"];
 
 /// Canonical-deal top-level fields the agent is asked to fill. The rest are
-/// TS-pipeline internals (assertions, conflicts, review workflow, phase-6
-/// legal entities) that the agent emits as empty arrays.
+/// TS-pipeline internals (conflicts, review workflow, phase-6 legal entities).
+/// Assertions are first-class source evidence and must not be forced empty.
 const CD_ACTIVE_FIELDS: &[&str] = &[
     "schema_version",
     "facilities",
@@ -39,6 +39,7 @@ const CD_ACTIVE_FIELDS: &[&str] = &[
     "parties",
     "security",
     "guarantees",
+    "assertions",
 ];
 
 /// Details fields that must carry a real value when evidence exists. The
@@ -92,7 +93,7 @@ pub fn profile_schema() -> Value {
             }
         }
         // The agent must still emit the required arrays it does not fill.
-        for key in ["assertions", "conflicts", "validation_issues"] {
+        for key in ["conflicts", "validation_issues"] {
             if let Some(v) = p.get(key) {
                 props.insert(key.to_string(), v.clone());
             }
@@ -192,7 +193,7 @@ pub fn render_contract() -> String {
         out.push_str(&format!("required: {}\n\n", names.join(", ")));
     }
 
-    out.push_str("canonical_deal fields (fill these; emit `assertions`, `conflicts`, `validation_issues`, `conflict_groups`, `relations`, `sections` as []):\n");
+    out.push_str("canonical_deal fields (fill these; emit `conflicts`, `validation_issues`, `conflict_groups`, `relations`, `sections` as []):\n");
     if let Some(p) = cd.get("properties").and_then(|v| v.as_object()) {
         for key in CD_ACTIVE_FIELDS {
             if let Some(v) = p.get(*key) {
@@ -200,6 +201,15 @@ pub fn render_contract() -> String {
             }
         }
     }
+
+    out.push_str(
+        "\\n## source assertions — emit one assertion per material document-stated financial fact.\\n\\
+         Every accepted assertion must carry its originating file_id, verbatim quote, page/section when known,\\n\\
+         subject candidate, attribute, value, and economic scope. Distinguish requested loan commitment,\\n\\
+         existing balance, redemption amount, future drawdown and valuation basis; never merge these figures.\\n\\
+         Use candidate status for uncertain interpretations, and do not fabricate missing source anchors.\\n\\
+         The downstream assertion ledger remains independently validated.\\n",
+    );
 
     out.push_str(
         "\n## details — every field is a sourced value object:\n\
@@ -255,7 +265,7 @@ mod tests {
         assert!(cd.contains_key("focus_facility_id"));
         assert!(cd.contains_key("phases"));
         assert!(cd.contains_key("valuations"));
-        // TS-internal fields the agent emits empty.
+        // Assertions must be in the active evidence extraction profile.
         assert!(cd.contains_key("assertions"));
         // Truly internal fields stay out of the profile.
         assert!(!cd.contains_key("conflict_groups"));
@@ -268,5 +278,7 @@ mod tests {
         assert!(c.contains("facilities"));
         assert!(c.contains("focus_facility_id"));
         assert!(c.contains("loan_amount"));
+        assert!(c.contains("source assertions"));
+        assert!(!c.contains("emit `assertions`"));
     }
 }
