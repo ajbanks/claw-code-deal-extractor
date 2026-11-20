@@ -343,6 +343,7 @@ pub async fn repair_loop(
                 // Mechanical conformance before scoring — don't let shape
                 // errors count for (or against) the model's repair.
                 crate::conform::conform_document(&mut next);
+                restore_dropped_structure(&candidate, &mut next);
                 let next_issues = validate::validate(&next);
                 let next_actionable = repairable_issues(&next_issues);
                 let next_errors = next_actionable.len();
@@ -367,12 +368,12 @@ pub async fn repair_loop(
     (candidate, issues, rounds_used)
 }
 
-/// Canonical arrays a full-document repair may never shrink — retained for
-/// the legacy full-doc path; patch-mode repair cannot drop data.
-#[allow(dead_code)]
+/// Canonical arrays a repair may never shrink, plus dated funding structures
+/// whose source rows and evidence must survive a partial corrective patch.
 const PRESERVED_ARRAYS: &[&str] = &[
     "facilities",
     "valuations",
+    "construction_budgets",
     "phases",
     "capital_events",
     "capital_snapshots",
@@ -381,9 +382,8 @@ const PRESERVED_ARRAYS: &[&str] = &[
     "security",
 ];
 
-/// Restore canonical arrays the repair shrank, a dropped focus id, and
-/// details keys that vanished. Returns the restored paths.
-#[allow(dead_code)]
+/// Restore canonical arrays the repair shrank, dated funding records, a
+/// dropped focus id, and details keys that vanished. Returns restored paths.
 pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<String> {
     let mut restored = Vec::new();
     let len = |v: Option<&Value>| v.and_then(Value::as_array).map_or(0, Vec::len);
@@ -395,6 +395,50 @@ pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<S
                 n_cd[*key] = p_cd[*key].clone();
                 restored.push(format!("canonical_deal.{key}"));
             }
+        }
+        if let (Some(previous_budgets), Some(next_budgets)) = (
+            p_cd.get("construction_budgets").and_then(Value::as_array),
+            n_cd.get_mut("construction_budgets")
+                .and_then(Value::as_array_mut),
+        ) {
+            for previous in previous_budgets {
+                let Some(id) = previous.get("id").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Some(current) = next_budgets
+                    .iter_mut()
+                    .find(|item| item.get("id").and_then(Value::as_str) == Some(id))
+                else {
+                    continue;
+                };
+                if schedule_was_shrunk(
+                    previous.get("cashflow_schedule"),
+                    current.get("cashflow_schedule"),
+                ) {
+                    current["cashflow_schedule"] = previous["cashflow_schedule"].clone();
+                    restored.push(format!(
+                        "canonical_deal.construction_budgets[{id}].cashflow_schedule"
+                    ));
+                }
+            }
+        }
+        if schedule_was_shrunk(
+            p_cd.get("developer_equity_schedule"),
+            n_cd.get("developer_equity_schedule"),
+        ) {
+            n_cd["developer_equity_schedule"] = p_cd["developer_equity_schedule"].clone();
+            restored.push("canonical_deal.developer_equity_schedule".into());
+        }
+        let previous_order = p_cd.get("funding_order").and_then(Value::as_array);
+        let next_order = n_cd.get("funding_order").and_then(Value::as_array);
+        if previous_order.is_some_and(|old| {
+            !old.is_empty() && next_order.map_or(true, |new| new.len() < old.len())
+        }) {
+            n_cd["funding_order"] = p_cd["funding_order"].clone();
+            if let Some(evidence) = p_cd.get("funding_order_evidence") {
+                n_cd["funding_order_evidence"] = evidence.clone();
+            }
+            restored.push("canonical_deal.funding_order".into());
         }
         let had_focus = p_cd.get("focus_facility_id").is_some_and(|v| !v.is_null());
         let lost_focus = n_cd.get("focus_facility_id").map_or(true, Value::is_null);
@@ -419,6 +463,33 @@ pub(crate) fn restore_dropped_structure(prev: &Value, next: &mut Value) -> Vec<S
         }
     }
     restored
+}
+
+fn schedule_was_shrunk(previous: Option<&Value>, current: Option<&Value>) -> bool {
+    let Some(previous) = previous.filter(|value| !value.is_null()) else {
+        return false;
+    };
+    let previous_entries = previous
+        .get("scheduled")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    let previous_evidence = previous
+        .get("evidence")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    current.map_or(true, |value| {
+        value.is_null()
+            || value
+                .get("scheduled")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len)
+                < previous_entries
+            || value
+                .get("evidence")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len)
+                < previous_evidence
+    })
 }
 
 #[cfg(test)]
@@ -460,5 +531,55 @@ mod restore_tests {
         let mut next = json!({"canonical_deal": {"facilities": [{"id": "a", "amount": "2"}]}, "details": {"x": 1}});
         assert!(restore_dropped_structure(&prev, &mut next).is_empty());
         assert_eq!(next["canonical_deal"]["facilities"][0]["amount"], "2");
+    }
+
+    #[test]
+    fn restores_shrunk_dated_funding_records_and_evidence() {
+        let schedule = json!({"schedule_coverage":"exhaustive", "scheduled":[
+            {"date":"2027-01-01", "amount":{"amount":"10.00", "currency":"GBP"}},
+            {"date":"2027-02-01", "amount":{"amount":"20.00", "currency":"GBP"}}],
+            "evidence":[{"file_id":"model.xlsx", "quote":"complete schedule"}]});
+        let prev = json!({"canonical_deal": {
+            "construction_budgets":[{"id":"b1", "cashflow_schedule":schedule}],
+            "developer_equity_schedule":schedule,
+            "funding_order":["facility-a", "developer_equity"],
+            "funding_order_evidence":[{"file_id":"model.xlsx", "quote":"equity first"}]
+        }});
+        let mut next = json!({"canonical_deal": {
+            "construction_budgets":[{"id":"b1", "cashflow_schedule":{"schedule_coverage":"partial", "scheduled":[], "evidence":[]}}],
+            "developer_equity_schedule":null,
+            "funding_order":["facility-a"],
+            "funding_order_evidence":[]
+        }});
+        let restored = restore_dropped_structure(&prev, &mut next);
+        assert_eq!(
+            next["canonical_deal"]["construction_budgets"][0]["cashflow_schedule"]["scheduled"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            next["canonical_deal"]["developer_equity_schedule"]["evidence"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            next["canonical_deal"]["funding_order"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            next["canonical_deal"]["funding_order_evidence"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(restored.len(), 3);
     }
 }
