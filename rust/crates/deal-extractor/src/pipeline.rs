@@ -480,7 +480,7 @@ pub async fn run_multi_pass(
             "focus_facility_id": focus_facility_id,
             "focus_resolution_status": focus_resolution_status,
             "candidate_facility_ids": candidate_facility_ids,
-            "assertions": [],
+            "assertions": array_field(Some(&pass_b), "assertions"),
             "conflicts": [],
             "validation_issues": [],
             "deal_scope": null,
@@ -1411,7 +1411,7 @@ async fn run_pass_b(
     let econ_prompt = pass_b_prompt(
         &ctx,
         prompts::PASS_B_ECONOMICS,
-        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...} }",
+        "{ \"valuations\": [...], \"phases\": [...], \"details\": {...}, \"kpis\": {...}, \"assertions\": [...] }",
     );
     let income_prompt = pass_b_prompt(&ctx, prompts::PASS_B_INCOME, "{ \"details\": {...} }");
     let parties_prompt = pass_b_prompt(&ctx, prompts::PASS_B_PARTIES, "{ \"details\": {...} }");
@@ -1569,6 +1569,7 @@ fn merge_pass_b(econ: Option<&Value>, income: Option<&Value>, parties: Option<&V
     let mut merged = json!({
         "valuations": array_field(econ, "valuations"),
         "phases": array_field(econ, "phases"),
+        "assertions": array_field(econ, "assertions"),
         "kpis": object_field(econ, "kpis"),
     });
     let mut details = serde_json::Map::new();
