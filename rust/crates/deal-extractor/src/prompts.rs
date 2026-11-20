@@ -286,7 +286,10 @@ NOTE: These fields are computed deterministically — leave their value as null:
 /// Pass B sub-pass 1: valuations, phases, economics details, and KPIs.
 pub const TIE_FIX_PROMPT: &str = r#"These extracted figures do not reconcile with each other. For each failed check, read the documents and return corrected values ONLY for the listed fields where the extraction misread the source (wrong cell, gross vs net, phase vs full scheme). If the source itself states them inconsistently, change nothing. Scope mismatches ARE misreads: when a field mixes a single segment with the whole scheme (residential-only NOI vs rent including commercial/parking), correct it to the whole-scheme figure. Return {"fixes": {"details.<field>": <WithSource value>}}."#;
 
-pub const PASS_B_ECONOMICS: &str = r#"## SCOPE TAGGING
+pub const PASS_B_ECONOMICS: &str = r#"## SOURCE ASSERTIONS
+Alongside valuations, phases, details and KPIs, return `assertions` as an array of candidate AtomicAssertion records for material financial facts (loan request, existing commitment, outstanding balance, repayment, purchase price, valuation, costs). Use the canonical schema field names and required nullable keys. Set status="candidate", source_type="extracted" only for verbatim documented facts, and evidence[].quote to the exact document text. File identity must be the supplied document filename or an explicitly provided immutable file ID; do not invent IDs, pages or dates. If an assertion cannot be populated to the schema with a defensible source anchor, omit it. These are untrusted candidates until downstream validation and revision binding.
+
+## SCOPE TAGGING
 Every money field must carry `scope`: `deal` = the facility being underwritten; `project` = the whole scheme. details-level GDV, total_development_cost, total_investment_cost and construction_costs must be FULL-SCHEME figures. Phase-specific GDVs belong in canonical valuations with `phase_id`. If only a phase figure exists, still emit it but start `notes` with "Phase <n>:". A valuer's residual land value is `value_type: residual_value`; a 90-day value is `value_type: ninety_day_sale_value` with `sale_period_days: 90`; a 180-day value is `value_type: market_value` with `sale_period_days: 180`.
 
 ## VALUATIONS
@@ -309,7 +312,7 @@ You MUST extract these fields (with value from the documents, NOT null unless tr
 - asset_class: the property type (residential, commercial, mixed, etc.)
 - construction_costs: { amount, currency } — total construction/build costs
 - total_development_cost: { amount, currency } — total development cost EXCLUDING finance costs (the ungeared basis: land + construction + fees + contingency + disposal/selling costs). Disposal fees (sales agent/legal on exit) ARE part of TDC even when the model's own subtotal excludes them — a line labelled "LTC (excl. Finance Costs)" can omit a separate DISPOSAL FEES section; cross-check TDC ≈ TOTAL COSTS − finance costs and prefer the model's TOTAL COSTS minus its FINANCE FEES section when they disagree.
-- total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. TIC is always ≥ TDC; if the document labels a figure "total geared costs" or "total costs including finance", it belongs here
+- total_investment_cost: { amount, currency } — total investment / geared cost INCLUDING finance costs, fees and rolled-up interest. Do not assume TIC ≥ TDC without evidence that both amounts cover the same project perimeter, date, currency and that TIC explicitly includes all TDC components; if the document labels a figure "total geared costs" or "total costs including finance", it may belong here, subject to its stated scope
 - community_infrastructure_levy: { amount, currency } — CIL liability if stated (e.g. "CIL £426,678"); never fold CIL into planning_status text
 - sellable_area: { value: <number>, unit: "sqft" } — net sellable/saleable area (NSA) if the source states one; only when GIA/NIA are not stated
 - gross_development_value: { amount, currency } — full-scheme GDV
